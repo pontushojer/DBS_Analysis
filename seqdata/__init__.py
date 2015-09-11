@@ -136,7 +136,7 @@ class ReadPair(object):
 
 	return [startPosition,endPosition,missmatches]
 
-    def matchHandles(self,):
+    def makeColoredOut(self,):
         
         outputSeq = ''
         if True:
@@ -364,8 +364,7 @@ class ReadPair(object):
             if not self.h3: self.construct += ' h3 '
             if not self.h2: self.construct += ' h2'
             if self.h1 and self.h3 and not self.h2 and self.direction == '1 -> 2' and len(self.r1Seq)<60: self.construct = ' h2-SemiOK'
-
-    
+ 
     def isIlluminaAdapter(self, ):
 	
 	import math

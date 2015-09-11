@@ -11,8 +11,10 @@ def main():
 
     results = Results()
     
-    try: outfile = open(sys.argv[3],'w')
-    except IndexError: sys.stderr.write('please supply an outfile and infiles on format:\nwfaChecker <r1> <r2> <out>\n');sys.exit()
+    try: fasta_outfile = open(sys.argv[3],'w')
+    except IndexError: sys.stderr.write('please supply an outfile and infiles on format:\nwfaChecker <r1> <r2> <fasta-out> <colored-out>\n');sys.exit()
+    try: colored_outfile = open(sys.argv[4],'w')
+    except IndexError: sys.stderr.write('please supply an outfile and infiles on format:\nwfaChecker <r1> <r2> <fasta-out> <colored-out>\n');sys.exit()
     
     poolOfProcesses = multiprocessing.Pool(multiprocessing.cpu_count(),maxtasksperchild=100000000)
     parallelResults = poolOfProcesses.imap_unordered(foreachRead,seqdata.readPairGenerator(sys.argv[1],sys.argv[2]),chunksize=1000)
@@ -27,26 +29,28 @@ def main():
     #for readpair in readPairGenerator(sys.argv[1],sys.argv[2]):
         #readpair = foreachRead(readpair)
         if readpair:
+            #foreachRead(readpair)
             readProcessedProgress.update()
             resultsProcessed+=1
-            #print readpair.outputSeq
-            #foreachRead(readpair)
-            #if resultsProcessed > 10000:break
             results.add(readpair)
-	    if readpair.dbs: print readpair.dbs, readpair.dbsmatch 
+	    #if readpair.dbs: print readpair.dbs, readpair.dbsmatch 
+            colored_outfile.write( readpair.outputSeq + '\n')
             #inserts.append([readpair.id,readpair.insert])
             if readpair.insert and len(readpair.insert) >= 50:
-                outfile.write( '>'+str(readpair.id)+'\n'+str(readpair.insert)+'\n')
+                fasta_outfile.write( '>'+str(readpair.id)+'\n'+str(readpair.insert)+'\n')
                 try: insertsSizes[len(readpair.insert)] += 1
                 except KeyError: insertsSizes[len(readpair.insert)] = 1
-    outfile.close()
+	else: print 'HERE',readpair
+    fasta_outfile.close()
+    colored_outfile.close()
     #print inserts
     
     results.printsummary()
 
 def foreachRead(readpair):
+    readpair.isIlluminaAdapter()
     readpair.identifyDirection()
-    readpair.matchHandles()
+    readpair.makeColoredOut()
     readpair.fixInsert()
     readpair.matchdbs()
     return readpair
