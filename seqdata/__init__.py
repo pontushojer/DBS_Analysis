@@ -290,14 +290,14 @@ class ReadPair(object):
         self.direction = None
         
         # look for h770 in read 1
-        self.h770 = self.matchSequence(self.r1Seq,sequences.H770,4)
+        self.h770 = self.matchSequence(self.r1Seq,sequences.H770,4,startOfRead=True)
         startPosition,endPosition,missmatches = self.h770
         if startPosition!=None and startPosition <= 2:
             self.direction = '1 -> 2'
         if startPosition==None: self.h770 = None
         
         # look for H4328 in read one
-        self.h4328 = self.matchSequence(self.r1Seq,sequences.H4328,4)
+        self.h4328 = self.matchSequence(self.r1Seq,sequences.H4328,4,startOfRead=True)
         startPosition,endPosition,missmatches = self.h4328
         if startPosition!=None and not self.direction and startPosition <= 2:
             self.direction = '2 -> 1'
@@ -305,7 +305,7 @@ class ReadPair(object):
 
         # look for H770 in read 2
         self.annotations['h770_in_both_ends'] = None
-        startPosition,endPosition,missmatches = self.matchSequence(self.r2Seq,sequences.H770,4)
+        startPosition,endPosition,missmatches = self.matchSequence(self.r2Seq,sequences.H770,4,startOfRead=True)
         if startPosition!=None and startPosition <= 2:
             if self.h770:
                 self.annotations['h770_in_both_ends'] = True
@@ -317,7 +317,7 @@ class ReadPair(object):
         
         # look for H4328 in read two
         self.annotations['h4328_in_both_ends'] = None
-        startPosition,endPosition,missmatches = self.matchSequence(self.r2Seq,sequences.H4328,4)
+        startPosition,endPosition,missmatches = self.matchSequence(self.r2Seq,sequences.H4328,4,startOfRead=True)
         if startPosition!=None and startPosition <= 2:
             if self.h4328:
                 self.annotations['h4328_in_both_ends'] = True
