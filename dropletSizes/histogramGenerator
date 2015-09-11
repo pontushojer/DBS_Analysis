@@ -1,0 +1,51 @@
+#! /usr/bin/env python
+
+import sys
+import numpy as np
+import matplotlib.pyplot as plt
+import operator
+import sys
+import os
+import time
+import re
+
+#
+# get sizes from standard-in
+#
+sizes = []
+for row in sys.stdin:
+	match = re.match('Found circle at coordinates (?P<coordinate>\d+\.\d+) of diameter (?P<pixelSize>\d+) pixels.\n',row)
+	if match: sizes.append(int(match.groupdict()['pixelSize']))
+	sys.stdout.write(row)
+
+# convert pixels to microns
+for i in range(len(sizes)): sizes[i] = sizes[i]*1.12352
+
+#
+# Make plot
+#
+fig, axes = plt.subplots(1, sharex=True)
+plots = []
+incrementer=0
+incrementer2=0
+incrementer3=0
+
+counter = {}
+total = 0
+for size in sizes:
+	try:counter[size] += 1
+	except KeyError: counter[size] = 1
+	total+=1
+
+y = [value for key, value in sorted(counter.iteritems(), key=operator.itemgetter(0))]
+x = sorted(counter.keys())
+
+plots.append(axes.plot(x, y,label='Sizes'))
+handles, labels = axes.get_legend_handles_labels()
+hl = sorted(zip(handles, labels), key=operator.itemgetter(1))
+handles2, labels2 = zip(*hl)
+axes.legend(handles2, labels2,loc=0,fontsize='small')
+axes.set_xlabel('size')
+axes.set_ylabel('Count')
+plt.savefig('sizes.pdf',dpi=300,bbox_inches='tight')
+plt.savefig('sizes.png',dpi=300,bbox_inches='tight')
