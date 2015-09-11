@@ -16,9 +16,9 @@ class ReadPair(object):
 	
         # handle flags and coordinates
         self.handleCoordinates = handleCoordinates
-        self.h770 = None
-        self.h1691= None
-        self.h4328= None
+        self.h1 = None
+        self.h2= None
+        self.h3= None
 
         # dbs flags and coordinates
         self.dbs = None
@@ -39,15 +39,15 @@ class ReadPair(object):
     def fixInsert(self,):
         
         if self.direction == '1 -> 2':
-            if self.h1691:
-                self.insert = self.r1Seq[self.h1691[1]:]
-                if 'readinto_h4328_coordinates' in self.annotations:
-                    self.insert = self.r1Seq[self.h1691[1]:self.annotations['readinto_h4328_coordinates'][0]]
+            if self.h2:
+                self.insert = self.r1Seq[self.h2[1]:]
+                if 'readinto_h3_coordinates' in self.annotations:
+                    self.insert = self.r1Seq[self.h2[1]:self.annotations['readinto_h3_coordinates'][0]]
         elif self.direction == '2 -> 1':
-            if self.h1691:
-                self.insert = self.r2Seq[self.h1691[1]:]
-                if 'readinto_h4328_coordinates' in self.annotations:
-                    self.insert = self.r2Seq[self.h1691[1]:self.annotations['readinto_h4328_coordinates'][0]]
+            if self.h2:
+                self.insert = self.r2Seq[self.h2[1]:]
+                if 'readinto_h3_coordinates' in self.annotations:
+                    self.insert = self.r2Seq[self.h2[1]:self.annotations['readinto_h3_coordinates'][0]]
 
         #if self.insert:
         #    self.insert=self.insert.replace('.','')
@@ -71,6 +71,8 @@ class ReadPair(object):
         return 0
 
     def matchdbs(self,):
+        
+        import sequences
 
         if self.dbsPrimaryCoordinates:
             self.dbs = self.dbsPrimaryCoordinates[0][self.dbsPrimaryCoordinates[1]:self.dbsPrimaryCoordinates[2]]
@@ -82,8 +84,7 @@ class ReadPair(object):
             if len(dbsSeq)!=1:dbsSeq = ''
             else: dbsSeq = dbsSeq[0]
 
-            dbs = 'BDHVBDHVBDHVBDHVBDHV'
-            dbsRegex = UIPAC2REGEXP(dbs)
+            dbsRegex = UIPAC2REGEXP(sequences.DBS)
             import re
             
             if dbsSeq:
@@ -176,99 +177,91 @@ class ReadPair(object):
 
             if self.direction == '1 -> 2':
                 
-                if self.h770:
-                    outputSeq += self.r1Seq[lastWritten:self.h770[0]]+'\033[34m'+self.r1Seq[self.h770[0]:self.h770[1]]+'\033[0m'
-                    lastWritten = self.h770[1]
+                if self.h1:
+                    outputSeq += self.r1Seq[lastWritten:self.h1[0]]+'\033[34m'+self.r1Seq[self.h1[0]:self.h1[1]]+'\033[0m'
+                    lastWritten = self.h1[1]
                 
-                if self.h1691:
-                    outputSeq += self.r1Seq[lastWritten:self.h1691[0]]+'\033[95m'+self.r1Seq[self.h1691[0]:self.h1691[1]]+'\033[0m'
-                    lastWritten = self.h1691[1]
+                if self.h2:
+                    outputSeq += self.r1Seq[lastWritten:self.h2[0]]+'\033[95m'+self.r1Seq[self.h2[0]:self.h2[1]]+'\033[0m'
+                    lastWritten = self.h2[1]
                     
                 outputSeq += self.r1Seq[lastWritten:]
                 
                 outputSeq += ' '
                 lastWritten = 0
-                if self.h4328:
-                    if  self.h4328 == True and self.annotations['readinto_h4328'] == True: outputSeq += '###### SOMETHING HERE #####'
+                if self.h3:
+                    if  self.h3 == True and self.annotations['readinto_h3'] == True: outputSeq += '###### SOMETHING HERE #####'
                     else:
-                        outputSeq += revcomp(self.r2Seq)[lastWritten:len(self.r2Seq)-self.h4328[1]]+'\033[93m'+revcomp(self.r2Seq)[len(self.r2Seq)-self.h4328[1]:len(self.r2Seq)-self.h4328[0]]+'\033[0m'
-                        lastWritten = len(self.r2Seq)-self.h4328[0]
-                    if self.annotations['h770_in_both_ends'] and not'readinto_h4328' in self.annotations:
+                        outputSeq += revcomp(self.r2Seq)[lastWritten:len(self.r2Seq)-self.h3[1]]+'\033[93m'+revcomp(self.r2Seq)[len(self.r2Seq)-self.h3[1]:len(self.r2Seq)-self.h3[0]]+'\033[0m'
+                        lastWritten = len(self.r2Seq)-self.h3[0]
+                    if self.annotations['h1_in_both_ends'] and not'readinto_h3' in self.annotations:
                         import sys
                         outputSeq += revcomp(self.r2Seq)[lastWritten:]
-                        print ' ########  wowowow! funky buissyness!',outputSeq,str(self.annotations['h770_r2_coordinates']),'  ##################'
+                        print ' ########  wowowow! funky buissyness!',outputSeq,str(self.annotations['h1_r2_coordinates']),'  ##################'
                         sys.exit()
                     
-                if self.annotations['h770_in_both_ends']:
+                if self.annotations['h1_in_both_ends']:
                     
-                    if self.annotations['h1691_r2_coordinates'][0]:
-                        outputSeq += revcomp(self.r2Seq)[lastWritten:len(self.r2Seq)-self.annotations['h1691_r2_coordinates'][1]]+'\033[95m'+revcomp(self.r2Seq)[len(self.r2Seq)-self.annotations['h1691_r2_coordinates'][1]:len(self.r2Seq)-self.annotations['h1691_r2_coordinates'][0]]+'\033[0m'
-                        lastWritten = len(self.r2Seq)-self.annotations['h1691_r2_coordinates'][0]
+                    if self.annotations['h2_r2_coordinates'][0]:
+                        outputSeq += revcomp(self.r2Seq)[lastWritten:len(self.r2Seq)-self.annotations['h2_r2_coordinates'][1]]+'\033[95m'+revcomp(self.r2Seq)[len(self.r2Seq)-self.annotations['h2_r2_coordinates'][1]:len(self.r2Seq)-self.annotations['h2_r2_coordinates'][0]]+'\033[0m'
+                        lastWritten = len(self.r2Seq)-self.annotations['h2_r2_coordinates'][0]
                     
-                    if self.annotations['h770_r2_coordinates'][0] == 0 or (self.annotations['h770_r2_coordinates'][0] != None and self.annotations['h770_r2_coordinates'][0] != False):
-                        outputSeq += revcomp(self.r2Seq)[lastWritten:len(self.r2Seq)-self.annotations['h770_r2_coordinates'][1]]+'\033[34m'+revcomp(self.r2Seq)[len(self.r2Seq)-self.annotations['h770_r2_coordinates'][1]:len(self.r2Seq)-self.annotations['h770_r2_coordinates'][0]]+'\033[0m'
-                        lastWritten = len(self.r2Seq)-self.annotations['h770_r2_coordinates'][0]
+                    if self.annotations['h1_r2_coordinates'][0] == 0 or (self.annotations['h1_r2_coordinates'][0] != None and self.annotations['h1_r2_coordinates'][0] != False):
+                        outputSeq += revcomp(self.r2Seq)[lastWritten:len(self.r2Seq)-self.annotations['h1_r2_coordinates'][1]]+'\033[34m'+revcomp(self.r2Seq)[len(self.r2Seq)-self.annotations['h1_r2_coordinates'][1]:len(self.r2Seq)-self.annotations['h1_r2_coordinates'][0]]+'\033[0m'
+                        lastWritten = len(self.r2Seq)-self.annotations['h1_r2_coordinates'][0]
                 outputSeq += revcomp(self.r2Seq)[lastWritten:]
                     
             elif self.direction == '2 -> 1':
                 
-                if self.h770:
+                if self.h1:
                     #outputSeq += 'HERE --'+self.r2Seq+' --\n'
-                    outputSeq += self.r2Seq[lastWritten:self.h770[0]]+'\033[34m'+self.r2Seq[self.h770[0]:self.h770[1]]+'\033[0m'
-                    lastWritten = self.h770[1]
+                    outputSeq += self.r2Seq[lastWritten:self.h1[0]]+'\033[34m'+self.r2Seq[self.h1[0]:self.h1[1]]+'\033[0m'
+                    lastWritten = self.h1[1]
                 
-                if self.h1691:
-                    outputSeq += self.r2Seq[lastWritten:self.h1691[0]]+'\033[95m'+self.r2Seq[self.h1691[0]:self.h1691[1]]+'\033[0m'
-                    lastWritten = self.h1691[1]
+                if self.h2:
+                    outputSeq += self.r2Seq[lastWritten:self.h2[0]]+'\033[95m'+self.r2Seq[self.h2[0]:self.h2[1]]+'\033[0m'
+                    lastWritten = self.h2[1]
                     
-                if self.annotations and 'readinto_h4328_coordinates' in self.annotations:
-                    outputSeq += self.r2Seq[lastWritten:self.annotations['readinto_h4328_coordinates'][0]]+'\033[93m'+self.r2Seq[self.annotations['readinto_h4328_coordinates'][0]:self.annotations['readinto_h4328_coordinates'][1]]+'\033[0m'
-                    lastWritten = self.annotations['readinto_h4328_coordinates'][1]
-                    #self.annotations['readinto_h4328_coordinates'] = [startPosition,endPosition,missmatches]
+                if self.annotations and 'readinto_h3_coordinates' in self.annotations:
+                    outputSeq += self.r2Seq[lastWritten:self.annotations['readinto_h3_coordinates'][0]]+'\033[93m'+self.r2Seq[self.annotations['readinto_h3_coordinates'][0]:self.annotations['readinto_h3_coordinates'][1]]+'\033[0m'
+                    lastWritten = self.annotations['readinto_h3_coordinates'][1]
+                    #self.annotations['readinto_h3_coordinates'] = [startPosition,endPosition,missmatches]
                 
-                if 'readinto_h4328_coordinates' not in self.annotations:
+                if 'readinto_h3_coordinates' not in self.annotations:
                     outputSeq += self.r2Seq[lastWritten:]
                 
                 outputSeq += ' '
                 lastWritten = 0
-                if self.h4328 and self.h4328 != True:
-                    outputSeq += revcomp(self.r1Seq)[lastWritten:len(self.r1Seq)-self.h4328[1]]+'\033[93m'+revcomp(self.r1Seq)[len(self.r1Seq)-self.h4328[1]:len(self.r1Seq)-self.h4328[0]]+'\033[0m'
-                    lastWritten = len(self.r1Seq)-self.h4328[0]
-                    #if self.annotations['h770_in_both_ends']:
+                if self.h3 and self.h3 != True:
+                    outputSeq += revcomp(self.r1Seq)[lastWritten:len(self.r1Seq)-self.h3[1]]+'\033[93m'+revcomp(self.r1Seq)[len(self.r1Seq)-self.h3[1]:len(self.r1Seq)-self.h3[0]]+'\033[0m'
+                    lastWritten = len(self.r1Seq)-self.h3[0]
+                    #if self.annotations['h1_in_both_ends']:
                     #    import sys
                     #    print 'wowowow!'
                     #    sys.exit()
                     
-                #if self.annotations['h770_in_both_ends']:
+                #if self.annotations['h1_in_both_ends']:
                 #    
-                #    if self.annotations['h1691_r2_coordinates'][0]:
-                #        outputSeq += revcomp(self.r2Seq)[lastWritten:len(self.r2Seq)-self.annotations['h1691_r2_coordinates'][1]]+'\033[95m'+revcomp(self.r2Seq)[len(self.r2Seq)-self.annotations['h1691_r2_coordinates'][1]:len(self.r2Seq)-self.annotations['h1691_r2_coordinates'][0]]+'\033[0m'
-                #        lastWritten = len(self.r2Seq)-self.annotations['h1691_r2_coordinates'][0]
+                #    if self.annotations['h2_r2_coordinates'][0]:
+                #        outputSeq += revcomp(self.r2Seq)[lastWritten:len(self.r2Seq)-self.annotations['h2_r2_coordinates'][1]]+'\033[95m'+revcomp(self.r2Seq)[len(self.r2Seq)-self.annotations['h2_r2_coordinates'][1]:len(self.r2Seq)-self.annotations['h2_r2_coordinates'][0]]+'\033[0m'
+                #        lastWritten = len(self.r2Seq)-self.annotations['h2_r2_coordinates'][0]
                 #    
-                #    if self.annotations['h770_r2_coordinates'][0] == 0 or (self.annotations['h770_r2_coordinates'][0] != None and self.annotations['h770_r2_coordinates'][0] != False):
-                #        outputSeq += revcomp(self.r2Seq)[lastWritten:len(self.r2Seq)-self.annotations['h770_r2_coordinates'][1]]+'\033[34m'+revcomp(self.r2Seq)[len(self.r2Seq)-self.annotations['h770_r2_coordinates'][1]:len(self.r2Seq)-self.annotations['h770_r2_coordinates'][0]]+'\033[0m'
-                #        lastWritten = len(self.r2Seq)-self.annotations['h770_r2_coordinates'][0]
+                #    if self.annotations['h1_r2_coordinates'][0] == 0 or (self.annotations['h1_r2_coordinates'][0] != None and self.annotations['h1_r2_coordinates'][0] != False):
+                #        outputSeq += revcomp(self.r2Seq)[lastWritten:len(self.r2Seq)-self.annotations['h1_r2_coordinates'][1]]+'\033[34m'+revcomp(self.r2Seq)[len(self.r2Seq)-self.annotations['h1_r2_coordinates'][1]:len(self.r2Seq)-self.annotations['h1_r2_coordinates'][0]]+'\033[0m'
+                #        lastWritten = len(self.r2Seq)-self.annotations['h1_r2_coordinates'][0]
                 outputSeq += revcomp(self.r1Seq)[lastWritten:]
                 
                 # 2->1 END
             self.fixInsert()
             #if self.insert: outputSeq+= '--'+self.insert+'--'
 
-            if self.h4328 and self.h770 and self.h1691:
+            if self.h3 and self.h1 and self.h2:
                 outputSeq += ' LOOK HERE!'
                 self.matchdbs()
                 if self.dbsmatch: outputSeq += ' Match!'
                 else: outputSeq += ' No match...'
             #outputSeq += '\n'
             
-            if self.h770 and self.h1691 and self.h4328:
-                self.construct = 'constructOK'
-            else: 
-                self.construct =''
-                if not self.h770: self.construct += ' h770 '
-                if not self.h4328: self.construct += ' h4328 '
-                if not self.h1691: self.construct += ' h1691'
-                if self.h770 and self.h4328 and not self.h1691 and self.direction == '1 -> 2' and len(self.r1Seq)<60: self.construct = ' h1691-SemiOK'
             #print self.construct
             
             #if self.dbsPrimaryCoordinates:
@@ -289,78 +282,89 @@ class ReadPair(object):
         # set direction to None (ie. not identified)
         self.direction = None
         
-        # look for h770 in read 1
-        self.h770 = self.matchSequence(self.r1Seq,sequences.H770,4,startOfRead=True)
-        startPosition,endPosition,missmatches = self.h770
+        # look for h1 in read 1
+        self.h1 = self.matchSequence(self.r1Seq,sequences.H1,4,startOfRead=True)
+        startPosition,endPosition,missmatches = self.h1
         if startPosition!=None and startPosition <= 2:
             self.direction = '1 -> 2'
-        if startPosition==None: self.h770 = None
+        if startPosition==None: self.h1 = None
         
-        # look for H4328 in read one
-        self.h4328 = self.matchSequence(self.r1Seq,sequences.H4328,4,startOfRead=True)
-        startPosition,endPosition,missmatches = self.h4328
+        # look for H3 in read one
+        self.h3 = self.matchSequence(self.r1Seq,sequences.H3,4,startOfRead=True)
+        startPosition,endPosition,missmatches = self.h3
         if startPosition!=None and not self.direction and startPosition <= 2:
             self.direction = '2 -> 1'
-        if startPosition==None: self.h4328 = None
+        if startPosition==None: self.h3 = None
 
-        # look for H770 in read 2
-        self.annotations['h770_in_both_ends'] = None
-        startPosition,endPosition,missmatches = self.matchSequence(self.r2Seq,sequences.H770,4,startOfRead=True)
+        # look for H1 in read 2
+        self.annotations['h1_in_both_ends'] = None
+        startPosition,endPosition,missmatches = self.matchSequence(self.r2Seq,sequences.H1,4,startOfRead=True)
         if startPosition!=None and startPosition <= 2:
-            if self.h770:
-                self.annotations['h770_in_both_ends'] = True
-                self.annotations['h770_r2_coordinates'] = [startPosition,endPosition,missmatches]
+            if self.h1:
+                self.annotations['h1_in_both_ends'] = True
+                self.annotations['h1_r2_coordinates'] = [startPosition,endPosition,missmatches]
             else:
                 self.direction = '2 -> 1'
-                self.h770 = [startPosition,endPosition,missmatches]
-                self.annotations['h770_r2_coordinates'] = self.h770
+                self.h1 = [startPosition,endPosition,missmatches]
+                self.annotations['h1_r2_coordinates'] = self.h1
         
-        # look for H4328 in read two
-        self.annotations['h4328_in_both_ends'] = None
-        startPosition,endPosition,missmatches = self.matchSequence(self.r2Seq,sequences.H4328,4,startOfRead=True)
+        # look for H3 in read two
+        self.annotations['h3_in_both_ends'] = None
+        startPosition,endPosition,missmatches = self.matchSequence(self.r2Seq,sequences.H3,4,startOfRead=True)
         if startPosition!=None and startPosition <= 2:
-            if self.h4328:
-                self.annotations['h4328_in_both_ends'] = True
-                self.annotations['h4328_r2_coordinates'] = [startPosition,endPosition,missmatches]
+            if self.h3:
+                self.annotations['h3_in_both_ends'] = True
+                self.annotations['h3_r2_coordinates'] = [startPosition,endPosition,missmatches]
             else:
-                self.annotations['h4328_in_both_ends'] = False
+                self.annotations['h3_in_both_ends'] = False
                 self.direction = '1 -> 2'
-                self.h4328 = [startPosition,endPosition,missmatches]
+                self.h3 = [startPosition,endPosition,missmatches]
         
-        # look for readinto h4328
+        # look for readinto h3
         checkSeq = None
         if self.direction == '1 -> 2': checkSeq = self.r1Seq
         elif self.direction == '2 -> 1': checkSeq = self.r2Seq
         if checkSeq:
-            startPosition,endPosition,missmatches = self.matchSequence(checkSeq,revcomp(sequences.H4328),4)
+            startPosition,endPosition,missmatches = self.matchSequence(checkSeq,revcomp(sequences.H3),4)
             if startPosition!=None:
-                self.annotations['readinto_h4328'] = True
-                self.annotations['readinto_h4328_coordinates'] = [startPosition,endPosition,missmatches]
-                if not self.h4328: self.h4328 = True
+                self.annotations['readinto_h3'] = True
+                self.annotations['readinto_h3_coordinates'] = [startPosition,endPosition,missmatches]
+                if not self.h3: self.h3 = True
 
-        if self.direction and not self.annotations['h4328_in_both_ends']:
+        if self.direction and not self.annotations['h3_in_both_ends']:
             
-            # find the h1691 handle and DBS sequence
+            # find the h2 handle and DBS sequence
             if self.direction == '1 -> 2':
-                self.h1691 = self.matchSequence(self.r1Seq,revcomp(sequences.H1691),4)
-                if not self.h1691[0]: self.h1691 = None
+                self.h2 = self.matchSequence(self.r1Seq,revcomp(sequences.H2),4)
+                if not self.h2[0]: self.h2 = None
                 
-                if self.h770 and self.h1691:
-                    self.dbsPrimaryCoordinates = [self.r1Seq,self.h770[1],self.h1691[0]]
+                if self.h1 and self.h2:
+                    self.dbsPrimaryCoordinates = [self.r1Seq,self.h1[1],self.h2[0]]
                 
-                if self.annotations['h770_in_both_ends']: # find secondary h1691
-                    self.annotations['h1691_r2_coordinates'] = self.matchSequence(self.r2Seq,revcomp(H1691),4)
-                    if self.annotations['h770_r2_coordinates'][0]==0 and self.annotations['h1691_r2_coordinates'][0] or (self.annotations['h770_r2_coordinates'][0] and self.annotations['h1691_r2_coordinates'][0]):
-                        self.annotations['secondary_dbs_coordinates'] = [self.r2Seq,self.annotations['h770_r2_coordinates'][1],self.annotations['h1691_r2_coordinates'][0]]
+                if self.annotations['h1_in_both_ends']: # find secondary h2
+                    self.annotations['h2_r2_coordinates'] = self.matchSequence(self.r2Seq,revcomp(H2),4)
+                    if self.annotations['h1_r2_coordinates'][0]==0 and self.annotations['h2_r2_coordinates'][0] or (self.annotations['h1_r2_coordinates'][0] and self.annotations['h2_r2_coordinates'][0]):
+                        self.annotations['secondary_dbs_coordinates'] = [self.r2Seq,self.annotations['h1_r2_coordinates'][1],self.annotations['h2_r2_coordinates'][0]]
 
             elif self.direction == '2 -> 1':
-                self.h1691 = self.matchSequence(self.r2Seq,revcomp(sequences.H1691),4)
-                if not self.h1691[0]: self.h1691 = None
+                self.h2 = self.matchSequence(self.r2Seq,revcomp(sequences.H2),4)
+                if not self.h2[0]: self.h2 = None
 
-                if self.h770 and self.h1691:
-                    self.dbsPrimaryCoordinates = [self.r2Seq,self.h770[1],self.h1691[0]]
+                if self.h1 and self.h2:
+                    self.dbsPrimaryCoordinates = [self.r2Seq,self.h1[1],self.h2[0]]
 
             else:pass
+    
+        #classify construct type
+        if self.h1 and self.h2 and self.h3:
+            self.construct = 'constructOK'
+        else: 
+            self.construct ='missing:'
+            if not self.h1: self.construct += ' h1 '
+            if not self.h3: self.construct += ' h3 '
+            if not self.h2: self.construct += ' h2'
+            if self.h1 and self.h3 and not self.h2 and self.direction == '1 -> 2' and len(self.r1Seq)<60: self.construct = ' h2-SemiOK'
+
     
     def isIlluminaAdapter(self, ):
 	
