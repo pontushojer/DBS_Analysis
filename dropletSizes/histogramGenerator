@@ -13,13 +13,17 @@ import re
 # get sizes from standard-in
 #
 sizes = []
+filename=None
 for row in sys.stdin:
+	match = re.match('Image sample: (?P<filename>.+)\n',row)
+	if match: filename=match.groupdict()['filename']
 	match = re.match('Found circle at coordinates (?P<coordinate>\d+\.\d+) of diameter (?P<pixelSize>\d+) pixels.\n',row)
 	if match: sizes.append(int(match.groupdict()['pixelSize']))
-	sys.stdout.write(row)
+	else:sys.stdout.write(row)
 
 # convert pixels to microns
-for i in range(len(sizes)): sizes[i] = sizes[i]*1.12352
+convertion_factor = 912/1000.88 #microm/pix previously 1.12352
+for i in range(len(sizes)): sizes[i] = sizes[i]*convertion_factor
 
 #
 # Make plot
@@ -47,5 +51,13 @@ handles2, labels2 = zip(*hl)
 axes.legend(handles2, labels2,loc=0,fontsize='small')
 axes.set_xlabel('size')
 axes.set_ylabel('Count')
-plt.savefig('sizes.pdf',dpi=300,bbox_inches='tight')
-plt.savefig('sizes.png',dpi=300,bbox_inches='tight')
+axes.text(int(round(max(x)*0.8,0)),int(round(max(y)*0.85,0)),'Average = '+str(round(np.average(sizes),2)))
+axes.text(int(round(max(x)*0.8,0)),int(round(max(y)*0.85-1*int(round(max(y)*0.05,0)),0)),'Median = '+str(round(np.median(sizes),2)))
+axes.text(int(round(max(x)*0.8,0)),int(round(max(y)*0.85-2*int(round(max(y)*0.05,0)),0)),'Standard deviation = '+str(round(np.std(sizes),2)))
+plt.savefig(filename+'_sizes.pdf',dpi=300,bbox_inches='tight')
+plt.savefig(filename+'_sizes.png',dpi=300,bbox_inches='tight')
+
+print '### py-script out:'
+print 'Average = '+str(round(np.average(sizes),2))
+print 'Median = '+str(round(np.median(sizes),2))
+print 'Standard deviation = '+str(round(np.std(sizes),2))
