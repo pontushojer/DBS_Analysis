@@ -38,36 +38,31 @@ class ReadPair(object):
 
     def fixInsert(self,):
         
+        self.insert = [None,None,None,None]
+        
         if self.direction == '1 -> 2':
             if self.h2:
-                self.insert = self.r1Seq[self.h2[1]:]
+                self.insert[0] = self.r1Seq[self.h2[1]:]
+                self.insert[2] = self.r1Qual[self.h2[1]:]
                 if self.readIntoh3Coordinates != None:
-                    self.insert = self.r1Seq[self.h2[1]:self.readIntoh3Coordinates[0]]
+                    self.insert[0] = self.r1Seq[self.h2[1]:self.readIntoh3Coordinates[0]]
+                    self.insert[2] = self.r1Qual[self.h2[1]:self.readIntoh3Coordinates[0]]
+            if self.h3:
+                self.insert[1] = self.r2Seq[self.h3[1]:]
+                self.insert[3] = self.r2Qual[self.h3[1]:]
+        
         elif self.direction == '2 -> 1':
             if self.h2:
-                self.insert = self.r2Seq[self.h2[1]:]
+                self.insert[0] = self.r2Seq[self.h2[1]:]
+                self.insert[2] = self.r2Qual[self.h2[1]:]
                 if self.readIntoh3Coordinates != None:
-                    self.insert = self.r2Seq[self.h2[1]:self.readIntoh3Coordinates[0]]
-
-        #if self.insert:
-        #    self.insert=self.insert.replace('.','')
-        #    self.insert = self.insert.split('  ')
-        #    if len(self.insert)>1:
-        #        if len(self.insert[0])>len(self.insert[1]):
-        #            longInsertPart = self.insert[0]
-        #            shortInsertPart = self.insert[1]
-        #        else:
-        #            longInsertPart = self.insert[1]
-        #            shortInsertPart = self.insert[0]
-        #            
-        #        self.insert = longInsertPart
-        #    else: self.insert = self.insert[0]
-
-                #start,end,missmatches = self.matchSequence(longInsertPart,shortInsertPart,int(round(len(shortInsertPart)*0.1))+2)
-                
-                #print longInsertPart[:start] + '-'+longInsertPart[start:end] + '-' + longInsertPart[end:]
-                
-            #print self.insert
+                    self.insert[0] = self.r2Seq[self.h2[1]:self.readIntoh3Coordinates[0]]
+                    self.insert[2] = self.r2Qual[self.h2[1]:self.readIntoh3Coordinates[0]]
+            if self.h3:
+                self.insert[1] = self.r1Seq[self.h3[1]:]
+                self.insert[3] = self.r1Qual[self.h3[1]:]
+        
+        if self.insert == [None,None,None,None]: self.insert = None
         return 0
 
     def matchdbs(self,):

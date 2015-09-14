@@ -11,10 +11,13 @@ def main():
 
     results = Results()
     
-    try: fasta_outfile = open(sys.argv[3],'w')
-    except IndexError: sys.stderr.write('please supply an outfile and infiles on format:\nwfaChecker <r1> <r2> <fasta-out> <colored-out>\n');sys.exit()
+    try:
+	fastq_outfile1 = open(sys.argv[3]+'_R1.fastq','w')
+	fastq_outfile2 = open(sys.argv[3]+'_R2.fastq','w')
+	fastq_outfile3 = open(sys.argv[3]+'_Singlets.fastq','w')
+    except IndexError: sys.stderr.write('please supply an outfile and infiles on format:\nwfaChecker <r1> <r2> <fastq-outbase> <colored-out>\n');sys.exit()
     try: colored_outfile = open(sys.argv[4],'w')
-    except IndexError: sys.stderr.write('please supply an outfile and infiles on format:\nwfaChecker <r1> <r2> <fasta-out> <colored-out>\n');sys.exit()
+    except IndexError: sys.stderr.write('please supply an outfile and infiles on format:\nwfaChecker <r1> <r2> <fastq-outbase> <colored-out>\n');sys.exit()
     
     poolOfProcesses = multiprocessing.Pool(multiprocessing.cpu_count(),maxtasksperchild=100000000)
     parallelResults = poolOfProcesses.imap_unordered(foreachRead,seqdata.readPairGenerator(sys.argv[1],sys.argv[2]),chunksize=1000)
@@ -36,12 +39,22 @@ def main():
 	    #if readpair.dbs: print readpair.dbs, readpair.dbsmatch 
             colored_outfile.write( readpair.outputSeq + '\n')
             #inserts.append([readpair.id,readpair.insert])
-            if readpair.insert and len(readpair.insert) >= 50:
-                fasta_outfile.write( '>'+str(readpair.id)+'\n'+str(readpair.insert)+'\n')
-                try: insertsSizes[len(readpair.insert)] += 1
-                except KeyError: insertsSizes[len(readpair.insert)] = 1
+            if readpair.insert:
+		if readpair.insert[0] and len(readpair.insert[0]) >= 50 and readpair.insert[1] and len(readpair.insert[1]) >= 50:
+		    fastq_outfile1.write( str(readpair.r1Header)+' '+str(readpair.dbs)+'\n'+str(readpair.insert[0])+'\n+\n'+str(readpair.insert[2])+'\n')
+		    fastq_outfile2.write( str(readpair.r2Header)+' '+str(readpair.dbs)+'\n'+str(readpair.insert[1])+'\n+\n'+str(readpair.insert[3])+'\n')
+		elif readpair.insert[0] and len(readpair.insert[0]) >= 50:
+		    fastq_outfile3.write( str(readpair.r1Header)+' '+str(readpair.dbs)+'\n'+str(readpair.insert[0])+'\n+\n'+str(readpair.insert[2])+'\n')
+		    try: insertsSizes[len(readpair.insert[0])] += 1
+		    except KeyError: insertsSizes[len(readpair.insert[0])] = 1
+		elif readpair.insert[1] and len(readpair.insert[1]) >= 50:
+		    fastq_outfile3.write( str(readpair.r2Header)+' '+str(readpair.dbs)+'\n'+str(readpair.insert[1])+'\n+\n'+str(readpair.insert[3])+'\n')
+		    try: insertsSizes[len(readpair.insert[1])] += 1
+		    except KeyError: insertsSizes[len(readpair.insert[1])] = 1
 	else: print 'HERE',readpair
-    fasta_outfile.close()
+    fastq_outfile1.close()
+    fastq_outfile2.close()
+    fastq_outfile3.close()
     colored_outfile.close()
     #print inserts
     
