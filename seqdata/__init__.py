@@ -47,7 +47,7 @@ class ReadPair(object):
                 if self.readIntoh3Coordinates != None:
                     self.insert[0] = self.r1Seq[self.h2[1]:self.readIntoh3Coordinates[0]]
                     self.insert[2] = self.r1Qual[self.h2[1]:self.readIntoh3Coordinates[0]]
-            if self.h3:
+            if self.h3 and self.h3 != True:
                 self.insert[1] = self.r2Seq[self.h3[1]:]
                 self.insert[3] = self.r2Qual[self.h3[1]:]
         
@@ -58,7 +58,7 @@ class ReadPair(object):
                 if self.readIntoh3Coordinates != None:
                     self.insert[0] = self.r2Seq[self.h2[1]:self.readIntoh3Coordinates[0]]
                     self.insert[2] = self.r2Qual[self.h2[1]:self.readIntoh3Coordinates[0]]
-            if self.h3:
+            if self.h3 and self.h3 != True:
                 self.insert[1] = self.r1Seq[self.h3[1]:]
                 self.insert[3] = self.r1Qual[self.h3[1]:]
         
