@@ -22,6 +22,7 @@ class ReadPair(object):
 
         # dbs flags and coordinates
         self.dbs = None
+	self.dbsQual = None
         self.dbsmatch = None
         self.dbsPrimaryCoordinates = None
 
@@ -71,6 +72,7 @@ class ReadPair(object):
 
         if self.dbsPrimaryCoordinates:
             self.dbs = self.dbsPrimaryCoordinates[0][self.dbsPrimaryCoordinates[1]:self.dbsPrimaryCoordinates[2]]
+	    self.dbsQual = self.dbsPrimaryCoordinates[3][self.dbsPrimaryCoordinates[1]:self.dbsPrimaryCoordinates[2]]
 
         if self.dbs:
 
@@ -83,7 +85,7 @@ class ReadPair(object):
             import re
             
             if dbsSeq:
-                match = re.match(dbsRegex,self.dbs)
+                match = re.match('^'+dbsRegex+'$',self.dbs)
                 if match:
                     self.dbsmatch = True
                     #print 'woohooo!',dbsSeq
@@ -327,6 +329,7 @@ class ReadPair(object):
                 self.readIntoh3Coordinates = [startPosition,endPosition,missmatches]
                 if not self.h3: self.h3 = True
 
+
         if self.direction and not self.h3_in_both_ends:
             
             # find the h2 handle and DBS sequence
@@ -335,7 +338,7 @@ class ReadPair(object):
                 if not self.h2[0]: self.h2 = None
                 
                 if self.h1 and self.h2:
-                    self.dbsPrimaryCoordinates = [self.r1Seq,self.h1[1],self.h2[0]]
+                    self.dbsPrimaryCoordinates = [self.r1Seq,self.h1[1],self.h2[0],self.r1Qual]
                 
                 if self.h1_in_both_ends: # find secondary h2
                     self.annotations['h2_r2_coordinates'] = self.matchSequence(self.r2Seq,revcomp(H2),4)
@@ -347,7 +350,7 @@ class ReadPair(object):
                 if not self.h2[0]: self.h2 = None
 
                 if self.h1 and self.h2:
-                    self.dbsPrimaryCoordinates = [self.r2Seq,self.h1[1],self.h2[0]]
+                    self.dbsPrimaryCoordinates = [self.r2Seq,self.h1[1],self.h2[0],self.r2Qual]
 
             else:pass
     
