@@ -100,6 +100,7 @@ class ReadPair(object):
                 match = re.match('^'+dbsRegex+'$',self.dbs)
                 if match:
                     self.dbsmatch = True
+		    self.handleCoordinates = [self.dbs,self.dbsQual]
                     #print 'woohooo!',dbsSeq
                 else:
                     self.dbsmatch = False
