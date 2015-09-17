@@ -72,7 +72,7 @@ class Progress():
 		self.percentage = int(round(100*float(self.current)/self.total))
 		if self.percentage % self.printint == 0 and self.percentage != self.lpercentage:
 			self.stf=int(round((self.total-self.current)/((self.current-self.lcurrent)/(time.time()-self.ltime))))
-			if self.type == 'full': self.logfile.write(
+			if self.type == 'full' and self.logfile: self.logfile.write(
 				'#Progress => '+str(self.percentage)+'%, '+
 				str( round((self.current-self.lcurrent)/(time.time()-self.ltime),2) )+' '+self.unit+'/second, '+
 				time.strftime("%A, %d %b %Y %H:%M:%S",time.localtime())+
@@ -87,6 +87,6 @@ class Progress():
 			self.lpercentage = self.percentage
 
 	def __exit__(self, *args):
-		self.logfile.write('\n')
+		if self.logfile: self.logfile.write('\n')
 
 
