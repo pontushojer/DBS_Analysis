@@ -17,8 +17,8 @@ class ReadPair(object):
         # handle flags and coordinates
         self.handleCoordinates = handleCoordinates
         self.h1 = None
-        self.h2= None
-        self.h3= None
+        self.h2 = None
+        self.h3 = None
 
         # dbs flags and coordinates
         self.dbs = None
@@ -27,7 +27,7 @@ class ReadPair(object):
         self.dbsPrimaryCoordinates = None
 
         # other flags and information
-	self.annotations= annotations
+	self.annotations = annotations
         self.overlap = None
         self.brokenSequence = ''
         self.construct = None
@@ -36,6 +36,18 @@ class ReadPair(object):
         #graphical representation
         self.outstring = str(self.id)+''.join([' ' for i in range(10-len(str(self.id)))]),
         self.__str__ = self.outstring
+
+    @property
+    def variableStr(self, ): return str([self.h1,self.h2,self.h3,self.dbsmatch,self.construct])
+
+    @property
+    def databaseTuple(self, ):
+	""" returning a tuple that is formated to be added to sql database"""
+	# data base has following info:
+	#       (id,          header,  sequence1, sequence2, quality1,quality2,handleCoordinates,clusterId,annotation,fromFastq)
+	
+	# Dumping the quality values
+	return  (self.id,     self.r1Header,self.r1Seq,self.r2Seq,self.r1Qual,self.r2Qual,   str(self.handleCoordinates),self.dbs,     str(self.annotations),self.fileOrigin)
 
     def fixInsert(self,):
         
