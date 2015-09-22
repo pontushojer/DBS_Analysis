@@ -28,7 +28,8 @@ def main():
     analysisfolder.logfile = logfile
     
     aligner = ReadPairAligner(analysisfolder)
-    aligner.run_bowtie2()
+    #returncode = aligner.run_bowtie2()
+    aligner.mappedPairToDb()
  
     logfile.write('clusterMapper FINISHED\n')
 
@@ -53,11 +54,13 @@ class ReadPairAligner(object):
 	if not self.analysisfolder.settings.bowtie2Reference:
 	    msg = '# ERROR # bowtie2Reference not present.\n'
 	    sys.stderr.write(msg)
-	    if self.analysisfolder.logfile: self.analysisfolder.logfile.write(msg);sys.exit()
+	    if self.analysisfolder.logfile: self.analysisfolder.logfile.write(msg);
+	    sys.exit()
 	if not self.analysisfolder.settings.picardPath:
 	    msg = '# ERROR # picardPath not present.\n'
 	    sys.stderr.write(msg)
-	    if self.analysisfolder.logfile: self.analysisfolder.logfile.write(msg);sys.exit()
+	    if self.analysisfolder.logfile: self.analysisfolder.logfile.write(msg);
+	    sys.exit()
 
 	#
 	# run bowtie and pipe to picard for format conversion
@@ -100,10 +103,56 @@ class ReadPairAligner(object):
 	    if picard.returncode != 0:
 		print '#\n# cmd: '+' '.join( command2 )+'\n#'
 		print 'picard view Error code', picard.returncode, errdata, open(picardLogfile.name).read()
+	    #return 'FAIL'
 	    sys.exit()
 	
-	return 0
+	return 'COMPLETE'
 	
-    # reads napping coordinates and cigar string to database
+    def mappedPairToDb(self,):
+	#
+	# imports
+	#
+	import subprocess
+        import time
+
+	#
+	# run samtools to get data
+	#
+	samtoolsLogfile = open(self.analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'samtoolsView.log.txt','w')
+	command = ['samtools','view',self.analysisfolder.dataPath+'/mappedInserts.bam']
+	samtools = subprocess.Popen(command,stdout=subprocess.PIPE,stderr=samtoolsLogfile )
+
+	#
+	# run
+	#
+	if self.analysisfolder.logfile: self.analysisfolder.logfile.write('Starting command: '+' '.join(command)+'\n')
+	while True:
+	    try:
+		line1 = samtools.stdout.next().rstrip().split('\t')
+		line2 = samtools.stdout.next().rstrip().split('\t')
+		[QNAME1,FLAG1,RNAME1,POS1,MAPQ1,CIGAR1,RNEXT1,PNEXT1,TLEN1,SEQ1,QUAL1] = line1[:11]
+		[QNAME2,FLAG2,RNAME2,POS2,MAPQ2,CIGAR2,RNEXT2,PNEXT2,TLEN2,SEQ2,QUAL2] = line2[:11]
+		TAGS1 = line1[11:]
+		TAGS2 = line2[11:]
+		if QNAME1 == QNAME2:
+		    print QNAME1
+		    print '    ',RNAME1, POS1
+		    print '    ',RNAME2, POS2
+		    print '    ',TLEN1, TLEN2
+	    except StopIteration: break # end of file
+
+	#
+	# check return codes
+	#
+	if (samtools.returncode != 0 and samtools.returncode != None):
+		print '#\n# cmd: '+' '.join( command1 )+'\n#'
+		print 'samtools view view Error code', samtools.returncode
+		print 'logfile content:\n'+open(samtoolsLogfile.name).read()
+		#return 'FAIL'
+		sys.exit()
+
+	return 'COMPLETE'
+    
+    # reads mapping coordinates and cigar string to database
 
 if __name__ == "__main__": main()
