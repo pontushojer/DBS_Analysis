@@ -187,7 +187,7 @@ class FastqReader(object):
 		self.analysisfolder.fastq_outfile3.write( str(pair.r1Header)+' '+str(pair.dbs)+'\n'+str(pair.insert[0])+'\n+\n'+str(pair.insert[2])+'\n')
 	    elif pair.insert[1] and len(pair.insert[1]) >= 50:
 		self.analysisfolder.fastq_outfile3.write( str(pair.r2Header)+' '+str(pair.dbs)+'\n'+str(pair.insert[1])+'\n+\n'+str(pair.insert[3])+'\n')
-	    else: print 'HERE',pair
+	    else: pass#print 'HERE',pair
 	
 	
 	self.progress.update()
