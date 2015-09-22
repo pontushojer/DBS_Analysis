@@ -390,13 +390,14 @@ class Settings(object,):
 	
         self.analysisfolder = analysisfolder
         import multiprocessing
+	import sequences
         
 	self.defaultValues = {
 	    'debug':False,
 	    'uppmaxProject':'b2014005',
 	    'parallelProcesses':multiprocessing.cpu_count(),
 	    'maxHandleMissMatches':0,
-#	    'barcodeLength':15,
+	    'barcodeLength':len(sequences.DBS),
 #	    'analysisParts':None,
 	    'barcodeMissmatch':0,
 #	    'readsPerUmiCutOff':5,
@@ -409,7 +410,7 @@ class Settings(object,):
 	    'debug':'Flag for running the scripts in multiprocessing or as single process run [True/False] (default=False)',
 	    'uppmaxProject':'Project id used at uppmax for sbatch scripts [bXXXXXXX] (default=b2014005)',
 	    'parallelProcesses':'Number of process to run when doing multiprocess parts of analysis (defaul=16)',
-#	    'barcodeLength':'The length of the bead barcode (default=15)',
+	    'barcodeLength':'The length of the bead barcode (default=15)',
 #	    'analysisParts':'Parts of the analysis to run specific for each run.',
 	    'barcodeMissmatch':'Number of missmatches allowed in the barcode sequence',
 	    'maxHandleMissMatches':'Number of missmatches allowed in the handle sequence',
@@ -425,7 +426,7 @@ class Settings(object,):
 	self.uppmaxProject = None
 	self.parallelProcesses = None
 	self.maxHandleMissMatches = None
-#	self.barcodeLength = None
+	self.barcodeLength = None
 #	self.analysisParts = None
 	self.barcodeMissmatch = None
 #	self.readsPerUmiCutOff = None
