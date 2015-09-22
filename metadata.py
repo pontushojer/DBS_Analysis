@@ -395,30 +395,28 @@ class Settings(object,):
 	    'debug':False,
 	    'uppmaxProject':'b2014005',
 	    'parallelProcesses':multiprocessing.cpu_count(),
-	    'mode':'RAC',
-	    'handleSequence':'CTAAGTCCATCCGCACTCCT',
 	    'maxHandleMissMatches':0,
-	    'barcodeLength':15,
-	    'analysisParts':None,
+#	    'barcodeLength':15,
+#	    'analysisParts':None,
 	    'barcodeMissmatch':0,
-	    'readsPerUmiCutOff':5,
-	    'umiMaxMisMatch':2,
-	    'readsPerClusterCutOff':100
+#	    'readsPerUmiCutOff':5,
+#	    'umiMaxMisMatch':2,
+	    'readsPerClusterCutOff':100,
+	    'bowtie2Reference':None
 
 	}
 	self.explenations = {
 	    'debug':'Flag for running the scripts in multiprocessing or as single process run [True/False] (default=False)',
 	    'uppmaxProject':'Project id used at uppmax for sbatch scripts [bXXXXXXX] (default=b2014005)',
 	    'parallelProcesses':'Number of process to run when doing multiprocess parts of analysis (defaul=16)',
-	    'mode':'Type of analysis either Whole Fragment Analysis (WFA) or rRNA Amplicon Classification (RAC) [WFA/RAC/iSeq] (default=RAC)',
-	    'handleSequence':'The sequence that sepperate the barcode from the "specific" read sequence (default=CTAAGTCCATCCGCACTCCT)',
-	    'barcodeLength':'The length of the bead barcode (default=15)',
-	    'analysisParts':'Parts of the analysis to run specific for each run.',
+#	    'barcodeLength':'The length of the bead barcode (default=15)',
+#	    'analysisParts':'Parts of the analysis to run specific for each run.',
 	    'barcodeMissmatch':'Number of missmatches allowed in the barcode sequence',
 	    'maxHandleMissMatches':'Number of missmatches allowed in the handle sequence',
-	    'readsPerUmiCutOff':'Number of reads supporting one UMI for it to passs filters',
-	    'umiMaxMisMatch':'Number of missmatches allowed in the UMI sequence',
-	    'readsPerClusterCutOff':'Number of reads supporting a barcode sequence cluster for it to passs filters'
+#	    'readsPerUmiCutOff':'Number of reads supporting one UMI for it to passs filters',
+#	    'umiMaxMisMatch':'Number of missmatches allowed in the UMI sequence',
+	    'readsPerClusterCutOff':'Number of reads supporting a barcode sequence cluster for it to passs filters',
+	    'bowtie2Reference':'path to the bowtie 2 reference index'
 	}
 	self.isDefault = {}
 	self.setTime = {}
@@ -426,15 +424,14 @@ class Settings(object,):
 	self.debug = None
 	self.uppmaxProject = None
 	self.parallelProcesses = None
-	self.mode = None
-	self.handleSequence = None
 	self.maxHandleMissMatches = None
-	self.barcodeLength = None
-	self.analysisParts = None
+#	self.barcodeLength = None
+#	self.analysisParts = None
 	self.barcodeMissmatch = None
-	self.readsPerUmiCutOff = None
-	self.umiMaxMisMatch = None
+#	self.readsPerUmiCutOff = None
+#	self.umiMaxMisMatch = None
 	self.readsPerClusterCutOff = None
+	self.bowtie2Reference = None
 	
 	self.setDefaults()
 
@@ -489,43 +486,43 @@ class Settings(object,):
 	#
 	# get connection
 	#
-	SEAseqPipeLine.database.getConnection()
+	self.analysisfolder.database.getConnection()
 	
         #
         # Look whats already in database, update it if older or default and set what is not
         #
-	SEAseqPipeLine.logfile.write('checking whats in db.\n')
+	self.analysisfolder.logfile.write('checking whats in db.\n')
         alreadyInDb = {}
-	data = SEAseqPipeLine.database.c.execute('SELECT variableName,defaultValue,value,setTime FROM settings').fetchall()
+	data = self.analysisfolder.database.c.execute('SELECT variableName,defaultValue,value,setTime FROM settings').fetchall()
         if data:
             for variableName,default,value,setTime in data:
-		SEAseqPipeLine.logfile.write('processing variable '+variableName+'')
+		self.analysisfolder.logfile.write('processing variable '+variableName+'')
 		alreadyInDb[variableName] = True
 		
 		if variableName in self.__dict__:
 		    if default and not self.isDefault[variableName] or setTime < self.setTime[variableName]:
 			if type(self.__dict__[variableName]) in [dict,list]: self.__dict__[variableName] = str(self.__dict__[variableName])
-			SEAseqPipeLine.logfile.write(', updating from '+str(value)+' to '+str(self.__dict__[variableName])+', old_setTime '+str(setTime)+' new_setTime '+str(self.setTime[variableName])+'.\n')
-			SEAseqPipeLine.database.c.execute('UPDATE settings SET defaultValue=?, value=?, setTime=? WHERE variableName=?', (self.isDefault[variableName],self.__dict__[variableName],self.setTime[variableName],variableName))
-		    else: SEAseqPipeLine.logfile.write(' no update needed.\n')
+			self.analysisfolder.logfile.write(', updating from '+str(value)+' to '+str(self.__dict__[variableName])+', old_setTime '+str(setTime)+' new_setTime '+str(self.setTime[variableName])+'.\n')
+			self.analysisfolder.database.c.execute('UPDATE settings SET defaultValue=?, value=?, setTime=? WHERE variableName=?', (self.isDefault[variableName],self.__dict__[variableName],self.setTime[variableName],variableName))
+		    else: self.analysisfolder.logfile.write(' no update needed.\n')
         
         #
         # Add new vars to database
         #
-	SEAseqPipeLine.logfile.write('adding new vars to db:\n')
+	self.analysisfolder.logfile.write('adding new vars to db:\n')
         for variableName in self.__dict__:
-	    if variableName in ['explenations','defaultValues','isDefault','setTime']:continue
+	    if variableName in ['explenations','defaultValues','isDefault','setTime','analysisfolder']:continue
 	    if variableName not in alreadyInDb:
 		if type(self.__dict__[variableName]) in [dict,list]: self.__dict__[variableName] = str(self.__dict__[variableName])
 		values = (variableName,self.isDefault[variableName],self.__dict__[variableName],self.setTime[variableName])
-		SEAseqPipeLine.database.c.execute('INSERT INTO settings VALUES (?,?,?,?)', values)
-		SEAseqPipeLine.logfile.write('variable '+variableName+' added to db with value '+str(self.__dict__[variableName])+',')
-		if self.isDefault[variableName]:SEAseqPipeLine.logfile.write(' this is the default value.\n')
-		else:SEAseqPipeLine.logfile.write(' non-default value.\n')
+		self.analysisfolder.database.c.execute('INSERT INTO settings VALUES (?,?,?,?)', values)
+		self.analysisfolder.logfile.write('variable '+variableName+' added to db with value '+str(self.__dict__[variableName])+',')
+		if self.isDefault[variableName]:self.analysisfolder.logfile.write(' this is the default value.\n')
+		else:self.analysisfolder.logfile.write(' non-default value.\n')
 	    else: pass#SEAseqPipeLine.logfile.write('variable\t'+variableName+'\talready in db.\n')
         
-	SEAseqPipeLine.logfile.write('commiting changes to database.\n')
-        SEAseqPipeLine.database.commitAndClose()
+	self.analysisfolder.logfile.write('commiting changes to database.\n')
+        self.analysisfolder.database.commitAndClose()
         
         return 0
 
