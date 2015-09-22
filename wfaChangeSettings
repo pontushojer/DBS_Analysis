@@ -18,7 +18,10 @@ def main():
     #
     # check analysis folder
     #
-    if not analysisfolder.checkIntegrity() == 'PASS': print analysisfolder.checkIntegrity()+'\nERROR: Now exiting'
+    if not analysisfolder.checkIntegrity() == 'PASS':
+	if analysisfolder.checkIntegrity() == 'FAIL: The folder does not exist.': analysisfolder.create()
+	else:
+	    print analysisfolder.checkIntegrity()+'\nERROR: Now exiting'
 
     #
     # create a logfile
