@@ -36,7 +36,6 @@ def main():
     
     logfile.write('barcodeClusterer FINISHED\n')
 
-
 class BarcodeClusterer(object):
     
     def __init__(self, analysisfolder):
@@ -410,6 +409,5 @@ class BarcodeClusterer(object):
 		if clusterId[0] == None: continue
 		try: yield int(clusterId[0])
 		except TypeError: yield clusterId[0]
-
 
 if __name__ == "__main__": main()
