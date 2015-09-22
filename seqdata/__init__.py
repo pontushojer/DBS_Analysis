@@ -61,7 +61,7 @@ class ReadPair(object):
 	# Dumping the quality and sequence values
 	#return  (self.id,     self.r1Header,self.r1Seq,self.r2Seq,self.r1Qual,self.r2Qual,   str(self.handleCoordinates),self.dbs,     str(self.annotations),self.fileOrigin)
 	#return  (self.id,     self.r1Header,None,None,None,None,   str(self.handleCoordinates),self.dbs,     str(self.annotations),self.fileOrigin)
-	return (self.id, self.header, self.r1Seq,self.r2Seq,self.r1Qual,self.r2Qual,self.direction,str(self.h1),str(self.h2),str(self.h3),self.construct,self.dbsmatch,self.dbsSeq,self.dbsQual,self.mappingFlagR1,self.refNameR1,self.refPosR1,self.mapQR1,self.cigarR1,self.mappingFlagR2,self.refNameR2,self.refPosR2,self.mapQR2,self.cigarR2,self.insertSize,self.clusterId,str(self.annotations),self.fileOrigin)
+	return (self.id, self.header, None,None,None,None,self.direction,str(self.h1),str(self.h2),str(self.h3),self.construct,self.dbsmatch,self.dbsSeq,self.dbsQual,self.mappingFlagR1,self.refNameR1,self.refPosR1,self.mapQR1,self.cigarR1,self.mappingFlagR2,self.refNameR2,self.refPosR2,self.mapQR2,self.cigarR2,self.insertSize,self.clusterId,str(self.annotations),self.fileOrigin)
 
     def fixInsert(self,):
         
