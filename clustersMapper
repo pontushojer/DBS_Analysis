@@ -78,8 +78,7 @@ class ReadPairAligner(object):
 		    '-jar',self.analysisfolder.settings.picardPath+'/SamFormatConverter.jar',
 		    'MAX_RECORDS_IN_RAM=2500000',
 		    'INPUT='+ '/dev/stdin',
-		    'OUTPUT='+self.analysisfolder.dataPath+'/mappedInserts.bam',
-		    'CREATE_INDEX=TRUE'
+		    'OUTPUT='+self.analysisfolder.dataPath+'/mappedInserts.bam'
 		    ]
 	picard = subprocess.Popen(command2,stdin=bowtie2.stdout,stdout=subprocess.PIPE,stderr=picardLogfile )
 	
