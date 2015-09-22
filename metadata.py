@@ -403,21 +403,23 @@ class Settings(object,):
 #	    'readsPerUmiCutOff':5,
 #	    'umiMaxMisMatch':2,
 	    'readsPerClusterCutOff':100,
-	    'bowtie2Reference':None
+	    'bowtie2Reference':None,
+	    'picardPath':None
 
 	}
 	self.explenations = {
 	    'debug':'Flag for running the scripts in multiprocessing or as single process run [True/False] (default=False)',
 	    'uppmaxProject':'Project id used at uppmax for sbatch scripts [bXXXXXXX] (default=b2014005)',
-	    'parallelProcesses':'Number of process to run when doing multiprocess parts of analysis (defaul=16)',
-	    'barcodeLength':'The length of the bead barcode (default=15)',
+	    'parallelProcesses':'Number of process to run when doing multiprocess parts of analysis (defaul=multiprocessing.cpu_count())',
+	    'barcodeLength':'The length of the bead barcode (default='+str(len(sequences.DBS))+')',
 #	    'analysisParts':'Parts of the analysis to run specific for each run.',
 	    'barcodeMissmatch':'Number of missmatches allowed in the barcode sequence',
 	    'maxHandleMissMatches':'Number of missmatches allowed in the handle sequence',
 #	    'readsPerUmiCutOff':'Number of reads supporting one UMI for it to passs filters',
 #	    'umiMaxMisMatch':'Number of missmatches allowed in the UMI sequence',
 	    'readsPerClusterCutOff':'Number of reads supporting a barcode sequence cluster for it to passs filters',
-	    'bowtie2Reference':'path to the bowtie 2 reference index'
+	    'bowtie2Reference':'path to the bowtie 2 reference index',
+	    'picardPath':'path to the picard installation to use'
 	}
 	self.isDefault = {}
 	self.setTime = {}
@@ -433,6 +435,7 @@ class Settings(object,):
 #	self.umiMaxMisMatch = None
 	self.readsPerClusterCutOff = None
 	self.bowtie2Reference = None
+	self.picardPath = None
 	
 	self.setDefaults()
 

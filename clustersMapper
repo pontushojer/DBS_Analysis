@@ -1,0 +1,109 @@
+#! /usr/bin/env python
+
+import sys
+
+def main(): 
+    #
+    # Imports
+    #
+    import metadata
+    import time
+    
+    #
+    # check input and get commandline args
+    #
+    try: analysisfolder = metadata.AnalysisFolder(sys.argv[1])
+    except IndexError: sys.stderr.write('please supply a commandline on format:\nclusterMapper <analysis-output-folder>\n');sys.exit()
+    
+    #
+    # check analysis folder
+    #
+    if not analysisfolder.checkIntegrity() == 'PASS': print analysisfolder.checkIntegrity()+'\nERROR: Now exiting'
+
+    #
+    # create a logfile
+    #
+    logfile = open(analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'_clusterMapper','w',1)
+    logfile.write('cmd: '+' '.join(sys.argv)+'\n')
+    analysisfolder.logfile = logfile
+    
+    aligner = ReadPairAligner(analysisfolder)
+    aligner.run_bowtie2()
+ 
+    logfile.write('clusterMapper FINISHED\n')
+
+class ReadPairAligner(object):
+    
+    def __init__(self,analysisfolder):
+	self.analysisfolder = analysisfolder
+
+    def run_bowtie2(self,):
+	
+	#
+	# imports
+	#
+	import subprocess
+        import time
+
+	bowtie2Logfile = open(self.analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'_bowtie2.log.txt','w')
+	
+	#
+	# check that the variables are set
+	#
+	if not self.analysisfolder.settings.bowtie2Reference:
+	    msg = '# ERROR # bowtie2Reference not present.\n'
+	    sys.stderr.write(msg)
+	    if self.analysisfolder.logfile: self.analysisfolder.logfile.write(msg);sys.exit()
+	if not self.analysisfolder.settings.picardPath:
+	    msg = '# ERROR # picardPath not present.\n'
+	    sys.stderr.write(msg)
+	    if self.analysisfolder.logfile: self.analysisfolder.logfile.write(msg);sys.exit()
+
+	#
+	# run bowtie and pipe to picard for format conversion
+	#
+	command1 = ['bowtie2',
+		    '-1',self.analysisfolder.dataPath+'/inserts.r1.fastq',
+		    '-2',self.analysisfolder.dataPath+'/inserts.r2.fastq',
+		    #'-U',self.analysisfolder.dataPath+'/inserts.singlets.fastq',
+		    '-x',self.analysisfolder.settings.bowtie2Reference,
+		    '--maxins','2000',
+		    '-p',str(self.analysisfolder.settings.parallelProcesses)      # threads
+		    ]
+	if self.analysisfolder.logfile: self.analysisfolder.logfile.write('Starting command: '+' '.join(command1)+'\n')
+	bowtie2 = subprocess.Popen(command1,stdout=subprocess.PIPE,stderr=bowtie2Logfile )
+
+	picardLogfile = open(self.analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'picardSamFormatConverter.log.txt','w')
+	command2 = ['java',
+		    '-Xmx5g',
+		    '-jar',self.analysisfolder.settings.picardPath+'/SamFormatConverter.jar',
+		    'MAX_RECORDS_IN_RAM=2500000',
+		    'INPUT='+ '/dev/stdin',
+		    'OUTPUT='+self.analysisfolder.dataPath+'/mappedInserts.bam'
+		    ]
+	picard = subprocess.Popen(command2,stdin=bowtie2.stdout,stdout=subprocess.PIPE,stderr=picardLogfile )
+	if self.analysisfolder.logfile: self.analysisfolder.logfile.write('Starting command: '+' '.join(command2)+'\n')
+	
+	#
+	# run
+	#
+	errdata1 = bowtie2.communicate()
+	errdata2 = picard.communicate()
+	
+	#
+	# check return codes
+	#
+	if bowtie2.returncode != 0 or picard.returncode != 0:
+	    if bowtie2.returncode != 0:
+		print '#\n# cmd: '+' '.join( command1 )+'\n#'
+		print 'bowtie2 view Error code', bowtie2.returncode, errdata1, open(bowtie2Logfile.name).read()
+	    if picard.returncode != 0:
+		print '#\n# cmd: '+' '.join( command2 )+'\n#'
+		print 'picard view Error code', picard.returncode, errdata2, open(picardLogfile.name).read()
+	    sys.exit()
+	
+	return 0
+	
+    # reads napping coordinates and cigar string to database
+
+if __name__ == "__main__": main()
