@@ -70,7 +70,6 @@ class ReadPairAligner(object):
 		    '--maxins','2000',
 		    '-p',str(self.analysisfolder.settings.parallelProcesses)      # threads
 		    ]
-	if self.analysisfolder.logfile: self.analysisfolder.logfile.write('Starting command: '+' '.join(command1)+'\n')
 	bowtie2 = subprocess.Popen(command1,stdout=subprocess.PIPE,stderr=bowtie2Logfile )
 
 	picardLogfile = open(self.analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'picardSamFormatConverter.log.txt','w')
@@ -79,27 +78,29 @@ class ReadPairAligner(object):
 		    '-jar',self.analysisfolder.settings.picardPath+'/SamFormatConverter.jar',
 		    'MAX_RECORDS_IN_RAM=2500000',
 		    'INPUT='+ '/dev/stdin',
-		    'OUTPUT='+self.analysisfolder.dataPath+'/mappedInserts.bam'
+		    'OUTPUT='+self.analysisfolder.dataPath+'/mappedInserts.bam',
+		    'CREATE_INDEX=TRUE'
 		    ]
 	picard = subprocess.Popen(command2,stdin=bowtie2.stdout,stdout=subprocess.PIPE,stderr=picardLogfile )
-	if self.analysisfolder.logfile: self.analysisfolder.logfile.write('Starting command: '+' '.join(command2)+'\n')
 	
 	#
 	# run
 	#
-	errdata1 = bowtie2.communicate()
-	errdata2 = picard.communicate()
+	if self.analysisfolder.logfile: self.analysisfolder.logfile.write('Starting command: '+' '.join(command1)+'\n')
+	if self.analysisfolder.logfile: self.analysisfolder.logfile.write('Starting command: '+' '.join(command2)+'\n')
+	errdata = picard.communicate()
 	
 	#
 	# check return codes
 	#
-	if bowtie2.returncode != 0 or picard.returncode != 0:
-	    if bowtie2.returncode != 0:
+	if (bowtie2.returncode != 0 and bowtie2.returncode != None) or picard.returncode != 0:
+	    if bowtie2.returncode != 0 and bowtie2.returncode != None:
 		print '#\n# cmd: '+' '.join( command1 )+'\n#'
-		print 'bowtie2 view Error code', bowtie2.returncode, errdata1, open(bowtie2Logfile.name).read()
+		print 'bowtie2 view Error code', bowtie2.returncode
+		print 'logfile content:\n'+open(bowtie2Logfile.name).read()
 	    if picard.returncode != 0:
 		print '#\n# cmd: '+' '.join( command2 )+'\n#'
-		print 'picard view Error code', picard.returncode, errdata2, open(picardLogfile.name).read()
+		print 'picard view Error code', picard.returncode, errdata, open(picardLogfile.name).read()
 	    sys.exit()
 	
 	return 0
