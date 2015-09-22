@@ -120,27 +120,84 @@ class FastqReader(object):
 		if fastq2.split('.')[-1] in ['gz','gzip']: file2 = gzip.open(fastq2)
 		else: file2 = open(fastq2,'r')
 		
+		#
+		# Parse files
+		#
 		while 'NOT EOFError':
 		    try:
+			
+			#
+			# get data from fastq file
+			#
 			header1 = file1.readline().rstrip()
 			header2 = file2.readline().rstrip()
-			sequence1 = file1.readline().rstrip()
-			sequence2 = file2.readline().rstrip()
+			sequenceR1 = file1.readline().rstrip()
+			sequenceR2 = file2.readline().rstrip()
 			trash = file1.readline().rstrip()
 			trash = file2.readline().rstrip()
-			qual1 = file1.readline().rstrip()
-			qual2 = file2.readline().rstrip()
+			qualR1 = file1.readline().rstrip()
+			qualR2 = file2.readline().rstrip()
 			if not header1: break
 			self.currentRead += 1
-			# data base has following info:
-			#    (id,header,sequence1,sequence2,quality1,quality2,barcodeSequence,clusterId,annotation,fromFastq)
-			barcodeSequence = None
+
+			#
+			# set initial values to None
+			#
+			direction = None
+			h1 = None
+			h2 = None
+			h3 = None
+			constructType = None
+			dbsMatch = None
+			dbsSeq = None
+			dbsQual = None
+			mappingFlagR1 = None
+			refNameR1 = None
+			refPosR1 = None
+			mapQR1 = None
+			cigarR1 = None
+			mappingFlagR2 = None
+			refNameR2 = None
+			refPosR2 = None
+			mapQR2 = None
+			cigarR2 = None
+			insertSize = None
 			clusterId = None
 			annotations = {}
-			pair = seqdata.ReadPair(self.currentRead, header1, header2, sequence1, sequence2, qual1, qual2,barcodeSequence,clusterId,annotations, filePairId)#fastq1)
+			
+			#
+			# set fastq origin
+			#
+			fromFastqId = filePairId
+			
+			#
+			# assert header match and set header
+			#
+			assert header1.split(' ')[0] == header2.split(' ')[0], '\n\n#\n# Error header missmatch in fastq pair.\n#\n\n'
+			header = header1.split(' ')[0]
+			
+			#
+			# create read pair object
+			#
+			pair = seqdata.ReadPair(
+			    self.currentRead, header,
+			    sequenceR1, sequenceR2,
+			    qualR1, qualR2,
+			    direction, h1, h2, h3, constructType,
+			    dbsMatch, dbsSeq, dbsQual,
+			    mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1,
+			    mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,
+			    insertSize, clusterId, annotations, fromFastqId
+			    )
+			
+			#
+			# update read progress and yield
+			#
 			readfromdiskProgress.update()
-			yield pair#self.currentRead, header1, header2, sequence1, sequence2, qual1, qual2, fastq1
-		    except EOFError: break
+			yield pair
+		    
+		    except EOFError: break #End Of File
+		    
 		assert self.totalReadcount == self.currentRead, 'Error while reading infiles: Read count after file '+fastq1+' is '+str(self.currentRead)+' should theoretically be '+str(self.totalReadcount)+'.\n'
 		if self.logfile: self.logfile.write('Reached the end of '+fastq1+'.\n')
 	if self.logfile: self.logfile.write(str(self.grandTotal)+' read pairs read from infiles.\n')
@@ -181,12 +238,12 @@ class FastqReader(object):
         self.analysisfolder.coloredReadMasking.write( pair.outputSeq + '\n')
 	if pair.insert and pair.dbs and pair.dbsmatch:
 	    if pair.insert[0] and len(pair.insert[0]) >= 50 and pair.insert[1] and len(pair.insert[1]) >= 50:
-		self.analysisfolder.fastq_outfile1.write( str(pair.r1Header)+' '+str(pair.dbs)+'\n'+str(pair.insert[0])+'\n+\n'+str(pair.insert[2])+'\n')
-		self.analysisfolder.fastq_outfile2.write( str(pair.r2Header)+' '+str(pair.dbs)+'\n'+str(pair.insert[1])+'\n+\n'+str(pair.insert[3])+'\n')
+		self.analysisfolder.fastq_outfile1.write( str(pair.header)+' '+str(pair.dbs)+'\n'+str(pair.insert[0])+'\n+\n'+str(pair.insert[2])+'\n')
+		self.analysisfolder.fastq_outfile2.write( str(pair.header)+' '+str(pair.dbs)+'\n'+str(pair.insert[1])+'\n+\n'+str(pair.insert[3])+'\n')
 	    elif pair.insert[0] and len(pair.insert[0]) >= 50:
-		self.analysisfolder.fastq_outfile3.write( str(pair.r1Header)+' '+str(pair.dbs)+'\n'+str(pair.insert[0])+'\n+\n'+str(pair.insert[2])+'\n')
+		self.analysisfolder.fastq_outfile3.write( str(pair.header)+' '+str(pair.dbs)+'\n'+str(pair.insert[0])+'\n+\n'+str(pair.insert[2])+'\n')
 	    elif pair.insert[1] and len(pair.insert[1]) >= 50:
-		self.analysisfolder.fastq_outfile3.write( str(pair.r2Header)+' '+str(pair.dbs)+'\n'+str(pair.insert[1])+'\n+\n'+str(pair.insert[3])+'\n')
+		self.analysisfolder.fastq_outfile3.write( str(pair.header)+' '+str(pair.dbs)+'\n'+str(pair.insert[1])+'\n+\n'+str(pair.insert[3])+'\n')
 	    else: pass#print 'HERE',pair
 	
 	
@@ -268,7 +325,7 @@ class FastqReader(object):
 	if self.logfile: self.logfile.write('Create reads table (and drop old one if needed) ...\n')
 	self.analysisfolder.database.getConnection()
 	self.analysisfolder.database.c.execute("DROP TABLE IF EXISTS reads")
-	self.analysisfolder.database.c.execute('''CREATE TABLE reads (id,header,sequence1,sequence2,quality1,quality2,handleCoordinates,clusterId,annotation,fromFastq,PRIMARY KEY (id))''')
+	self.analysisfolder.database.c.execute('''CREATE TABLE reads (id, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId,PRIMARY KEY (id))''')
 	if self.logfile: self.logfile.write('commiting changes to database.\n')
         self.analysisfolder.database.commitAndClose()
 	

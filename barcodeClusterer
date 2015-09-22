@@ -64,10 +64,10 @@ class BarcodeClusterer(object):
 	progress = misc.Progress(self.analysisfolder.results.totalReadCount, logfile=self.logfile, unit='reads-loaded-from-db', mem=True)
 	with progress:
 	    for pair in self.analysisfolder.database.getAllReadPairs():
-		if pair.handleCoordinates:
+		if pair.dbsSeq:
 		    readPairHasBarcodeCounter += 1
-		    barcodeSequence = pair.handleCoordinates[0]
-		    qualities[pair.id] = pair.handleCoordinates[1]
+		    barcodeSequence = pair.dbsSeq
+		    qualities[pair.id] = pair.dbsQual
 		    try:            uniqBarcodeSequences[barcodeSequence].append(pair.id)
 		    except KeyError:uniqBarcodeSequences[barcodeSequence] = [pair.id]
 		progress.update()

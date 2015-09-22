@@ -2,28 +2,29 @@ class ReadPair(object):
     
     import misc
     
-    def __init__(self, currentRead, header1, header2, sequence1, sequence2, qual1, qual2,handleCoordinates,clusterId,annotations, fastq1):
-
-        # original read info
+    def __init__(self, currentRead, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId):
+	
+	# original read info
         self.id = currentRead
-	self.r1Header   = header1
-	self.r2Header   = header2
-	self.r1Seq      = sequence1 	#self.r1Seq      = strip3primN(sequence1)
-	self.r2Seq      = sequence2 	#self.r2Seq      = strip3primN(sequence2)
-	self.r1Qual     = qual1
-	self.r2Qual     = qual2
-	self.fileOrigin = fastq1
+	self.header   = header
+	self.r1Seq      = sequenceR1 	#self.r1Seq      = strip3primN(sequence1)
+	self.r2Seq      = sequenceR2 	#self.r2Seq      = strip3primN(sequence2)
+	self.r1Qual     = qualR1
+	self.r2Qual     = qualR2
+	self.fileOrigin = fromFastqId
 	
         # handle flags and coordinates
-        self.handleCoordinates = handleCoordinates
-        self.h1 = None
-        self.h2 = None
-        self.h3 = None
+        self.direction = direction
+	self.h1 = h1
+        self.h2 = h2
+        self.h3 = h3
+	self.construct = constructType
 
         # dbs flags and coordinates
         self.dbs = None
-	self.dbsQual = None
-        self.dbsmatch = None
+	self.dbsSeq = dbsSeq
+	self.dbsQual = dbsQual
+        self.dbsmatch = dbsMatch
         self.dbsPrimaryCoordinates = None
 
         # other flags and information
@@ -32,13 +33,24 @@ class ReadPair(object):
         self.brokenSequence = ''
         self.construct = None
         self.insert= None
+	self.clusterId = clusterId
         
         #graphical representation
         self.outstring = str(self.id)+''.join([' ' for i in range(10-len(str(self.id)))]),
         self.__str__ = self.outstring
-
-    @property
-    def variableStr(self, ): return str([self.h1,self.h2,self.h3,self.dbsmatch,self.construct])
+	
+	#mapping info
+	self.mappingFlagR1 = mappingFlagR1
+	self.refNameR1 = refNameR1
+	self.refPosR1 = refPosR1
+	self.mapQR1 = mapQR1
+	self.cigarR1 = cigarR1
+	self.mappingFlagR2 = mappingFlagR2
+	self.refNameR2 = refNameR2
+	self.refPosR2 = refPosR2
+	self.mapQR2 = mapQR2
+	self.cigarR2 = cigarR2
+	self.insertSize = insertSize
 
     @property
     def databaseTuple(self, ):
@@ -48,7 +60,8 @@ class ReadPair(object):
 	
 	# Dumping the quality and sequence values
 	#return  (self.id,     self.r1Header,self.r1Seq,self.r2Seq,self.r1Qual,self.r2Qual,   str(self.handleCoordinates),self.dbs,     str(self.annotations),self.fileOrigin)
-	return  (self.id,     self.r1Header,None,None,None,None,   str(self.handleCoordinates),self.dbs,     str(self.annotations),self.fileOrigin)
+	#return  (self.id,     self.r1Header,None,None,None,None,   str(self.handleCoordinates),self.dbs,     str(self.annotations),self.fileOrigin)
+	return (self.id, self.header, self.r1Seq,self.r2Seq,self.r1Qual,self.r2Qual,self.direction,str(self.h1),str(self.h2),str(self.h3),self.construct,self.dbsmatch,self.dbsSeq,self.dbsQual,self.mappingFlagR1,self.refNameR1,self.refPosR1,self.mapQR1,self.cigarR1,self.mappingFlagR2,self.refNameR2,self.refPosR2,self.mapQR2,self.cigarR2,self.insertSize,self.clusterId,str(self.annotations),self.fileOrigin)
 
     def fixInsert(self,):
         
@@ -101,10 +114,11 @@ class ReadPair(object):
                 match = re.match('^'+dbsRegex+'$',self.dbs)
                 if match:
                     self.dbsmatch = True
-		    self.handleCoordinates = [self.dbs,self.dbsQual]
+		    self.dbsSeq = self.dbs
                     #print 'woohooo!',dbsSeq
                 else:
                     self.dbsmatch = False
+		    self.dbsSeq = False
                     #print 'ohhhnooooo!',dbsSeq
             else:pass#print 'BADSEQUENCE!',dbsSeq
             
