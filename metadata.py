@@ -561,9 +561,12 @@ class AnalysisFolder(object):
         self.results = Results(self)
         
         import os
+	import sqlite3
         if os.path.exists(self.databaseFileName):
-            self.settings.loadFromDb()
-            self.results.loadFromDb()
+            try:
+		self.settings.loadFromDb()
+		self.results.loadFromDb()
+	    except sqlite3.OperationalError:pass
 
     def create(self, ):
 

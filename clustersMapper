@@ -28,7 +28,7 @@ def main():
     analysisfolder.logfile = logfile
     
     aligner = ReadPairAligner(analysisfolder)
-    #returncode = aligner.run_bowtie2()
+    returncode = aligner.run_bowtie2()
     aligner.mappedPairToDb()
  
     logfile.write('clusterMapper FINISHED\n')
