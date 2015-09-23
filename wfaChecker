@@ -205,22 +205,12 @@ class FastqReader(object):
 
     def foreachProcessedPair(self, pair):
 	#
-	# append to chunk
-	#
-	self.readsToAdd.append(pair.databaseTuple)
-
-	#
 	# check read pair file origin
 	#
 	if pair.fileOrigin not in self.filesAdded:
 	    if self.logfile: self.logfile.write('Starting post process of read pair #'+str(pair.id)+' (from file '+str(pair.fileOrigin)+').\n')
 	    self.filesAdded[pair.fileOrigin] = True
 
-	#
-	# add chunk to db
-	#
-	if len(self.readsToAdd) >= self.appendChunkSize: self.chunkToDb()
-	
 	#
 	# check read length
 	#
@@ -235,17 +225,30 @@ class FastqReader(object):
 	#
 	# write to files
 	#
+	minInsertSize = 25
         self.analysisfolder.coloredReadMasking.write( pair.outputSeq + '\n')
 	if pair.insert and pair.dbs and pair.dbsmatch:
-	    if pair.insert[0] and len(pair.insert[0]) >= 50 and pair.insert[1] and len(pair.insert[1]) >= 50:
+	    if pair.insert[0] and len(pair.insert[0]) >= minInsertSize and pair.insert[1] and len(pair.insert[1]) >= minInsertSize:
 		self.analysisfolder.fastq_outfile1.write( str(pair.header)+' '+str(pair.dbs)+'\n'+str(pair.insert[0])+'\n+\n'+str(pair.insert[2])+'\n')
 		self.analysisfolder.fastq_outfile2.write( str(pair.header)+' '+str(pair.dbs)+'\n'+str(pair.insert[1])+'\n+\n'+str(pair.insert[3])+'\n')
-	    elif pair.insert[0] and len(pair.insert[0]) >= 50:
+		pair.annotations['PeInsert'] = True
+	    elif pair.insert[0] and len(pair.insert[0]) >= minInsertSize:
 		self.analysisfolder.fastq_outfile3.write( str(pair.header)+' '+str(pair.dbs)+'\n'+str(pair.insert[0])+'\n+\n'+str(pair.insert[2])+'\n')
-	    elif pair.insert[1] and len(pair.insert[1]) >= 50:
+		pair.annotations['SingletInsert'] = True
+	    elif pair.insert[1] and len(pair.insert[1]) >= minInsertSize:
 		self.analysisfolder.fastq_outfile3.write( str(pair.header)+' '+str(pair.dbs)+'\n'+str(pair.insert[1])+'\n+\n'+str(pair.insert[3])+'\n')
-	    else: pass#print 'HERE',pair
-	
+		pair.annotations['SingletInsert'] = True
+	    else: pair.annotations['AllInsertsFail'] = True
+
+	#
+	# append to chunk
+	#
+	self.readsToAdd.append(pair.databaseTuple)
+
+	#
+	# add chunk to db
+	#
+	if len(self.readsToAdd) >= self.appendChunkSize: self.chunkToDb()	
 	
 	self.progress.update()
 	
