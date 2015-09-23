@@ -269,7 +269,7 @@ class BarcodeClusterer(object):
 		self.analysisfolder.database.getConnection()	
 		self.analysisfolder.database.c.executemany('UPDATE reads SET clusterId=? WHERE id=?', updateValues)
 		self.analysisfolder.database.commitAndClose()
-		for i in xrange(updateChunkSize): progress.update()
+		for i in xrange(len(updateValues)): progress.update()
 	    
 	return 0
 
