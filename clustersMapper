@@ -114,6 +114,15 @@ class ReadPairAligner(object):
 	#
 	import subprocess
         import time
+	import misc
+
+        #
+	# set initial values
+	#
+	updateValues = []
+	updateChunks = []
+	updateChunkSize = 10000
+	mappedReadCount = 0
 
 	#
 	# run samtools to get data
@@ -121,6 +130,21 @@ class ReadPairAligner(object):
 	samtoolsLogfile = open(self.analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'samtoolsView.log.txt','w')
 	command = ['samtools','view',self.analysisfolder.dataPath+'/mappedInserts.bam']
 	samtools = subprocess.Popen(command,stdout=subprocess.PIPE,stderr=samtoolsLogfile )
+
+
+	#
+	# load read header to id mappings
+	#
+        header2id={}
+	self.analysisfolder.database.getConnection()
+        readPairs = self.analysisfolder.database.c.execute('SELECT id, header FROM reads')# WHERE constructType=?',('constructOK',))
+	while True:
+	    rows = readPairs.fetchmany()#size=readPairs.arraysize)
+	    if not rows: break
+	    for row in rows:
+		currentRead, header = row
+		header2id[str(header)[1:]] = currentRead
+	self.analysisfolder.database.commitAndClose()
 
 	#
 	# run
@@ -135,11 +159,14 @@ class ReadPairAligner(object):
 		TAGS1 = line1[11:]
 		TAGS2 = line2[11:]
 		if QNAME1 == QNAME2:
-		    print QNAME1
-		    print '    ',RNAME1, POS1
-		    print '    ',RNAME2, POS2
-		    print '    ',TLEN1, TLEN2
+		    #print FLAG1, RNAME1,POS1,MAPQ1,CIGAR1,FLAG2, RNAME2,POS2,MAPQ2,CIGAR2,QNAME1
+		    mappedReadCount += 1
+		    updateValues.append( (int(FLAG1), RNAME1,int(POS1),int(MAPQ1),CIGAR1,int(FLAG2), RNAME2,int(POS2),int(MAPQ2),CIGAR2,header2id[str(QNAME1)]) )
+		    if len(updateValues) == updateChunkSize:
+			updateChunks.append(updateValues)
+			updateValues = []
 	    except StopIteration: break # end of file
+	updateChunks.append(updateValues)
 
 	#
 	# check return codes
@@ -151,8 +178,18 @@ class ReadPairAligner(object):
 		#return 'FAIL'
 		sys.exit()
 
+	#
+	# Update the reads table
+	#
+	if self.analysisfolder.logfile: self.analysisfolder.logfile.write('Updating read pair info in the database ... \n')
+	progress = misc.Progress(mappedReadCount, logfile=self.analysisfolder.logfile, unit='reads-updated', mem=True)
+	with progress:
+	    for updateValues in updateChunks:
+		self.analysisfolder.database.getConnection()
+		self.analysisfolder.database.c.executemany('UPDATE reads SET mappingFlagR1=?, refNameR1=?, refPosR1=?, mapQR1=?, cigarR1=?, mappingFlagR2=?, refNameR2=?, refPosR2=?, mapQR2=?, cigarR2=? WHERE id=?', updateValues)
+		self.analysisfolder.database.commitAndClose()
+		for i in xrange(len(updateValues)): progress.update()
+
 	return 'COMPLETE'
     
-    # reads mapping coordinates and cigar string to database
-
 if __name__ == "__main__": main()
