@@ -27,14 +27,46 @@ logfile = open(analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.l
 logfile.write('cmd: '+' '.join(sys.argv)+'\n')
 analysisfolder.logfile = logfile
 
-@app.route("/")
+@app.route("/index.html")
 def index():
     
     from seqdata import BarcodeClusterer, BarcodeCluster
     from misc import thousandString, percentage
-    outStr = ''
+    import os
     
-    outStr += '<h2>Summary:</h2>'
+    outStr = ''
+    outStr += '<html>'
+    outStr += """<head><style>
+        body {
+            background-color:white
+            font-family : Arial,"Myriad Web",Verdana,Helvetica,sans-serif;
+        }
+        h1   {color:black}
+        p    {color:green}
+        
+        table, th, td {
+            border: 1px solid black;
+            border-collapse: collapse;
+            
+            font-size : 12;
+        }
+        th {
+            text-align: center;
+            background-color:darkgray;
+            color:white;
+            border: 1px solid black;
+        }
+        table {border-spacing: 1px;}
+        th,td {padding: 5px;}
+        td {text-align: center;}
+    </style></head>"""
+    outStr += '<body>'
+
+    outStr += '<div style="background-color:black;color:white;text-align:center;padding:5px;">'
+    outStr += '<h2>Summary of analysis at '+str(os.path.abspath(app.analysisfolder.path))+':</h2>'
+    outStr += '</div>'
+
+    outStr += '<div style="line-height:30px;background-color:#eeeeee;width:700px;height:50000px;float:left;padding:20px; ">'
     outStr += 'Total read pairs: '+thousandString(app.analysisfolder.results.totalReadCount)+'<br>\n'
     outStr += 'Minimum R1 length: '+str(app.analysisfolder.results.minR1readLength)+'<br>\n'
     outStr += 'Minimum R2 length: '+str(app.analysisfolder.results.minR2readLength)+'<br>\n'
@@ -57,23 +89,56 @@ def index():
     outStr += 'Barcode clusters found: '+thousandString(app.analysisfolder.results.barcodeClusterCount)+'<br>\n'
     outStr += 'Barcode clusters are singletons: '+thousandString(app.analysisfolder.results.singeltonBarcodeClusters)+'<br>\n'
     outStr += '<br>\n'
+    outStr += '</div>'
     
+    outStr += '<div style="width:350px;float:left;padding:10px; ">'
     outStr += '<h2>List of clusters:</h2>'
     barcodeClusterer = BarcodeClusterer(app.analysisfolder)
+    outStr += '<table>'
+    outStr += '<tr>' 
+    outStr += '<th>clusterID</th>'
+    outStr += '<th>barcode</th>'
+    outStr += '<th>readcount</th>'
+    outStr += '<th>sameCrom</th>'
+    outStr += '<th>duplicate</th>'
+#    outStr += '<th>pos R1</th>'
+#    outStr += '<th>pos R2</th>'
+#    outStr += '<th>insertsize</th>'
+#    outStr += '<th>mapQ</th>'
+#    outStr += '<th>CIGAR</th>'
+    outStr += '</tr>' 
     counter = 0
     for clusterId in barcodeClusterer.getBarcodeClusterIds(shuffle=False,byMixedClusterReadCount=False):
+        outStr += '<tr>'
+
         cluster = BarcodeCluster(clusterId,app.analysisfolder)
         cluster.loadClusterInfo()
-        outStr += '<a href="cluster'+str(clusterId)+'">cluster '+str(clusterId)+' has '+str(cluster.readPairCount)+' read pairs</a><br>\n'
+        cluster.loadReadPairs()
+        outStr += '<td><a href="cluster'+str(clusterId)+'">'+str(clusterId)+'</a></td>'
+        outStr += '<td><a href="cluster'+str(clusterId)+'"><font face="Courier">'+str(cluster.barcodeSequence)+'</font></a></td>\n'
+        outStr += '<td><a href="cluster'+str(clusterId)+'">'+str(cluster.readPairCount)+'</a></td>\n'
+        outStr += '<td><a href="cluster'+str(clusterId)+'">'
+        if cluster.allreadssamechrom: outStr += '<font color="green">'
+        else: outStr += '<font color="red">'
+        outStr += str(cluster.allreadssamechrom)+'</a></td>\n'
+        outStr += '<td><a href="cluster'+str(clusterId)+'">'
+        if not (cluster.allreadssamechrom and cluster.allreadssamepos): outStr += '<font color="green">'
+        else: outStr += '<font color="red">'
+        outStr += str(cluster.allreadssamechrom and cluster.allreadssamepos)+'</a></td>\n'
         counter += 1
         if counter == 1000: break
-        
+
+        outStr += '</tr>'
+
+    outStr += '</table>'
+    outStr += '</div>'
+
     
     return outStr
 
 @app.route('/cluster<cluster_id>')
 @app.route('/cluster<cluster_id>/read<readnumber>')
-def cluster(cluster_id, readnumber='Anonymous'):
+def cluster(cluster_id, readnumber=None):
 
     from seqdata import BarcodeCluster
     from misc import thousandString
@@ -123,13 +188,14 @@ def cluster(cluster_id, readnumber='Anonymous'):
     outStr += '<th>insertsize</th>'
     outStr += '<th>mapQ</th>'
     outStr += '<th>CIGAR</th>'
+    outStr += '<th>ProperPair</th>'
     outStr += '</tr>' 
     for pair in cluster.readPairs:
         outStr += '<tr>'
         outStr += '<td>'
         if pair.mapQR1 < 20 or pair.mapQR2 < 20 or pair.mapQR1 == '*' or pair.mapQR2 == '*': outStr += '<font color="red">'
         outStr += pair.header+ '</td>'
-        outStr += '<td>'+str(pair.mappingFlagR1)+' '+str(pair.mappingFlagR2)+'</td>'
+        outStr += '<td>'+str(pair.mappingFlagR1.flag)+' '+str(pair.mappingFlagR2.flag)+'</td>'
         outStr += '<td>'+str(pair.refNameR1)+'</td>'
         outStr += '<td>'+str(pair.refNameR2)+'</td>'
         if pair.refPosR1: outStr += '<td>'+thousandString(pair.refPosR1)+'</td>'
@@ -139,6 +205,7 @@ def cluster(cluster_id, readnumber='Anonymous'):
         outStr += '<td>'+str(pair.insertSize)+'</td>'
         outStr += '<td>'+str(pair.mapQR1)+' '+str(pair.mapQR2)+'</td>'
         outStr += '<td>'+str(pair.cigarR1)+' '+str(pair.cigarR2)+'</td>'
+        outStr += '<td>'+str(pair.mappingFlagR1.properpair)+'</td>'
         outStr += '</tr>'
     outStr += '</table>'
 

@@ -40,12 +40,12 @@ class ReadPair(object):
         self.__str__ = self.outstring
 	
 	#mapping info
-	self.mappingFlagR1 = mappingFlagR1
+	self.mappingFlagR1 = SamFlag(mappingFlagR1)
 	self.refNameR1 = refNameR1
 	self.refPosR1 = refPosR1
 	self.mapQR1 = mapQR1
 	self.cigarR1 = cigarR1
-	self.mappingFlagR2 = mappingFlagR2
+	self.mappingFlagR2 = SamFlag(mappingFlagR2)
 	self.refNameR2 = refNameR2
 	self.refPosR2 = refPosR2
 	self.mapQR2 = mapQR2
@@ -61,7 +61,7 @@ class ReadPair(object):
 	# Dumping the quality and sequence values
 	#return  (self.id,     self.r1Header,self.r1Seq,self.r2Seq,self.r1Qual,self.r2Qual,   str(self.handleCoordinates),self.dbs,     str(self.annotations),self.fileOrigin)
 	#return  (self.id,     self.r1Header,None,None,None,None,   str(self.handleCoordinates),self.dbs,     str(self.annotations),self.fileOrigin)
-	return (self.id, self.header, None,None,None,None,self.direction,str(self.h1),str(self.h2),str(self.h3),self.construct,self.dbsmatch,self.dbsSeq,self.dbsQual,self.mappingFlagR1,self.refNameR1,self.refPosR1,self.mapQR1,self.cigarR1,self.mappingFlagR2,self.refNameR2,self.refPosR2,self.mapQR2,self.cigarR2,self.insertSize,self.clusterId,str(self.annotations),self.fileOrigin)
+	return (self.id, self.header, None,None,None,None,self.direction,str(self.h1),str(self.h2),str(self.h3),self.construct,self.dbsmatch,self.dbsSeq,self.dbsQual,self.mappingFlagR1.flag,self.refNameR1,self.refPosR1,self.mapQR1,self.cigarR1,self.mappingFlagR2.flag,self.refNameR2,self.refPosR2,self.mapQR2,self.cigarR2,self.insertSize,self.clusterId,str(self.annotations),self.fileOrigin)
 
     def fixInsert(self,):
         
@@ -923,6 +923,41 @@ class BarcodeCluster(object,):
 
 	return 0
 
+    @property
+    def allreadssamechrom(self,):
+	tmp = {}
+	for readPair in self.readPairs:
+	    tmp[readPair.refNameR1] = True
+	    tmp[readPair.refNameR2] = True
+	
+	count = 0
+	for chrom in tmp:
+	    if chrom != None: count+=1
+	
+	if count == 1: return True
+	elif count > 1: return False
+	else: return None
+
+    @property
+    def allreadssamepos(self,):
+	tmp1 = {}
+	tmp2 = {}
+	for readPair in self.readPairs:
+	    tmp1[readPair.refPosR1] = True
+	    tmp2[readPair.refPosR2] = True
+	
+	count1 = 0
+	for pos in tmp1:
+	    if pos != None: count1+=1
+	count2 = 0
+	for pos in tmp2:
+	    if pos != None: count2+=1
+
+	
+	if count1 == 1 and count2 == 1: return True
+	elif count1 > 1 or count2 > 1: return False
+	else: return None
+    
 def readPairGenerator(fastq1,fastq2):
 
     #
@@ -1054,3 +1089,69 @@ def uipac(bases, back='uipac'): #U	Uracil NOT SUPPORTED!!!
 def UIPAC2REGEXP(string):
     return string.replace('R','[AG]').replace('Y','[CT]').replace('S','[GC]').replace('W','[AT]').replace('K','[GT]').replace('M','[AC]').replace('B','[CGT]').replace('D','[AGT]').replace('H','[ACT]').replace('V','[ACG]').replace('N','[AGTC]')
 
+def bits(i,n): 
+	return tuple((0,1)[i>>j & 1] for j in xrange(n-1,-1,-1))
+
+class SamFlag():
+
+    def __init__(self, flag):
+	""" Function that takes a flag and prints the explanation"""
+	########################-Format Description-#########################
+	#	Flag	Chr	Description											#
+	#1	0x0001	p	the read is paired in sequencing					#
+	#2	0x0002	P	the read is mapped in a proper pair					#
+	#3	0x0004	u	the query sequence itself is unmapped				#
+	#4	0x0008	U	the mate is unmapped								#
+	#5	0x0010	r	strand of the query (1 for reverse)					#
+	#6	0x0020	R	strand of the mate									#
+	#7	0x0040	1	the read is the first read in a pair				#
+	#8	0x0080	2	the read is the second read in a pair				#
+	#9	0x0100	s	the alignment is not primary						#
+	#10	0x0200	f	the read fails platform/vendor quality checks		#
+	#11	0x0400	d	the read is either a PCR or an optical duplicate	#
+	#####################################################################
+
+	self.readtype = None
+	self.properpair = None
+	self.mapped = None
+	self.matemapped = None
+	self.strand = None
+	self.mate_strand = None
+	self.readnum = None
+	self.primaryalignment = None
+	self.passfilter = None
+	self.pcrduplicate = None
+
+	if flag == None:
+	    self.flag = flag
+	    return None
+	self.flag = int(flag)
+	binary = bits(self.flag,11)
+	output = ''
+	self.readnum = None
+	try:
+		if int(binary[-1]):	self.readtype = "PE"
+		else:			self.readtype = 'SE'
+		if int(binary[-2]):	self.properpair = True
+		else:			self.properpair = False
+		if int(binary[-3]):	self.mapped = False
+		else:			self.mapped = True
+		if int(binary[-4]):	self.matemapped = False
+		else:			self.matemapped = True
+		if int(binary[-5]):	self.strand = 'rev'
+		else:			self.strand = 'fwd'
+		if int(binary[-6]):	self.mate_strand = "rev"
+		else:			self.mate_strand = "fwd"
+		if int(binary[-7]):	self.readnum = 1
+		else:			pass#self.read1 = False
+		if int(binary[-8]):	self.readnum = 2
+		else:			pass#self.read2 = False
+		if int(binary[-9]):	self.primaryalignment = False;self.output += 'not primary alignment\t'
+		else:			self.primaryalignment = True
+		if int(binary[-10]):	self.passfilter=False;self.output += 'QC failed\t'
+		else:			self.passfilter=True
+		if int(binary[-11]):	self.pcrduplicate=True;self.output += 'is PCR duplicate'
+		else:			self.pcrduplicate=False;
+	except ValueError:
+		output += '.'
+	return None
