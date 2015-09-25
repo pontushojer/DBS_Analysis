@@ -39,12 +39,24 @@ def index():
     outStr += 'Minimum R1 length: '+str(app.analysisfolder.results.minR1readLength)+'<br>\n'
     outStr += 'Minimum R2 length: '+str(app.analysisfolder.results.minR2readLength)+'<br>\n'
     outStr += 'Reads has illumina adapter content: '+thousandString(app.analysisfolder.results.readPairsAreIlluminaAdapters)+' ('+str(percentage(app.analysisfolder.results.readPairsAreIlluminaAdapters,app.analysisfolder.results.totalReadCount))+'% of total)<br>\n'
-    outStr += 'Construct type dictionary: '+str(app.analysisfolder.results.constructTypes)+'<br>\n'
-    outStr += 'Barcodes match DBS pattern: '+str(app.analysisfolder.results.readsWithDbsPatternMatch)+'<br>\n'
+    outStr += '<br>\n'
+    
+    outStr += 'Construct type dictionary: '+'<br>\n'
+    for what, count in eval(app.analysisfolder.results.constructTypes).iteritems():
+        outStr += ' _ _ _ '+what+' => '+str(percentage(count,app.analysisfolder.results.totalReadCount))+'%, ('+thousandString(count)+')<br>\n'
+    outStr += '<br>\n'
+    
+    outStr += 'Barcodes match DBS pattern:<br>\n'
+    tmp = eval(app.analysisfolder.results.readsWithDbsPatternMatch)
+    outStr += ' _ _ _ barcode does not exist => '+str(percentage(tmp[None],app.analysisfolder.results.totalReadCount))+'%, ('+thousandString(tmp[None])+')<br>\n'
+    outStr += ' _ _ _ barcode does not match => '+str(percentage(tmp[False],app.analysisfolder.results.totalReadCount))+'%, ('+thousandString(tmp[False])+')<br>\n'
+    outStr += ' _ _ _ barcode match DBS pattern=> '+str(percentage(tmp[True],app.analysisfolder.results.totalReadCount))+'%, ('+str(percentage(tmp[True],int(app.analysisfolder.results.totalReadCount)-int(tmp[None])))+'% of has barcode,'+thousandString(tmp[True])+')<br>\n'
+    outStr += '<br>\n'
     outStr += 'Read pairs has a barcode: '+thousandString(app.analysisfolder.results.readPairsHasBarcode)+'<br>\n'
     outStr += 'Unique barcodes: '+thousandString(app.analysisfolder.results.uniqueBarcodeSequences)+'<br>\n'
     outStr += 'Barcode clusters found: '+thousandString(app.analysisfolder.results.barcodeClusterCount)+'<br>\n'
     outStr += 'Barcode clusters are singletons: '+thousandString(app.analysisfolder.results.singeltonBarcodeClusters)+'<br>\n'
+    outStr += '<br>\n'
     
     outStr += '<h2>List of clusters:</h2>'
     barcodeClusterer = BarcodeClusterer(app.analysisfolder)
@@ -54,7 +66,7 @@ def index():
         cluster.loadClusterInfo()
         outStr += '<a href="cluster'+str(clusterId)+'">cluster '+str(clusterId)+' has '+str(cluster.readPairCount)+' read pairs</a><br>\n'
         counter += 1
-        if counter == 100: break
+        if counter == 1000: break
         
     
     return outStr
@@ -64,6 +76,7 @@ def index():
 def cluster(cluster_id, readnumber='Anonymous'):
 
     from seqdata import BarcodeCluster
+    from misc import thousandString
 
     outStr = ''
 
@@ -103,18 +116,26 @@ def cluster(cluster_id, readnumber='Anonymous'):
     outStr += '<tr>' 
     outStr += '<th>header</th>'
     outStr += '<th>flags</th>'
-    outStr += '<th>refchrom</th>'
-    outStr += '<th>positions</th>'
+    outStr += '<th>refchrom R1</th>'
+    outStr += '<th>refchrom R2</th>'
+    outStr += '<th>pos R1</th>'
+    outStr += '<th>pos R2</th>'
     outStr += '<th>insertsize</th>'
     outStr += '<th>mapQ</th>'
     outStr += '<th>CIGAR</th>'
     outStr += '</tr>' 
     for pair in cluster.readPairs:
-        outStr += '<tr>' 
-        outStr += '<td>'+pair.header+ '</td>'
+        outStr += '<tr>'
+        outStr += '<td>'
+        if pair.mapQR1 < 20 or pair.mapQR2 < 20 or pair.mapQR1 == '*' or pair.mapQR2 == '*': outStr += '<font color="red">'
+        outStr += pair.header+ '</td>'
         outStr += '<td>'+str(pair.mappingFlagR1)+' '+str(pair.mappingFlagR2)+'</td>'
-        outStr += '<td>'+str(pair.refNameR1)+' '+str(pair.refNameR2)+'</td>'
-        outStr += '<td>'+str(pair.refPosR1)+' '+str(pair.refPosR2)+'</td>'
+        outStr += '<td>'+str(pair.refNameR1)+'</td>'
+        outStr += '<td>'+str(pair.refNameR2)+'</td>'
+        if pair.refPosR1: outStr += '<td>'+thousandString(pair.refPosR1)+'</td>'
+        else:outStr += '<td>'+str(pair.refPosR1)+'</td>'
+        if pair.refPosR2: outStr += '<td>'+thousandString(pair.refPosR2)+'</td>'
+        else:outStr += '<td>'+str(pair.refPosR2)+'</td>'
         outStr += '<td>'+str(pair.insertSize)+'</td>'
         outStr += '<td>'+str(pair.mapQR1)+' '+str(pair.mapQR2)+'</td>'
         outStr += '<td>'+str(pair.cigarR1)+' '+str(pair.cigarR2)+'</td>'
