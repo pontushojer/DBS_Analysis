@@ -196,40 +196,28 @@ class Database(object):
         self.commitAndClose()
 
     def getReadPairs(self, listOfIds):
-	""" THIS FUNCTION SHOULD NOT WORK UNTILL FIXED"""
 	
         #
         # Imports
         #
         import sys
+	import seqdata
         
         #
         # open connection to database
         #
         self.getConnection()
                 
-        #
-        # get att data in fastqs table
-        #
-#        readPairs = self.c.execute('SELECT id,header,sequence1,sequence2,quality1,quality2,handleCoordinates,clusterId,annotation,fromFastq FROM reads WHERE id IN ('+','.join([str(readPairId) for readPairId in listOfIds])+')')
-#        
-#	while True:
-#	    
-#	    rows = readPairs.fetchmany()#size=readPairs.arraysize)
-#	    
-#	    if not rows: break
-#	    
-#	    for row in rows:
-#		pairId,header,sequence1,sequence2,qual1,qual2,handleCoordinates,clusterId,annotations,fromFastq = row
-#		yield ReadPair(pairId, header, header, sequence1, sequence2, qual1, qual2,eval(handleCoordinates),clusterId,eval(annotations), fromFastq)
 	
 	#
 	# alternatively this
 	#
 	for readPairId in listOfIds:
-	    row = self.c.execute('SELECT id,header,sequence1,sequence2,quality1,quality2,handleCoordinates,clusterId,annotation,fromFastq FROM reads WHERE id=?', (int(readPairId), ) ).fetchone()
-	    pairId,header,sequence1,sequence2,qual1,qual2,handleCoordinates,clusterId,annotations,fromFastq = row
-	    yield ReadPair(pairId, header, header, sequence1, sequence2, qual1, qual2,eval(handleCoordinates),clusterId,eval(annotations), fromFastq)
+	    #row = self.c.execute('SELECT id,header,sequence1,sequence2,quality1,quality2,handleCoordinates,clusterId,annotation,fromFastq FROM reads WHERE id=?', (int(readPairId), ) ).fetchone()
+	    row = self.c.execute('SELECT id, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId FROM reads WHERE id=?', (int(readPairId), ) ).fetchone()
+
+	    currentRead, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId = row
+	    yield seqdata.ReadPair(currentRead, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, eval(h1), eval(h2), eval(h3), constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, eval(annotations), fromFastqId)
 	
         self.commitAndClose()
  

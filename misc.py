@@ -43,6 +43,14 @@ def percentage(count,total):
     #return round(float(count) / float(total),4)
     return round(100* float(count) / float(total),2)
 
+def thousandString(string):
+    if type(string) != str: string = str(int(round(float(string),0)))
+    outstring = ''
+    for i in range(len(string)):
+	outstring += string[-(i+1)]
+	if (i+1)%3 == 0: outstring += ' '
+    return outstring[::-1]
+
 class Progress():
 	
 	import sys

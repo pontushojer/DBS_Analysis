@@ -1,0 +1,128 @@
+#! /usr/bin/env python
+from flask import Flask
+from flask import render_template
+from flask import json
+import metadata
+import sys
+import time
+
+app = Flask(__name__)
+
+#
+# check input and get commandline args
+#
+try: analysisfolder = metadata.AnalysisFolder(sys.argv[1])
+except IndexError: sys.stderr.write('please supply a commandline on format:\nwfaViewerServer <analysis-output-folder>\n');sys.exit()
+app.analysisfolder = analysisfolder
+
+#
+# check analysis folder
+#
+if not analysisfolder.checkIntegrity() == 'PASS': print analysisfolder.checkIntegrity()+'\nERROR: Now exiting'
+
+#
+# create a logfile
+#
+logfile = open(analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'_wfaViewerServer','w',1)
+logfile.write('cmd: '+' '.join(sys.argv)+'\n')
+analysisfolder.logfile = logfile
+
+@app.route("/")
+def index():
+    
+    from seqdata import BarcodeClusterer, BarcodeCluster
+    from misc import thousandString, percentage
+    outStr = ''
+    
+    outStr += '<h2>Summary:</h2>'
+    outStr += 'Total read pairs: '+thousandString(app.analysisfolder.results.totalReadCount)+'<br>\n'
+    outStr += 'Minimum R1 length: '+str(app.analysisfolder.results.minR1readLength)+'<br>\n'
+    outStr += 'Minimum R2 length: '+str(app.analysisfolder.results.minR2readLength)+'<br>\n'
+    outStr += 'Reads has illumina adapter content: '+thousandString(app.analysisfolder.results.readPairsAreIlluminaAdapters)+' ('+str(percentage(app.analysisfolder.results.readPairsAreIlluminaAdapters,app.analysisfolder.results.totalReadCount))+'% of total)<br>\n'
+    outStr += 'Construct type dictionary: '+str(app.analysisfolder.results.constructTypes)+'<br>\n'
+    outStr += 'Barcodes match DBS pattern: '+str(app.analysisfolder.results.readsWithDbsPatternMatch)+'<br>\n'
+    outStr += 'Read pairs has a barcode: '+thousandString(app.analysisfolder.results.readPairsHasBarcode)+'<br>\n'
+    outStr += 'Unique barcodes: '+thousandString(app.analysisfolder.results.uniqueBarcodeSequences)+'<br>\n'
+    outStr += 'Barcode clusters found: '+thousandString(app.analysisfolder.results.barcodeClusterCount)+'<br>\n'
+    outStr += 'Barcode clusters are singletons: '+thousandString(app.analysisfolder.results.singeltonBarcodeClusters)+'<br>\n'
+    
+    outStr += '<h2>List of clusters:</h2>'
+    barcodeClusterer = BarcodeClusterer(app.analysisfolder)
+    counter = 0
+    for clusterId in barcodeClusterer.getBarcodeClusterIds(shuffle=False,byMixedClusterReadCount=False):
+        cluster = BarcodeCluster(clusterId,app.analysisfolder)
+        cluster.loadClusterInfo()
+        outStr += '<a href="cluster'+str(clusterId)+'">cluster '+str(clusterId)+' has '+str(cluster.readPairCount)+' read pairs</a><br>\n'
+        counter += 1
+        if counter == 100: break
+        
+    
+    return outStr
+
+@app.route('/cluster<cluster_id>')
+@app.route('/cluster<cluster_id>/read<readnumber>')
+def cluster(cluster_id, readnumber='Anonymous'):
+
+    from seqdata import BarcodeCluster
+
+    outStr = ''
+
+    outStr += '<html>'
+    outStr += """<head><style>
+        body {
+            background-color:white
+            font-family : Arial,"Myriad Web",Verdana,Helvetica,sans-serif;
+        }
+        h1   {color:black}
+        p    {color:green}
+        
+        table, th, td {
+            border: 1px solid black;
+            border-collapse: collapse;
+            
+            font-size : 12;
+        }
+        th {
+            text-align: center;
+            background-color:darkgray;
+            color:white;
+            border: 1px solid black;
+        }
+        table {border-spacing: 1px;}
+        th,td {padding: 5px;}
+        td {text-align: center;}
+    </style></head>"""
+    outStr += '<body>'
+
+    cluster = BarcodeCluster(int(cluster_id),app.analysisfolder)
+    cluster.loadClusterInfo()
+    outStr += 'cluster id='+str(cluster_id)+' with barcode '+str(cluster.barcodeSequence)+' has '+str(cluster.readPairCount)+' read pairs'+'<br><br>\n'
+    cluster.loadReadPairs()
+    
+    outStr += '<table>'
+    outStr += '<tr>' 
+    outStr += '<th>header</th>'
+    outStr += '<th>flags</th>'
+    outStr += '<th>refchrom</th>'
+    outStr += '<th>positions</th>'
+    outStr += '<th>insertsize</th>'
+    outStr += '<th>mapQ</th>'
+    outStr += '<th>CIGAR</th>'
+    outStr += '</tr>' 
+    for pair in cluster.readPairs:
+        outStr += '<tr>' 
+        outStr += '<td>'+pair.header+ '</td>'
+        outStr += '<td>'+str(pair.mappingFlagR1)+' '+str(pair.mappingFlagR2)+'</td>'
+        outStr += '<td>'+str(pair.refNameR1)+' '+str(pair.refNameR2)+'</td>'
+        outStr += '<td>'+str(pair.refPosR1)+' '+str(pair.refPosR2)+'</td>'
+        outStr += '<td>'+str(pair.insertSize)+'</td>'
+        outStr += '<td>'+str(pair.mapQR1)+' '+str(pair.mapQR2)+'</td>'
+        outStr += '<td>'+str(pair.cigarR1)+' '+str(pair.cigarR2)+'</td>'
+        outStr += '</tr>'
+    outStr += '</table>'
+
+    outStr += '</body></html>\n'
+    return outStr
+
+if __name__ == "__main__":
+    app.run(host='0.0.0.0',port=5000,debug=True)
