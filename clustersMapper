@@ -161,7 +161,7 @@ class ReadPairAligner(object):
 		if QNAME1 == QNAME2:
 		    #print FLAG1, RNAME1,POS1,MAPQ1,CIGAR1,FLAG2, RNAME2,POS2,MAPQ2,CIGAR2,QNAME1
 		    mappedReadCount += 1
-		    updateValues.append( (int(FLAG1), RNAME1,int(POS1),int(MAPQ1),CIGAR1,int(FLAG2), RNAME2,int(POS2),int(MAPQ2),CIGAR2,header2id[str(QNAME1)]) )
+		    updateValues.append( (int(FLAG1), RNAME1,int(POS1),int(MAPQ1),CIGAR1,int(FLAG2), RNAME2,int(POS2),int(MAPQ2),CIGAR2,abs(int(TLEN1)),header2id[str(QNAME1)]) )
 		    if len(updateValues) == updateChunkSize:
 			updateChunks.append(updateValues)
 			updateValues = []
@@ -186,7 +186,7 @@ class ReadPairAligner(object):
 	with progress:
 	    for updateValues in updateChunks:
 		self.analysisfolder.database.getConnection()
-		self.analysisfolder.database.c.executemany('UPDATE reads SET mappingFlagR1=?, refNameR1=?, refPosR1=?, mapQR1=?, cigarR1=?, mappingFlagR2=?, refNameR2=?, refPosR2=?, mapQR2=?, cigarR2=? WHERE id=?', updateValues)
+		self.analysisfolder.database.c.executemany('UPDATE reads SET mappingFlagR1=?, refNameR1=?, refPosR1=?, mapQR1=?, cigarR1=?, mappingFlagR2=?, refNameR2=?, refPosR2=?, mapQR2=?, cigarR2=?, insertSize=? WHERE id=?', updateValues)
 		self.analysisfolder.database.commitAndClose()
 		for i in xrange(len(updateValues)): progress.update()
 

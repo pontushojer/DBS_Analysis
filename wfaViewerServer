@@ -33,6 +33,7 @@ def index():
     from seqdata import BarcodeClusterer, BarcodeCluster
     from misc import thousandString, percentage
     import os
+    import operator
     
     outStr = ''
     outStr += '<html>'
@@ -62,11 +63,12 @@ def index():
     </style></head>"""
     outStr += '<body>'
 
-    outStr += '<div style="background-color:black;color:white;text-align:center;padding:5px;">'
-    outStr += '<h2>Summary of analysis at '+str(os.path.abspath(app.analysisfolder.path))+':</h2>'
+    outStr += '<div style="background-color:black;color:white;text-align:left;padding:5px;">'
+    outStr += '<h2>'+'&nbsp&nbsp&nbsp&nbsp'+'Summary of analysis at '+str(os.path.abspath(app.analysisfolder.path))+':</h2>'
     outStr += '</div>'
 
     outStr += '<div style="line-height:30px;background-color:#eeeeee;width:700px;height:50000px;float:left;padding:20px; ">'
+    outStr += '<h2>Stats:</h2>'
     outStr += 'Total read pairs: '+thousandString(app.analysisfolder.results.totalReadCount)+'<br>\n'
     outStr += 'Minimum R1 length: '+str(app.analysisfolder.results.minR1readLength)+'<br>\n'
     outStr += 'Minimum R2 length: '+str(app.analysisfolder.results.minR2readLength)+'<br>\n'
@@ -74,15 +76,16 @@ def index():
     outStr += '<br>\n'
     
     outStr += 'Construct type dictionary: '+'<br>\n'
-    for what, count in eval(app.analysisfolder.results.constructTypes).iteritems():
-        outStr += ' _ _ _ '+what+' => '+str(percentage(count,app.analysisfolder.results.totalReadCount))+'%, ('+thousandString(count)+')<br>\n'
+    #for what, count in eval(app.analysisfolder.results.constructTypes).iteritems():
+    for what, count in sorted(eval(app.analysisfolder.results.constructTypes).iteritems(), key=operator.itemgetter(1))[::-1]:
+        outStr += '&nbsp&nbsp&nbsp&nbsp'+what+' => '+str(percentage(count,app.analysisfolder.results.totalReadCount))+'%, ('+thousandString(count)+')<br>\n'
     outStr += '<br>\n'
     
     outStr += 'Barcodes match DBS pattern:<br>\n'
     tmp = eval(app.analysisfolder.results.readsWithDbsPatternMatch)
-    outStr += ' _ _ _ barcode does not exist => '+str(percentage(tmp[None],app.analysisfolder.results.totalReadCount))+'%, ('+thousandString(tmp[None])+')<br>\n'
-    outStr += ' _ _ _ barcode does not match => '+str(percentage(tmp[False],app.analysisfolder.results.totalReadCount))+'%, ('+thousandString(tmp[False])+')<br>\n'
-    outStr += ' _ _ _ barcode match DBS pattern=> '+str(percentage(tmp[True],app.analysisfolder.results.totalReadCount))+'%, ('+str(percentage(tmp[True],int(app.analysisfolder.results.totalReadCount)-int(tmp[None])))+'% of has barcode,'+thousandString(tmp[True])+')<br>\n'
+    outStr += '&nbsp&nbsp&nbsp&nbsp'+'barcode does not exist => '+str(percentage(tmp[None],app.analysisfolder.results.totalReadCount))+'%, ('+thousandString(tmp[None])+')<br>\n'
+    outStr += '&nbsp&nbsp&nbsp&nbsp'+'barcode does not match => '+str(percentage(tmp[False],app.analysisfolder.results.totalReadCount))+'%, ('+thousandString(tmp[False])+')<br>\n'
+    outStr += '&nbsp&nbsp&nbsp&nbsp'+'barcode match DBS pattern=> '+str(percentage(tmp[True],app.analysisfolder.results.totalReadCount))+'%, ('+str(percentage(tmp[True],int(app.analysisfolder.results.totalReadCount)-int(tmp[None])))+'% of has barcode,'+thousandString(tmp[True])+')<br>\n'
     outStr += '<br>\n'
     outStr += 'Read pairs has a barcode: '+thousandString(app.analysisfolder.results.readPairsHasBarcode)+'<br>\n'
     outStr += 'Unique barcodes: '+thousandString(app.analysisfolder.results.uniqueBarcodeSequences)+'<br>\n'
@@ -91,7 +94,7 @@ def index():
     outStr += '<br>\n'
     outStr += '</div>'
     
-    outStr += '<div style="width:350px;float:left;padding:10px; ">'
+    outStr += '<div style="width:350px;float:left;padding:20px; ">'
     outStr += '<h2>List of clusters:</h2>'
     barcodeClusterer = BarcodeClusterer(app.analysisfolder)
     outStr += '<table>'
@@ -114,6 +117,7 @@ def index():
         cluster = BarcodeCluster(clusterId,app.analysisfolder)
         cluster.loadClusterInfo()
         cluster.loadReadPairs()
+        cluster.minMAPQ = 20
         outStr += '<td><a href="cluster'+str(clusterId)+'">'+str(clusterId)+'</a></td>'
         outStr += '<td><a href="cluster'+str(clusterId)+'"><font face="Courier">'+str(cluster.barcodeSequence)+'</font></a></td>\n'
         outStr += '<td><a href="cluster'+str(clusterId)+'">'+str(cluster.readPairCount)+'</a></td>\n'
@@ -122,7 +126,7 @@ def index():
         else: outStr += '<font color="red">'
         outStr += str(cluster.allreadssamechrom)+'</a></td>\n'
         outStr += '<td><a href="cluster'+str(clusterId)+'">'
-        if not (cluster.allreadssamechrom and cluster.allreadssamepos): outStr += '<font color="green">'
+        if not (cluster.allreadssamechrom and cluster.allreadssamepos) and cluster.allreadssamepos != None: outStr += '<font color="green">'
         else: outStr += '<font color="red">'
         outStr += str(cluster.allreadssamechrom and cluster.allreadssamepos)+'</a></td>\n'
         counter += 1
@@ -194,6 +198,7 @@ def cluster(cluster_id, readnumber=None):
         outStr += '<tr>'
         outStr += '<td>'
         if pair.mapQR1 < 20 or pair.mapQR2 < 20 or pair.mapQR1 == '*' or pair.mapQR2 == '*': outStr += '<font color="red">'
+        else: outStr += '<font color="green">'
         outStr += pair.header+ '</td>'
         outStr += '<td>'+str(pair.mappingFlagR1.flag)+' '+str(pair.mappingFlagR2.flag)+'</td>'
         outStr += '<td>'+str(pair.refNameR1)+'</td>'

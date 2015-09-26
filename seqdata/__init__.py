@@ -807,6 +807,8 @@ class BarcodeCluster(object,):
 	self.contigSequencesNotPassingFilter = []
 	self.nonSingletonContigs = None
 	
+	self.minMAPQ = 0
+	
 	self.filesCreated = []
 
     def loadClusterInfo(self, ):
@@ -927,8 +929,9 @@ class BarcodeCluster(object,):
     def allreadssamechrom(self,):
 	tmp = {}
 	for readPair in self.readPairs:
-	    tmp[readPair.refNameR1] = True
-	    tmp[readPair.refNameR2] = True
+	    if readPair.mapQR1 >= self.minMAPQ and readPair.mapQR2 >= self.minMAPQ:
+		tmp[readPair.refNameR1] = True
+		tmp[readPair.refNameR2] = True
 	
 	count = 0
 	for chrom in tmp:
@@ -943,8 +946,9 @@ class BarcodeCluster(object,):
 	tmp1 = {}
 	tmp2 = {}
 	for readPair in self.readPairs:
-	    tmp1[readPair.refPosR1] = True
-	    tmp2[readPair.refPosR2] = True
+	    if readPair.mapQR1 >= self.minMAPQ and readPair.mapQR2 >= self.minMAPQ:
+		tmp1[readPair.refPosR1] = True
+		tmp2[readPair.refPosR2] = True
 	
 	count1 = 0
 	for pos in tmp1:
