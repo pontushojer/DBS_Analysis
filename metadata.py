@@ -251,7 +251,8 @@ class Results(object,):
 	    'minR1readLength':None,
 	    'minR2readLength':None,
             'readsWithDbsPatternMatch':None,
-            'constructTypes':None
+            'constructTypes':None,
+	    'bt2AlignmentRate':None
 	}
 	self.explenations = {
 	    'totalReadCount':'The number of reads totally included in the analysis.',
@@ -263,7 +264,8 @@ class Results(object,):
 	    'minR1readLength':'Minimum read length found in infiles',
 	    'minR2readLength':'Minimum read length found in infiles',
             'readsWithDbsPatternMatch':'dictrionary holding the counts for the dbs matching statistics of the reapopulation',
-            'constructTypes':'dictionary holding infromation of all the different types of constructs found in the read populations'
+            'constructTypes':'dictionary holding infromation of all the different types of constructs found in the read populations',
+	    'bt2AlignmentRate':'the observed rate of aligned reads'
 	}
 	self.isDefault = {}
 	self.setTime = {}
@@ -278,8 +280,8 @@ class Results(object,):
 	self.minR2readLength = None
         self.readsWithDbsPatternMatch = None
         self.constructTypes = None
+	self.bt2AlignmentRate = None
 
-	
 	self.setDefaults()
 
     def setDefaults(self,):

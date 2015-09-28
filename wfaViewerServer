@@ -27,6 +27,14 @@ logfile = open(analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.l
 logfile.write('cmd: '+' '.join(sys.argv)+'\n')
 analysisfolder.logfile = logfile
 
+def indexForeachCluster(clusterId):
+    from seqdata import BarcodeClusterer, BarcodeCluster
+    cluster = BarcodeCluster(clusterId,app.analysisfolder)
+    cluster.loadClusterInfo()
+    cluster.loadReadPairs()
+    cluster.minMAPQ = 20
+    return cluster
+
 @app.route("/index.html")
 def index():
     
@@ -34,7 +42,6 @@ def index():
     from misc import thousandString, percentage
     import os
     import operator
-    
     outStr = ''
     outStr += '<html>'
     outStr += """<head><style>
@@ -90,13 +97,18 @@ def index():
     outStr += 'Read pairs has a barcode: '+thousandString(app.analysisfolder.results.readPairsHasBarcode)+'<br>\n'
     outStr += 'Unique barcodes: '+thousandString(app.analysisfolder.results.uniqueBarcodeSequences)+'<br>\n'
     outStr += 'Barcode clusters found: '+thousandString(app.analysisfolder.results.barcodeClusterCount)+'<br>\n'
-    outStr += 'Barcode clusters are singletons: '+thousandString(app.analysisfolder.results.singeltonBarcodeClusters)+'<br>\n'
+    outStr += 'Barcode clusters are singletons: '+thousandString(app.analysisfolder.results.singeltonBarcodeClusters)+'<br>\n'+'<br>\n'
+    outStr += 'Bowtie2 alignment Rate: '+str(bt2AlignmentRate)+'<br>\n'+'<br>\n'
     outStr += '<br>\n'
     outStr += '</div>'
     
     outStr += '<div style="width:350px;float:left;padding:20px; ">'
     outStr += '<h2>List of clusters:</h2>'
     barcodeClusterer = BarcodeClusterer(app.analysisfolder)
+    import multiprocessing
+    poolOfProcesses = multiprocessing.Pool(int(app.analysisfolder.settings.parallelProcesses)-1,maxtasksperchild=10000)
+    #parallelResults = poolOfProcesses.imap_unordered(indexForeachCluster,barcodeClusterer.getBarcodeClusterIds(shuffle=False,byMixedClusterReadCount=False),chunksize=1)
+    parallelResults = poolOfProcesses.imap(indexForeachCluster,barcodeClusterer.getBarcodeClusterIds(shuffle=False,byMixedClusterReadCount=False),chunksize=1)
     outStr += '<table>'
     outStr += '<tr>' 
     outStr += '<th>clusterID</th>'
@@ -111,21 +123,18 @@ def index():
 #    outStr += '<th>CIGAR</th>'
     outStr += '</tr>' 
     counter = 0
-    for clusterId in barcodeClusterer.getBarcodeClusterIds(shuffle=False,byMixedClusterReadCount=False):
+    #for clusterId in barcodeClusterer.getBarcodeClusterIds(shuffle=False,byMixedClusterReadCount=False):
+        #cluster = indexForeachCluster(clusterId)
+    for cluster in parallelResults:
         outStr += '<tr>'
-
-        cluster = BarcodeCluster(clusterId,app.analysisfolder)
-        cluster.loadClusterInfo()
-        cluster.loadReadPairs()
-        cluster.minMAPQ = 20
-        outStr += '<td><a href="cluster'+str(clusterId)+'">'+str(clusterId)+'</a></td>'
-        outStr += '<td><a href="cluster'+str(clusterId)+'"><font face="Courier">'+str(cluster.barcodeSequence)+'</font></a></td>\n'
-        outStr += '<td><a href="cluster'+str(clusterId)+'">'+str(cluster.readPairCount)+'</a></td>\n'
-        outStr += '<td><a href="cluster'+str(clusterId)+'">'
+        outStr += '<td><a href="cluster'+str(cluster.id)+'">'+str(cluster.id)+'</a></td>'
+        outStr += '<td><a href="cluster'+str(cluster.id)+'"><font face="Courier">'+str(cluster.barcodeSequence)+'</font></a></td>\n'
+        outStr += '<td><a href="cluster'+str(cluster.id)+'">'+str(cluster.readPairCount)+'</a></td>\n'
+        outStr += '<td><a href="cluster'+str(cluster.id)+'">'
         if cluster.allreadssamechrom: outStr += '<font color="green">'
         else: outStr += '<font color="red">'
         outStr += str(cluster.allreadssamechrom)+'</a></td>\n'
-        outStr += '<td><a href="cluster'+str(clusterId)+'">'
+        outStr += '<td><a href="cluster'+str(cluster.id)+'">'
         if not (cluster.allreadssamechrom and cluster.allreadssamepos) and cluster.allreadssamepos != None: outStr += '<font color="green">'
         else: outStr += '<font color="red">'
         outStr += str(cluster.allreadssamechrom and cluster.allreadssamepos)+'</a></td>\n'
@@ -133,10 +142,12 @@ def index():
         if counter == 1000: break
 
         outStr += '</tr>'
+    poolOfProcesses.close();print 'Closing'
+    poolOfProcesses.terminate();print 'terminating'
+    poolOfProcesses.join();print 'joining'
 
     outStr += '</table>'
     outStr += '</div>'
-
     
     return outStr
 
