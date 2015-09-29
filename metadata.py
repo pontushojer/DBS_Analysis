@@ -397,7 +397,8 @@ class Settings(object,):
 #	    'umiMaxMisMatch':2,
 	    'readsPerClusterCutOff':100,
 	    'bowtie2Reference':None,
-	    'picardPath':None
+	    'picardPath':None,
+	    'mapqCutOff':0
 
 	}
 	self.explenations = {
@@ -412,7 +413,8 @@ class Settings(object,):
 #	    'umiMaxMisMatch':'Number of missmatches allowed in the UMI sequence',
 	    'readsPerClusterCutOff':'Number of reads supporting a barcode sequence cluster for it to passs filters',
 	    'bowtie2Reference':'path to the bowtie 2 reference index',
-	    'picardPath':'path to the picard installation to use'
+	    'picardPath':'path to the picard installation to use',
+	    'mapqCutOff':'filter all reads with mapping quality less than this (default='+str(self.defaultValues['mapqCutOff'])+')'
 	}
 	self.isDefault = {}
 	self.setTime = {}
@@ -429,6 +431,7 @@ class Settings(object,):
 	self.readsPerClusterCutOff = None
 	self.bowtie2Reference = None
 	self.picardPath = None
+	self.mapqCutOff = None
 	
 	self.setDefaults()
 

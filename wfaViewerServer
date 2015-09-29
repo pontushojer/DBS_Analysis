@@ -1,10 +1,16 @@
 #! /usr/bin/env python
+
+#
+# Imports
+#
+
 from flask import Flask
 from flask import render_template
 from flask import json
 import metadata
 import sys
 import time
+import os
 
 app = Flask(__name__)
 
@@ -26,6 +32,49 @@ if not analysisfolder.checkIntegrity() == 'PASS': print analysisfolder.checkInte
 logfile = open(analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'_wfaViewerServer','w',1)
 logfile.write('cmd: '+' '.join(sys.argv)+'\n')
 analysisfolder.logfile = logfile
+
+def createStaticFiles(app):
+    
+    #
+    # Imports
+    #
+    import sys
+    import os
+    import seqdata    
+    import operator
+    
+    pathToStatic = '/'.join(os.path.realpath(sys.argv[0]).split('/')[:-1])+'/static'
+    if not os.path.isdir(pathToStatic): os.mkdir(pathToStatic)
+    
+    #insert sizes
+	
+    #
+    # open connection to database
+    #
+    app.analysisfolder.database.getConnection()
+
+    before = app.analysisfolder.settings.mapqCutOff
+    for mapq in xrange(50):
+        app.analysisfolder.settings.mapqCutOff=mapq
+        readPairs = app.analysisfolder.database.c.execute('SELECT insertSize FROM reads WHERE mapQR1>=? AND mapQR2>=?',(app.analysisfolder.settings.mapqCutOff,app.analysisfolder.settings.mapqCutOff,))
+        isizeDict = {}
+        insertSizeCSV=open(pathToStatic+'/insersizes.'+str(app.analysisfolder.settings.mapqCutOff)+'.csv','w')
+        insertSizeCSV.write('iSize,count\n')
+        while True:
+            
+            rows = readPairs.fetchmany()#size=readPairs.arraysize)
+            
+            if not rows: break
+            
+            for row in rows:
+                insertSize = row[0]
+                try: isizeDict[insertSize]+=1
+                except KeyError:isizeDict[insertSize]=1
+        
+        for insertSize, count in sorted(isizeDict.iteritems(), key=operator.itemgetter(0)): insertSizeCSV.write( str(insertSize)+','+str(count)+'\n')
+    app.analysisfolder.settings.mapqCutOff=before
+    
+    app.analysisfolder.database.commitAndClose()    
 
 def indexForeachCluster(clusterId):
     from seqdata import BarcodeClusterer, BarcodeCluster
@@ -98,7 +147,7 @@ def index():
     outStr += 'Unique barcodes: '+thousandString(app.analysisfolder.results.uniqueBarcodeSequences)+'<br>\n'
     outStr += 'Barcode clusters found: '+thousandString(app.analysisfolder.results.barcodeClusterCount)+'<br>\n'
     outStr += 'Barcode clusters are singletons: '+thousandString(app.analysisfolder.results.singeltonBarcodeClusters)+'<br>\n'+'<br>\n'
-    outStr += 'Bowtie2 alignment Rate: '+str(bt2AlignmentRate)+'<br>\n'+'<br>\n'
+    outStr += 'Bowtie2 alignment Rate: '+str(app.analysisfolder.results.bt2AlignmentRate)+'%<br>\n'+'<br>\n'
     outStr += '<br>\n'
     outStr += '</div>'
     
@@ -115,6 +164,7 @@ def index():
     outStr += '<th>barcode</th>'
     outStr += '<th>readcount</th>'
     outStr += '<th>sameCrom</th>'
+    outStr += '<th>chrom</th>'
     outStr += '<th>duplicate</th>'
 #    outStr += '<th>pos R1</th>'
 #    outStr += '<th>pos R2</th>'
@@ -123,31 +173,55 @@ def index():
 #    outStr += '<th>CIGAR</th>'
     outStr += '</tr>' 
     counter = 0
+    sameChrom = 0
+    pcrDup = 0
+    totalReadPairCount=0
     #for clusterId in barcodeClusterer.getBarcodeClusterIds(shuffle=False,byMixedClusterReadCount=False):
         #cluster = indexForeachCluster(clusterId)
     for cluster in parallelResults:
+        counter += 1
+        if counter == 1000: break
+        #if not cluster.allreadssamechrom or (cluster.allreadssamechrom==True and cluster.allreadssamepos): continue
         outStr += '<tr>'
         outStr += '<td><a href="cluster'+str(cluster.id)+'">'+str(cluster.id)+'</a></td>'
         outStr += '<td><a href="cluster'+str(cluster.id)+'"><font face="Courier">'+str(cluster.barcodeSequence)+'</font></a></td>\n'
         outStr += '<td><a href="cluster'+str(cluster.id)+'">'+str(cluster.readPairCount)+'</a></td>\n'
+        totalReadPairCount += cluster.readPairCount
         outStr += '<td><a href="cluster'+str(cluster.id)+'">'
-        if cluster.allreadssamechrom: outStr += '<font color="green">'
-        else: outStr += '<font color="red">'
+        if cluster.allreadssamechrom:
+            sameChrom += 1
+            outStr += '<font color="green">'
+        else:
+            outStr += '<font color="red">'
         outStr += str(cluster.allreadssamechrom)+'</a></td>\n'
         outStr += '<td><a href="cluster'+str(cluster.id)+'">'
-        if not (cluster.allreadssamechrom and cluster.allreadssamepos) and cluster.allreadssamepos != None: outStr += '<font color="green">'
-        else: outStr += '<font color="red">'
-        outStr += str(cluster.allreadssamechrom and cluster.allreadssamepos)+'</a></td>\n'
-        counter += 1
-        if counter == 1000: break
+        if cluster.allreadssamechrom:outStr += str(cluster.chromosome)+'</a></td>\n'#readPairs[0].refNameR1)+'</a></td>\n'
+        else:outStr += 'NA</a></td>\n'
+        outStr += '<td><a href="cluster'+str(cluster.id)+'">'
+        if not (cluster.allreadssamechrom==True and cluster.allreadssamepos) and cluster.allreadssamepos != None:
+            outStr += '<font color="green">'
+        else:
+            pcrDup += 1
+            outStr += '<font color="red">'
+        outStr += str(cluster.allreadssamechrom==True and cluster.allreadssamepos)+'</a></td>\n'
+
+        
 
         outStr += '</tr>'
     poolOfProcesses.close();print 'Closing'
     poolOfProcesses.terminate();print 'terminating'
     poolOfProcesses.join();print 'joining'
+    outStr += '<tr>'
+    outStr += '<td>'+str(counter)+'</td>'
+    outStr += '<td><font face="Courier">NA</font></td>\n'
+    outStr += '<td>'+str(totalReadPairCount)+'</td>\n'
+    outStr += '<td>'+str(percentage(sameChrom,counter))+'%</td>\n'
+    outStr += '<td><font face="Courier">NA</font></td>\n'
+    outStr += '<td>'+str(percentage(pcrDup,counter))+'%</td>\n'
 
     outStr += '</table>'
     outStr += '</div>'
+    
     
     return outStr
 
@@ -229,4 +303,5 @@ def cluster(cluster_id, readnumber=None):
     return outStr
 
 if __name__ == "__main__":
+#    createStaticFiles(app)
     app.run(host='0.0.0.0',port=5000,debug=True)

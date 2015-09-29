@@ -937,7 +937,9 @@ class BarcodeCluster(object,):
 	for chrom in tmp:
 	    if chrom != None: count+=1
 	
-	if count == 1: return True
+	if count == 1:
+	    self.chromosome = chrom
+	    return True
 	elif count > 1: return False
 	else: return None
 
