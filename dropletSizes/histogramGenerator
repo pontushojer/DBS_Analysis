@@ -17,13 +17,23 @@ filename=None
 for row in sys.stdin:
 	match = re.match('Image sample: (?P<filename>.+)\n',row)
 	if match: filename=match.groupdict()['filename']
-	match = re.match('Found circle at coordinates (?P<coordinate>\d+\.\d+) of diameter (?P<pixelSize>\d+) pixels.\n',row)
+	match = re.match('Found circle at coordinates (?P<coordinate>\d+\.\d+) of radius (?P<pixelSize>\d+) pixels.\n',row)
 	if match: sizes.append(int(match.groupdict()['pixelSize']))
 	else:sys.stdout.write(row)
 
 # convert pixels to microns
-convertion_factor = 912/1000.88 #microm/pix previously 1.12352
+# 10 x 
+convertion_factor = 1000.88/912 #microm/pix previously 1.12352
+convertion_factor = 500.593/454
+# 20x objective
+#convertion_factor = 500.355/912 #micrometer/pixel
 for i in range(len(sizes)): sizes[i] = sizes[i]*convertion_factor
+
+# convert from diameter to volume (in pL)
+PI = 3.14159265359
+for i in range(len(sizes)):
+	# volume =  (4/3)*PI*(1e-6*radius)**3 m3      to L      to pL
+	sizes[i] = ((4/3)*PI*(1e-6*sizes[i])**3) * (10*10*10) * 1e12
 
 #
 # Make plot
@@ -49,15 +59,20 @@ handles, labels = axes.get_legend_handles_labels()
 hl = sorted(zip(handles, labels), key=operator.itemgetter(1))
 handles2, labels2 = zip(*hl)
 axes.legend(handles2, labels2,loc=0,fontsize='small')
-axes.set_xlabel('size')
-axes.set_ylabel('Count')
-axes.text(int(round(max(x)*0.8,0)),int(round(max(y)*0.85,0)),'Average = '+str(round(np.average(sizes),2)))
-axes.text(int(round(max(x)*0.8,0)),int(round(max(y)*0.85-1*int(round(max(y)*0.05,0)),0)),'Median = '+str(round(np.median(sizes),2)))
+axes.set_xlabel('Volume (pL)')
+axes.set_ylabel('# Number of droplets')
+axes.text(int(round(max(x)*0.8,0)),int(round(max(y)*0.85,0)),'Average = '+str(round(np.average(sizes),2))+' pL')
+axes.text(int(round(max(x)*0.8,0)),int(round(max(y)*0.85-1*int(round(max(y)*0.05,0)),0)),'Median = '+str(round(np.median(sizes),2))+' pL')
 axes.text(int(round(max(x)*0.8,0)),int(round(max(y)*0.85-2*int(round(max(y)*0.05,0)),0)),'Standard deviation = '+str(round(np.std(sizes),2)))
+
+axes.text(int(round(max(x)*0.8,0)),int(round(max(y)*0.85-3*int(round(max(y)*0.05,0)),0)),'droplets in 50uL = '+str(round( 50/np.average(sizes) ,2))+'M')
+axes.text(int(round(max(x)*0.8,0)),int(round(max(y)*0.85-4*int(round(max(y)*0.05,0)),0)),'Max = '+str(round(max(sizes),2))+' pL')
+axes.text(int(round(max(x)*0.8,0)),int(round(max(y)*0.85-5*int(round(max(y)*0.05,0)),0)),'Min = '+str(round(min(sizes),2))+' pL')
+
 plt.savefig(filename+'_sizes.pdf',dpi=300,bbox_inches='tight')
-plt.savefig(filename+'_sizes.png',dpi=300,bbox_inches='tight')
+#plt.savefig(filename+'_sizes.png',dpi=300,bbox_inches='tight')
 
 print '### py-script out:'
-print 'Average = '+str(round(np.average(sizes),2))
-print 'Median = '+str(round(np.median(sizes),2))
-print 'Standard deviation = '+str(round(np.std(sizes),2))
+print 'Average = '+str(round(np.average(sizes),2))+' pL'
+print 'Median = '+str(round(np.median(sizes),2))+' pL'
+print 'Standard deviation = '+str(round(np.std(sizes),2))+' pL'
