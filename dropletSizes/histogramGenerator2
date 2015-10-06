@@ -1,0 +1,167 @@
+#! /usr/bin/env python
+
+import sys
+import numpy as np
+import matplotlib.pyplot as plt
+import operator
+import sys
+import os
+import time
+import re
+import cv2
+
+sizes = []
+
+try: tmp =  sys.argv[1]
+except IndexError: sys.stderr.write('non valid cmd-line\n')
+filename = tmp
+
+#######################################################################
+#
+# SETTINGS:
+#
+# dp: This parameter is the inverse ratio of the accumulator resolution to the image resolution (see Yuen et al. for more details). Essentially, the larger the dp gets, the smaller the accumulator array gets.
+# minDist: Minimum distance between the center (x, y) coordinates of detected circles. If the minDist is too small, multiple circles in the same neighborhood as the original may be (falsely) detected. If the minDist is too large, then some circles may not be detected at all.
+# param1: Gradient value used to handle edge detection in the Yuen et al. method.
+# param2: Accumulator threshold value for the cv2.HOUGH_GRADIENT method. The smaller the threshold is, the more circles will be detected (including false circles). The larger the threshold is, the more circles will potentially be returned.
+# minRadius: Minimum size of the radius (in pixels).
+# maxRadius: Maximum size of the radius (in pixels).
+dp        =   1   #// inverse ratio of resolution
+minDist   =  10   #// minimum distance between centers     PLAY WITH THIS!
+param1    = 100   #// upper threshold for the internal Canny edge detector
+param2    =  25   #// threshold for center detection       
+minRadius =   1   #// minimum radius           PLAY WITH THIS!
+maxRadius =  30   #// maximum radius           PLAY WITH THIS!
+#######################################################################
+
+infileCount=len(sys.argv[1:])
+sys.stderr.write('working with '+str(infileCount)+' potential infiles...\n');
+
+infileCount = 0
+outputs = []
+for filename in sys.argv[1:]:
+	
+	if not filename.split('/')[-1].count('.jpg') == 1 or len(filename.split('/')[-1].split('.jpg'))==1: sys.stderr.write(filename+' not valid.\n');continue
+	else:
+		sys.stderr.write('Detecting circles in '+filename+'....\n');
+		infileCount+=1
+
+	# load the image, clone it for output, and then convert it to grayscale
+	image = cv2.imread(filename)
+	output = image.copy()
+	blur = cv2.GaussianBlur(image, (5,5), 0)
+	gray = cv2.cvtColor(blur, cv2.COLOR_BGR2GRAY)
+	circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, dp=dp,  minDist=minDist, param1=param1, param2=param2, minRadius=minRadius, maxRadius=maxRadius)
+	
+	# ensure at least some circles were found
+	if circles is not None:
+	
+		# convert the (x, y) coordinates and radius of the circles to integers
+		circles = np.round(circles[0, :]).astype("int")
+
+		# loop over the (x, y) coordinates and radius of the circles
+		for (x, y, r) in circles:
+	
+			# draw the circle in the output image, then draw a rectangle
+			# corresponding to the center of the circle
+			cv2.circle(output, (x, y), r, (0, 255, 0), 2)
+			cv2.rectangle(output, (x - 1, y - 1), (x + 1, y + 1), (0, 128, 255), -1)
+			sizes.append(r)
+	
+		# show the output image
+		#cv2.imshow("output", np.hstack([image, output]))
+		#cv2.waitKey(0)
+		#cv2.imwrite(filename.split('/')[-1].split('.jpg')[0]+'.pythonOut.jpg', np.hstack([output]))
+		#sys.stderr.write('writing deteted to in '+filename.split('/')[-1].split('.jpg')[0]+'.pythonOut.jpg'+'....\n')
+		sys.stderr.write('...found '+str(len(circles))+' circles in '+filename+'....\n')
+		outputs.append(output.copy())
+
+infileCount = len(outputs)
+rows = 1
+cols = 1
+tiles = 1
+while tiles < infileCount:
+	cols+=1
+	tiles = rows*cols
+	if tiles >= infileCount: break
+	else:
+		rows+=1
+		tiles = rows*cols
+
+print 'rows',rows,'cols',cols,'tiles',tiles
+
+cv2.imwrite('histogram2_detected.jpg',
+	np.vstack(
+		[np.hstack( [
+			outputs[i+j] for j in range(cols)
+			]) for i in range(rows)]
+		)
+	)
+
+# convert pixels to microns
+# 10 x 
+convertion_factor = 1000.88/912 #microm/pix previously 1.12352
+convertion_factor = 500.593/454
+# 20x objective
+convertion_factor = 500.355/912 #micrometer/pixel
+for i in range(len(sizes)): sizes[i] = sizes[i]*convertion_factor
+
+# convert from diameter to volume (in pL)
+PI = 3.14159265359
+for i in range(len(sizes)):
+	# volume =  (4/3)*PI*(1e-6*radius)**3 m3      to L      to pL
+	sizes[i] = ((4/3)*PI*(1e-6*sizes[i])**3) * (10*10*10) * 1e12
+
+# filter sizes
+tmp = []
+dropletmax = 1000000000
+dropletmin = 0
+for i in sizes:
+	if i >= dropletmin and i <= dropletmax: tmp.append(i)
+sizes = tmp
+
+#
+# Make plot
+#
+fig, axes = plt.subplots(1, sharex=True)
+plots = []
+incrementer=0
+incrementer2=0
+incrementer3=0
+
+counter = {}
+total = 0
+for size in sizes:
+	try:counter[size] += 1
+	except KeyError: counter[size] = 1
+	total+=1
+
+y = [value for key, value in sorted(counter.iteritems(), key=operator.itemgetter(0))]
+x = sorted(counter.keys())
+
+plots.append(axes.plot(x, y,label='Raw counts'))
+plots.append(axes.hist(sizes,range(0,int(round(max(x),0))+1,1),label='Binned histogram',histtype='step'))
+handles, labels = axes.get_legend_handles_labels()
+hl = sorted(zip(handles, labels), key=operator.itemgetter(1))
+handles2, labels2 = zip(*hl)
+axes.legend(handles2, labels2,loc=0,fontsize='small')
+axes.set_xlabel('Volume (pL)')
+axes.set_ylabel('# Number of droplets')
+y_max = axes.get_ylim()[1]
+x_max = axes.get_xlim()[1]
+axes.text(int(round(x_max*0.6,0)),int(round(y_max*0.85,0)),'Average = '+str(round(np.average(sizes),2))+' pL')
+axes.text(int(round(x_max*0.6,0)),int(round(y_max*0.85-1*int(round(y_max*0.05,0)),0)),'Median = '+str(round(np.median(sizes),2))+' pL')
+axes.text(int(round(x_max*0.6,0)),int(round(y_max*0.85-2*int(round(y_max*0.05,0)),0)),'Standard deviation = '+str(round(np.std(sizes),2)))
+
+axes.text(int(round(x_max*0.6,0)),int(round(y_max*0.85-3*int(round(y_max*0.05,0)),0)),'droplets in 50uL = '+str(round( 50/np.average(sizes) ,2))+'M')
+axes.text(int(round(x_max*0.6,0)),int(round(y_max*0.85-4*int(round(y_max*0.05,0)),0)),'Max = '+str(round(max(sizes),2))+' pL')
+axes.text(int(round(x_max*0.6,0)),int(round(y_max*0.85-5*int(round(y_max*0.05,0)),0)),'Min = '+str(round(min(sizes),2))+' pL')
+axes.text(int(round(x_max*0.6,0)),int(round(y_max*0.85-6*int(round(y_max*0.05,0)),0)),''+str(int(round(len(sizes),2)))+' droplets identified')
+
+plt.savefig('histogram2_sizes.pdf',dpi=300,bbox_inches='tight')
+#plt.savefig(filename+'_sizes.png',dpi=300,bbox_inches='tight')
+
+print '### py-script out:'
+print 'Average = '+str(round(np.average(sizes),2))+' pL'
+print 'Median = '+str(round(np.median(sizes),2))+' pL'
+print 'Standard deviation = '+str(round(np.std(sizes),2))+' pL'
