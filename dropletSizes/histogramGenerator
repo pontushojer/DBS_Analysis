@@ -26,7 +26,7 @@ for row in sys.stdin:
 convertion_factor = 1000.88/912 #microm/pix previously 1.12352
 convertion_factor = 500.593/454
 # 20x objective
-#convertion_factor = 500.355/912 #micrometer/pixel
+convertion_factor = 500.355/912 #micrometer/pixel
 for i in range(len(sizes)): sizes[i] = sizes[i]*convertion_factor
 
 # convert from diameter to volume (in pL)

@@ -47,8 +47,8 @@ int main(int argc, char** argv)
     HoughCircles(img, circles, HOUGH_GRADIENT,
                  1,     // inverse ratio of resolution
                  10,    // minimum distance between centers     PLAY WITH THIS!
-                 100,   // upper threshold for the internal Canny edge detector
-                 30,    // threshold for center detection       
+                 200,   // upper threshold for the internal Canny edge detector
+                 25,    // threshold for center detection       
                  1,     // minimum radius           PLAY WITH THIS!
                  30     // maximum radius           PLAY WITH THIS!
                  );
@@ -60,7 +60,7 @@ int main(int argc, char** argv)
         Vec3i c = circles[i];
         circle( cimg, Point(c[0], c[1]), c[2], Scalar(0,0,255), 1, LINE_AA);        // circumference: ... scalar(blue,green,red), line weight
         circle( cimg, Point(c[0], c[1]), 2, Scalar(0,255,0), 3, LINE_AA);           // center point
-        std::cout << "Found circle at coordinates " << c[0] << "." << c[1] << " of diameter " << c[2] << " pixels." << std::endl;
+        std::cout << "Found circle at coordinates " << c[0] << "." << c[1] << " of radius " << c[2] << " pixels." << std::endl;
         total += c[2];
     }
     
@@ -74,7 +74,7 @@ int main(int argc, char** argv)
     imshow("detected circles", cimg);
     imwrite(out_filename, cimg);
     // while(waitKey() != 'q') {}       // close image and terminate only when pressing q (use instead of next line).
-    waitKey();                          // wait to close image and terminate script until any key is pressed 
+    //waitKey();                          // wait to close image and terminate script until any key is pressed 
 
     return 0;
 }
