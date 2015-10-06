@@ -21,6 +21,10 @@ for row in sys.stdin:
 	if match: sizes.append(int(match.groupdict()['pixelSize']))
 	else:sys.stdout.write(row)
 
+try: tmp =  sys.argv[1]
+except IndexError: tmp = filename
+filename = tmp
+
 # convert pixels to microns
 # 10 x 
 convertion_factor = 1000.88/912 #microm/pix previously 1.12352
@@ -34,6 +38,14 @@ PI = 3.14159265359
 for i in range(len(sizes)):
 	# volume =  (4/3)*PI*(1e-6*radius)**3 m3      to L      to pL
 	sizes[i] = ((4/3)*PI*(1e-6*sizes[i])**3) * (10*10*10) * 1e12
+
+# filter sizes
+tmp = []
+dropletmax = 1000000000
+dropletmin = 0
+for i in sizes:
+	if i >= dropletmin and i <= dropletmax: tmp.append(i)
+sizes = tmp
 
 #
 # Make plot
@@ -55,19 +67,23 @@ y = [value for key, value in sorted(counter.iteritems(), key=operator.itemgetter
 x = sorted(counter.keys())
 
 plots.append(axes.plot(x, y,label='Sizes'))
+plots.append(axes.hist(sizes,range(0,int(round(max(x),0))+1,1),label='binning',histtype='step'))
 handles, labels = axes.get_legend_handles_labels()
 hl = sorted(zip(handles, labels), key=operator.itemgetter(1))
 handles2, labels2 = zip(*hl)
 axes.legend(handles2, labels2,loc=0,fontsize='small')
 axes.set_xlabel('Volume (pL)')
 axes.set_ylabel('# Number of droplets')
-axes.text(int(round(max(x)*0.8,0)),int(round(max(y)*0.85,0)),'Average = '+str(round(np.average(sizes),2))+' pL')
-axes.text(int(round(max(x)*0.8,0)),int(round(max(y)*0.85-1*int(round(max(y)*0.05,0)),0)),'Median = '+str(round(np.median(sizes),2))+' pL')
-axes.text(int(round(max(x)*0.8,0)),int(round(max(y)*0.85-2*int(round(max(y)*0.05,0)),0)),'Standard deviation = '+str(round(np.std(sizes),2)))
+y_max = axes.get_ylim()[1]
+x_max = axes.get_xlim()[1]
+axes.text(int(round(x_max*0.8,0)),int(round(y_max*0.85,0)),'Average = '+str(round(np.average(sizes),2))+' pL')
+axes.text(int(round(x_max*0.8,0)),int(round(y_max*0.85-1*int(round(y_max*0.05,0)),0)),'Median = '+str(round(np.median(sizes),2))+' pL')
+axes.text(int(round(x_max*0.8,0)),int(round(y_max*0.85-2*int(round(y_max*0.05,0)),0)),'Standard deviation = '+str(round(np.std(sizes),2)))
 
-axes.text(int(round(max(x)*0.8,0)),int(round(max(y)*0.85-3*int(round(max(y)*0.05,0)),0)),'droplets in 50uL = '+str(round( 50/np.average(sizes) ,2))+'M')
-axes.text(int(round(max(x)*0.8,0)),int(round(max(y)*0.85-4*int(round(max(y)*0.05,0)),0)),'Max = '+str(round(max(sizes),2))+' pL')
-axes.text(int(round(max(x)*0.8,0)),int(round(max(y)*0.85-5*int(round(max(y)*0.05,0)),0)),'Min = '+str(round(min(sizes),2))+' pL')
+axes.text(int(round(x_max*0.8,0)),int(round(y_max*0.85-3*int(round(y_max*0.05,0)),0)),'droplets in 50uL = '+str(round( 50/np.average(sizes) ,2))+'M')
+axes.text(int(round(x_max*0.8,0)),int(round(y_max*0.85-4*int(round(y_max*0.05,0)),0)),'Max = '+str(round(max(sizes),2))+' pL')
+axes.text(int(round(x_max*0.8,0)),int(round(y_max*0.85-5*int(round(y_max*0.05,0)),0)),'Min = '+str(round(min(sizes),2))+' pL')
+axes.text(int(round(x_max*0.8,0)),int(round(y_max*0.85-6*int(round(y_max*0.05,0)),0)),''+str(int(round(len(sizes),2)))+' droplets identified')
 
 plt.savefig(filename+'_sizes.pdf',dpi=300,bbox_inches='tight')
 #plt.savefig(filename+'_sizes.png',dpi=300,bbox_inches='tight')
