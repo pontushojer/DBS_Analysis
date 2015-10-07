@@ -10,11 +10,14 @@ import time
 import re
 import cv2
 
-sizes = []
-
+#
+# check commandline
+#
 try: tmp =  sys.argv[1]
 except IndexError: sys.stderr.write('non valid cmd-line\n')
 filename = tmp
+infileCount=len(sys.argv[1:])
+sys.stderr.write('working with '+str(infileCount)+' potential infiles...\n');
 
 #######################################################################
 #
@@ -34,26 +37,38 @@ minRadius =   1   #// minimum radius           PLAY WITH THIS!
 maxRadius =  30   #// maximum radius           PLAY WITH THIS!
 #######################################################################
 
-infileCount=len(sys.argv[1:])
-sys.stderr.write('working with '+str(infileCount)+' potential infiles...\n');
-
+#
+# set initial values
+#
 infileCount = 0
+sizes = []
 outputs = []
+
+#
+# go through the infiles and detect all circles
+#
 for filename in sys.argv[1:]:
 	
+	#
+	# check filename
+	#
 	if not filename.split('/')[-1].count('.jpg') == 1 or len(filename.split('/')[-1].split('.jpg'))==1: sys.stderr.write(filename+' not valid.\n');continue
 	else:
 		sys.stderr.write('Detecting circles in '+filename+'....\n');
 		infileCount+=1
 
-	# load the image, clone it for output, and then convert it to grayscale
+	#
+	# Load image, add some blur and convert it to grayscale
+	#
 	image = cv2.imread(filename)
 	output = image.copy()
 	blur = cv2.GaussianBlur(image, (5,5), 0)
 	gray = cv2.cvtColor(blur, cv2.COLOR_BGR2GRAY)
-	circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, dp=dp,  minDist=minDist, param1=param1, param2=param2, minRadius=minRadius, maxRadius=maxRadius)
 	
-	# ensure at least some circles were found
+	#
+	# detect the circles
+	#
+	circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, dp=dp,  minDist=minDist, param1=param1, param2=param2, minRadius=minRadius, maxRadius=maxRadius)
 	if circles is not None:
 	
 		# convert the (x, y) coordinates and radius of the circles to integers
@@ -68,14 +83,18 @@ for filename in sys.argv[1:]:
 			cv2.rectangle(output, (x - 1, y - 1), (x + 1, y + 1), (0, 128, 255), -1)
 			sizes.append(r)
 	
-		# show the output image
-		#cv2.imshow("output", np.hstack([image, output]))
-		#cv2.waitKey(0)
+		#
+		# write an output showing the circles detected in the input - DISABLED
+		#
 		#cv2.imwrite(filename.split('/')[-1].split('.jpg')[0]+'.pythonOut.jpg', np.hstack([output]))
 		#sys.stderr.write('writing deteted to in '+filename.split('/')[-1].split('.jpg')[0]+'.pythonOut.jpg'+'....\n')
-		sys.stderr.write('...found '+str(len(circles))+' circles in '+filename+'....\n')
+		
+		sys.stderr.write('...found '+str(len(circles))+' circles in '+filename+'\n')
 		outputs.append(output.copy())
 
+#
+# Make a concatenated image of outputs,
+# start by finding the number of rows and columns needed
 infileCount = len(outputs)
 rows = 1
 cols = 1
@@ -87,58 +106,85 @@ while tiles < infileCount:
 	else:
 		rows+=1
 		tiles = rows*cols
-
 print 'rows',rows,'cols',cols,'tiles',tiles
 
-cv2.imwrite('histogram2_detected.jpg',
-	np.vstack(
-		[np.hstack( [
-			outputs[i+j] for j in range(cols)
-			]) for i in range(rows)]
-		)
-	)
+#
+# make the rows
+#
+tmpRows = []
+tmpCounter = 0
+for row in range(rows):
+	tmpRow = outputs[tmpCounter:tmpCounter+cols]
+	if len(tmpRow) < cols: 
+		extra = tmpCounter + cols - len(outputs)
+		height, width, channels = image.shape
+		blank_image = np.zeros((height,width,3), np.uint8)
+		blank_image[:,:] = (190,190,190)      # (B, G, R)
+		tmpRow += [blank_image for i in range(extra)]
+	tmpRows.append( np.hstack(tmpRow) )
+	tmpCounter = tmpCounter+cols
+rows = tmpRows
 
+#
+# write the image to disc
+#
+cv2.imwrite('histogram2_detected.jpg',np.vstack(rows))
+
+
+#####################################
+#                                   #
+# Process the detected droplet data #
+#                                   #
+#####################################
+
+#
 # convert pixels to microns
-# 10 x 
-convertion_factor = 1000.88/912 #microm/pix previously 1.12352
-convertion_factor = 500.593/454
+#
+
+# 10 x objective
+#convertion_factor = 1000.88/912 #microm/pix previously 1.12352
+#convertion_factor = 500.593/454
+
 # 20x objective
 convertion_factor = 500.355/912 #micrometer/pixel
+
 for i in range(len(sizes)): sizes[i] = sizes[i]*convertion_factor
 
-# convert from diameter to volume (in pL)
+#
+# Convert from detected 2D-radius to volume (in pL)
+#
 PI = 3.14159265359
 for i in range(len(sizes)):
 	# volume =  (4/3)*PI*(1e-6*radius)**3 m3      to L      to pL
 	sizes[i] = ((4/3)*PI*(1e-6*sizes[i])**3) * (10*10*10) * 1e12
 
-# filter sizes
+#
+# Filter drolpet sizes
+#
 tmp = []
-dropletmax = 1000000000
+dropletmax = 1e9
 dropletmin = 0
 for i in sizes:
 	if i >= dropletmin and i <= dropletmax: tmp.append(i)
 sizes = tmp
 
 #
-# Make plot
+# Prepare data for plotting
 #
-fig, axes = plt.subplots(1, sharex=True)
-plots = []
-incrementer=0
-incrementer2=0
-incrementer3=0
-
 counter = {}
 total = 0
 for size in sizes:
 	try:counter[size] += 1
 	except KeyError: counter[size] = 1
 	total+=1
-
 y = [value for key, value in sorted(counter.iteritems(), key=operator.itemgetter(0))]
 x = sorted(counter.keys())
 
+#
+# Make plot
+#
+plots = []
+fig, axes = plt.subplots(1, sharex=True)
 plots.append(axes.plot(x, y,label='Raw counts'))
 plots.append(axes.hist(sizes,range(0,int(round(max(x),0))+1,1),label='Binned histogram',histtype='step'))
 handles, labels = axes.get_legend_handles_labels()
@@ -149,18 +195,27 @@ axes.set_xlabel('Volume (pL)')
 axes.set_ylabel('# Number of droplets')
 y_max = axes.get_ylim()[1]
 x_max = axes.get_xlim()[1]
+
+#
+# add text to graph
+#
 axes.text(int(round(x_max*0.6,0)),int(round(y_max*0.85,0)),'Average = '+str(round(np.average(sizes),2))+' pL')
 axes.text(int(round(x_max*0.6,0)),int(round(y_max*0.85-1*int(round(y_max*0.05,0)),0)),'Median = '+str(round(np.median(sizes),2))+' pL')
 axes.text(int(round(x_max*0.6,0)),int(round(y_max*0.85-2*int(round(y_max*0.05,0)),0)),'Standard deviation = '+str(round(np.std(sizes),2)))
-
 axes.text(int(round(x_max*0.6,0)),int(round(y_max*0.85-3*int(round(y_max*0.05,0)),0)),'droplets in 50uL = '+str(round( 50/np.average(sizes) ,2))+'M')
 axes.text(int(round(x_max*0.6,0)),int(round(y_max*0.85-4*int(round(y_max*0.05,0)),0)),'Max = '+str(round(max(sizes),2))+' pL')
 axes.text(int(round(x_max*0.6,0)),int(round(y_max*0.85-5*int(round(y_max*0.05,0)),0)),'Min = '+str(round(min(sizes),2))+' pL')
 axes.text(int(round(x_max*0.6,0)),int(round(y_max*0.85-6*int(round(y_max*0.05,0)),0)),''+str(int(round(len(sizes),2)))+' droplets identified')
 
+#
+# save to pdf
+#
 plt.savefig('histogram2_sizes.pdf',dpi=300,bbox_inches='tight')
-#plt.savefig(filename+'_sizes.png',dpi=300,bbox_inches='tight')
+plt.savefig('histogram2_sizes.png',dpi=300,bbox_inches='tight')
 
+#
+# print some stats
+#
 print '### py-script out:'
 print 'Average = '+str(round(np.average(sizes),2))+' pL'
 print 'Median = '+str(round(np.median(sizes),2))+' pL'
