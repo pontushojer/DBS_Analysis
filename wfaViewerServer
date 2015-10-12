@@ -133,15 +133,18 @@ def index():
     
     outStr += 'Construct type dictionary: '+'<br>\n'
     #for what, count in eval(app.analysisfolder.results.constructTypes).iteritems():
-    for what, count in sorted(eval(app.analysisfolder.results.constructTypes).iteritems(), key=operator.itemgetter(1))[::-1]:
-        outStr += '&nbsp&nbsp&nbsp&nbsp'+what+' => '+str(percentage(count,app.analysisfolder.results.totalReadCount))+'%, ('+thousandString(count)+')<br>\n'
+    if app.analysisfolder.results.constructTypes:
+        for what, count in sorted(eval(app.analysisfolder.results.constructTypes).iteritems(), key=operator.itemgetter(1))[::-1]:
+            outStr += '&nbsp&nbsp&nbsp&nbsp'+what+' => '+str(percentage(count,app.analysisfolder.results.totalReadCount))+'%, ('+thousandString(count)+')<br>\n'
+    else:outStr += 'No Data Available<br>\n'
     outStr += '<br>\n'
     
     outStr += 'Barcodes match DBS pattern:<br>\n'
-    tmp = eval(app.analysisfolder.results.readsWithDbsPatternMatch)
-    outStr += '&nbsp&nbsp&nbsp&nbsp'+'barcode does not exist => '+str(percentage(tmp[None],app.analysisfolder.results.totalReadCount))+'%, ('+thousandString(tmp[None])+')<br>\n'
-    outStr += '&nbsp&nbsp&nbsp&nbsp'+'barcode does not match => '+str(percentage(tmp[False],app.analysisfolder.results.totalReadCount))+'%, ('+thousandString(tmp[False])+')<br>\n'
-    outStr += '&nbsp&nbsp&nbsp&nbsp'+'barcode match DBS pattern=> '+str(percentage(tmp[True],app.analysisfolder.results.totalReadCount))+'%, ('+str(percentage(tmp[True],int(app.analysisfolder.results.totalReadCount)-int(tmp[None])))+'% of has barcode,'+thousandString(tmp[True])+')<br>\n'
+    if app.analysisfolder.results.readsWithDbsPatternMatch:
+        tmp = eval(app.analysisfolder.results.readsWithDbsPatternMatch)
+        outStr += '&nbsp&nbsp&nbsp&nbsp'+'barcode does not exist => '+str(percentage(tmp[None],app.analysisfolder.results.totalReadCount))+'%, ('+thousandString(tmp[None])+')<br>\n'
+        outStr += '&nbsp&nbsp&nbsp&nbsp'+'barcode does not match => '+str(percentage(tmp[False],app.analysisfolder.results.totalReadCount))+'%, ('+thousandString(tmp[False])+')<br>\n'
+        outStr += '&nbsp&nbsp&nbsp&nbsp'+'barcode match DBS pattern=> '+str(percentage(tmp[True],app.analysisfolder.results.totalReadCount))+'%, ('+str(percentage(tmp[True],int(app.analysisfolder.results.totalReadCount)-int(tmp[None])))+'% of has barcode,'+thousandString(tmp[True])+')<br>\n'
     outStr += '<br>\n'
     outStr += 'Read pairs has a barcode: '+thousandString(app.analysisfolder.results.readPairsHasBarcode)+'<br>\n'
     outStr += 'Unique barcodes: '+thousandString(app.analysisfolder.results.uniqueBarcodeSequences)+'<br>\n'
@@ -153,73 +156,74 @@ def index():
     
     outStr += '<div style="width:350px;float:left;padding:20px; ">'
     outStr += '<h2>List of clusters:</h2>'
-    barcodeClusterer = BarcodeClusterer(app.analysisfolder)
-    import multiprocessing
-    poolOfProcesses = multiprocessing.Pool(int(app.analysisfolder.settings.parallelProcesses)-1,maxtasksperchild=10000)
-    #parallelResults = poolOfProcesses.imap_unordered(indexForeachCluster,barcodeClusterer.getBarcodeClusterIds(shuffle=False,byMixedClusterReadCount=False),chunksize=1)
-    parallelResults = poolOfProcesses.imap(indexForeachCluster,barcodeClusterer.getBarcodeClusterIds(shuffle=False,byMixedClusterReadCount=False),chunksize=1)
-    outStr += '<table>'
-    outStr += '<tr>' 
-    outStr += '<th>clusterID</th>'
-    outStr += '<th>barcode</th>'
-    outStr += '<th>readcount</th>'
-    outStr += '<th>sameCrom</th>'
-    outStr += '<th>chrom</th>'
-    outStr += '<th>duplicate</th>'
-#    outStr += '<th>pos R1</th>'
-#    outStr += '<th>pos R2</th>'
-#    outStr += '<th>insertsize</th>'
-#    outStr += '<th>mapQ</th>'
-#    outStr += '<th>CIGAR</th>'
-    outStr += '</tr>' 
-    counter = 0
-    sameChrom = 0
-    pcrDup = 0
-    totalReadPairCount=0
-    #for clusterId in barcodeClusterer.getBarcodeClusterIds(shuffle=False,byMixedClusterReadCount=False):
-        #cluster = indexForeachCluster(clusterId)
-    for cluster in parallelResults:
-        counter += 1
-        if counter == 1000: break
-        #if not cluster.allreadssamechrom or (cluster.allreadssamechrom==True and cluster.allreadssamepos): continue
+    if app.analysisfolder.results.barcodeClusterCount:
+        barcodeClusterer = BarcodeClusterer(app.analysisfolder)
+        import multiprocessing
+        poolOfProcesses = multiprocessing.Pool(int(app.analysisfolder.settings.parallelProcesses)-1,maxtasksperchild=10000)
+        #parallelResults = poolOfProcesses.imap_unordered(indexForeachCluster,barcodeClusterer.getBarcodeClusterIds(shuffle=False,byMixedClusterReadCount=False),chunksize=1)
+        parallelResults = poolOfProcesses.imap(indexForeachCluster,barcodeClusterer.getBarcodeClusterIds(shuffle=False,byMixedClusterReadCount=False),chunksize=1)
+        outStr += '<table>'
+        outStr += '<tr>' 
+        outStr += '<th>clusterID</th>'
+        outStr += '<th>barcode</th>'
+        outStr += '<th>readcount</th>'
+        outStr += '<th>sameCrom</th>'
+        outStr += '<th>chrom</th>'
+        outStr += '<th>duplicate</th>'
+    #    outStr += '<th>pos R1</th>'
+    #    outStr += '<th>pos R2</th>'
+    #    outStr += '<th>insertsize</th>'
+    #    outStr += '<th>mapQ</th>'
+    #    outStr += '<th>CIGAR</th>'
+        outStr += '</tr>' 
+        counter = 0
+        sameChrom = 0
+        pcrDup = 0
+        totalReadPairCount=0
+        #for clusterId in barcodeClusterer.getBarcodeClusterIds(shuffle=False,byMixedClusterReadCount=False):
+            #cluster = indexForeachCluster(clusterId)
+        for cluster in parallelResults:
+            counter += 1
+            if counter == 1000: break
+            #if not cluster.allreadssamechrom or (cluster.allreadssamechrom==True and cluster.allreadssamepos): continue
+            outStr += '<tr>'
+            outStr += '<td><a href="cluster'+str(cluster.id)+'">'+str(cluster.id)+'</a></td>'
+            outStr += '<td><a href="cluster'+str(cluster.id)+'"><font face="Courier">'+str(cluster.barcodeSequence)+'</font></a></td>\n'
+            outStr += '<td><a href="cluster'+str(cluster.id)+'">'+str(cluster.readPairCount)+'</a></td>\n'
+            totalReadPairCount += cluster.readPairCount
+            outStr += '<td><a href="cluster'+str(cluster.id)+'">'
+            if cluster.allreadssamechrom:
+                sameChrom += 1
+                outStr += '<font color="green">'
+            else:
+                outStr += '<font color="red">'
+            outStr += str(cluster.allreadssamechrom)+'</a></td>\n'
+            outStr += '<td><a href="cluster'+str(cluster.id)+'">'
+            if cluster.allreadssamechrom:outStr += str(cluster.chromosome)+'</a></td>\n'#readPairs[0].refNameR1)+'</a></td>\n'
+            else:outStr += 'NA</a></td>\n'
+            outStr += '<td><a href="cluster'+str(cluster.id)+'">'
+            if not (cluster.allreadssamechrom==True and cluster.allreadssamepos) and cluster.allreadssamepos != None:
+                outStr += '<font color="green">'
+            else:
+                pcrDup += 1
+                outStr += '<font color="red">'
+            outStr += str(cluster.allreadssamechrom==True and cluster.allreadssamepos)+'</a></td>\n'
+    
+            
+    
+            outStr += '</tr>'
+        poolOfProcesses.close();print 'Closing'
+        poolOfProcesses.terminate();print 'terminating'
+        poolOfProcesses.join();print 'joining'
         outStr += '<tr>'
-        outStr += '<td><a href="cluster'+str(cluster.id)+'">'+str(cluster.id)+'</a></td>'
-        outStr += '<td><a href="cluster'+str(cluster.id)+'"><font face="Courier">'+str(cluster.barcodeSequence)+'</font></a></td>\n'
-        outStr += '<td><a href="cluster'+str(cluster.id)+'">'+str(cluster.readPairCount)+'</a></td>\n'
-        totalReadPairCount += cluster.readPairCount
-        outStr += '<td><a href="cluster'+str(cluster.id)+'">'
-        if cluster.allreadssamechrom:
-            sameChrom += 1
-            outStr += '<font color="green">'
-        else:
-            outStr += '<font color="red">'
-        outStr += str(cluster.allreadssamechrom)+'</a></td>\n'
-        outStr += '<td><a href="cluster'+str(cluster.id)+'">'
-        if cluster.allreadssamechrom:outStr += str(cluster.chromosome)+'</a></td>\n'#readPairs[0].refNameR1)+'</a></td>\n'
-        else:outStr += 'NA</a></td>\n'
-        outStr += '<td><a href="cluster'+str(cluster.id)+'">'
-        if not (cluster.allreadssamechrom==True and cluster.allreadssamepos) and cluster.allreadssamepos != None:
-            outStr += '<font color="green">'
-        else:
-            pcrDup += 1
-            outStr += '<font color="red">'
-        outStr += str(cluster.allreadssamechrom==True and cluster.allreadssamepos)+'</a></td>\n'
-
-        
-
-        outStr += '</tr>'
-    poolOfProcesses.close();print 'Closing'
-    poolOfProcesses.terminate();print 'terminating'
-    poolOfProcesses.join();print 'joining'
-    outStr += '<tr>'
-    outStr += '<td>'+str(counter)+'</td>'
-    outStr += '<td><font face="Courier">NA</font></td>\n'
-    outStr += '<td>'+str(totalReadPairCount)+'</td>\n'
-    outStr += '<td>'+str(percentage(sameChrom,counter))+'%</td>\n'
-    outStr += '<td><font face="Courier">NA</font></td>\n'
-    outStr += '<td>'+str(percentage(pcrDup,counter))+'%</td>\n'
-
-    outStr += '</table>'
+        outStr += '<td>'+str(counter)+'</td>'
+        outStr += '<td><font face="Courier">NA</font></td>\n'
+        outStr += '<td>'+str(totalReadPairCount)+'</td>\n'
+        outStr += '<td>'+str(percentage(sameChrom,counter))+'%</td>\n'
+        outStr += '<td><font face="Courier">NA</font></td>\n'
+        outStr += '<td>'+str(percentage(pcrDup,counter))+'%</td>\n'
+    
+        outStr += '</table>'
     outStr += '</div>'
     
     

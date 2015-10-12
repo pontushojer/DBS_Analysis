@@ -37,6 +37,7 @@ def levenshtein(s1, s2):
 	return previous_row[-1]
 
 def percentage(count,total):
+    if type(None) in [type(count),type(total)]: return 'NA'
     if str in [type(count),type(total)]: return 'NA'
     if 'NA' in [total,count]: return 'NA'
     if float(total) <=0.0: return 'NA'
@@ -44,6 +45,7 @@ def percentage(count,total):
     return round(100* float(count) / float(total),2)
 
 def thousandString(string):
+    if type(string) == type(None): return 'NA'
     if type(string) != str: string = str(int(round(float(string),0)))
     outstring = ''
     for i in range(len(string)):
