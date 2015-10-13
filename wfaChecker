@@ -9,6 +9,7 @@ def main():
     #
     import metadata
     import time
+    import os
     
     #
     # check input and get commandline args
@@ -37,7 +38,7 @@ def main():
     #
     # add files to database
     #
-    analysisfolder.database.addFastqs(r1filename, r2filename,logfile=logfile)
+    analysisfolder.database.addFastqs(os.path.abspath(r1filename), os.path.abspath(r2filename),logfile=logfile)
     reader = FastqReader(analysisfolder,logfile=logfile)
     reader.runParallel()
     
@@ -129,6 +130,8 @@ class FastqReader(object):
 			#
 			# get data from fastq file
 			#
+			r1PositionInFile = file1.tell()
+			r2PositionInFile = file2.tell()
 			header1 = file1.readline().rstrip()
 			header2 = file2.readline().rstrip()
 			sequenceR1 = file1.readline().rstrip()
@@ -187,7 +190,7 @@ class FastqReader(object):
 			    dbsMatch, dbsSeq, dbsQual,
 			    mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1,
 			    mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,
-			    insertSize, clusterId, annotations, fromFastqId
+			    insertSize, clusterId, annotations, fromFastqId,r1PositionInFile,r2PositionInFile
 			    )
 			
 			#
@@ -328,7 +331,7 @@ class FastqReader(object):
 	if self.logfile: self.logfile.write('Create reads table (and drop old one if needed) ...\n')
 	self.analysisfolder.database.getConnection()
 	self.analysisfolder.database.c.execute("DROP TABLE IF EXISTS reads")
-	self.analysisfolder.database.c.execute('''CREATE TABLE reads (id, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId,PRIMARY KEY (id))''')
+	self.analysisfolder.database.c.execute('''CREATE TABLE reads (id, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId, r1PositionInFile, r2PositionInFile, PRIMARY KEY (id))''')
 	if self.logfile: self.logfile.write('commiting changes to database.\n')
         self.analysisfolder.database.commitAndClose()
 	
