@@ -150,7 +150,8 @@ def index():
     outStr += 'Unique barcodes: '+thousandString(app.analysisfolder.results.uniqueBarcodeSequences)+'<br>\n'
     outStr += 'Barcode clusters found: '+thousandString(app.analysisfolder.results.barcodeClusterCount)+'<br>\n'
     outStr += 'Barcode clusters are singletons: '+thousandString(app.analysisfolder.results.singeltonBarcodeClusters)+'<br>\n'+'<br>\n'
-    outStr += 'Bowtie2 alignment Rate: '+str(app.analysisfolder.results.bt2AlignmentRate)+'%<br>\n'+'<br>\n'
+    outStr += 'Bowtie2 alignment Rate: '+str(app.analysisfolder.results.bt2AlignmentRate)+'%<br>\n'
+    outStr += 'Percentage of SE alignments with mapq >= 20: '+str(app.analysisfolder.results.alignmentRateQ20)+'%<br>\n'+'<br>\n'
     outStr += '<br>\n'
     outStr += '</div>'
     
