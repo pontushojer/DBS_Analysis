@@ -137,11 +137,17 @@ def index():
     </style></head>"""
     outStr += '<body>'
 
-    outStr += '<div style="background-color:black;color:white;text-align:left;padding:5px;">'
+    outStr += '<div style="background-color:black;color:white;text-align:left;padding:5px;position:relative;width:100%">'
     outStr += '<h2>'+'&nbsp&nbsp&nbsp&nbsp'+'Summary of analysis at '+str(os.path.abspath(app.analysisfolder.path))+':</h2>'
     outStr += '</div>'
 
-    outStr += '<div style="line-height:30px;background-color:#eeeeee;width:700px;height:50000px;float:left;padding:20px; ">'
+    outStr += '<div style="line-height:30px;background-color:#e1e1e1;width:100%;height:50px;float:left;padding:20px;text-align:center;top;position:relative;top:0; ">'
+    outStr += '<svg height="50" width="200"><circle cx="21" cy="21" r="20" stroke="black" stroke-width="1" fill="gray" /><text x="50" y="25">wfaChecker</text></svg>'
+    outStr += '<svg height="50" width="200"><circle cx="21" cy="21" r="20" stroke="black" stroke-width="1" fill="gray" /><text x="50" y="25">barcodeClustrer</text></svg>'
+    outStr += '<svg height="50" width="200"><circle cx="21" cy="21" r="20" stroke="black" stroke-width="1" fill="gray" /><text x="50" y="25">clustersMapper</text></svg>'
+    outStr += '<svg height="50" width="200"><circle cx="21" cy="21" r="20" stroke="black" stroke-width="1" fill="gray" /><text x="50" y="25">reStructure</text></svg>'
+    outStr += '</div>'
+    outStr += '<div style="line-height:30px;background-color:#eeeeee;width:700px;height:50000px;float:left;padding:20px;position:relative;top:0; ">'
     outStr += '<h2>Stats:</h2>'
     outStr += 'Total read pairs: '+thousandString(app.analysisfolder.results.totalReadCount)+'<br>\n'
     outStr += 'Minimum R1 length: '+str(app.analysisfolder.results.minR1readLength)+'<br>\n'
