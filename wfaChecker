@@ -38,7 +38,11 @@ def main():
     #
     # add files to database
     #
-    analysisfolder.database.addFastqs(os.path.abspath(r1filename), os.path.abspath(r2filename),logfile=logfile)
+    if 'SKIP' not in [r1filename,r2filename]:
+	analysisfolder.database.addFastqs(os.path.abspath(r1filename), os.path.abspath(r2filename),logfile=logfile)
+    else:
+	logfile.write('No fastq files added to db just running data check ... \n')
+    logfile.write('Allowing '+str(analysisfolder.settings.maxHandleMissMatches)+' missmatches in handles during this run.\n')
     reader = FastqReader(analysisfolder,logfile=logfile)
     reader.runParallel()
     
@@ -193,6 +197,7 @@ class FastqReader(object):
 			    mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,
 			    insertSize, clusterId, annotations, fromFastqId,r1PositionInFile,r2PositionInFile,bamFilePos
 			    )
+			pair.analysisfolder = self.analysisfolder
 			
 			#
 			# update read progress and yield
