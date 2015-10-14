@@ -84,6 +84,24 @@ def indexForeachCluster(clusterId):
     cluster.minMAPQ = 20
     return cluster
 
+@app.route("/")
+def start():
+    page =  """<!DOCTYPE HTML>
+    <html lang="en-US">
+	<head>
+	    <meta charset="UTF-8">
+	    <meta http-equiv="refresh" content="1;url=index.html">
+	    <script type="text/javascript">
+		window.location.href = "index.html"
+	    </script>
+	    <title>Page Redirection</title>
+	</head>
+	<body>
+	    If you are not redirected automatically, follow <a href='index.html'>this link</a>
+	</body>
+    </html>"""
+    return page
+
 @app.route("/index.html")
 def index():
     
@@ -236,6 +254,7 @@ def cluster(cluster_id, readnumber=None):
 
     from seqdata import BarcodeCluster
     from misc import thousandString
+    import pysam
 
     outStr = ''
 
@@ -270,7 +289,10 @@ def cluster(cluster_id, readnumber=None):
     cluster.loadClusterInfo()
     outStr += 'cluster id='+str(cluster_id)+' with barcode '+str(cluster.barcodeSequence)+' has '+str(cluster.readPairCount)+' read pairs'+'<br><br>\n'
     cluster.loadReadPairs()
-    
+
+    bamfile =  pysam.Samfile(app.analysisfolder.dataPath+'/mappedInserts.bam')    
+    bamStr = '<br><br>'
+    bamStr += str(bamfile.header)
     outStr += '<table>'
     outStr += '<tr>' 
     outStr += '<th>header</th>'
@@ -283,8 +305,12 @@ def cluster(cluster_id, readnumber=None):
     outStr += '<th>mapQ</th>'
     outStr += '<th>CIGAR</th>'
     outStr += '<th>ProperPair</th>'
-    outStr += '</tr>' 
+    outStr += '</tr>'
     for pair in cluster.readPairs:
+        if pair.bamFilePos:
+            bamfile.seek(pair.bamFilePos)
+            bamStr += str(bamfile.next())+'\n<br><br>'
+            bamStr += str(bamfile.next())+'\n<br><br>'
         outStr += '<tr>'
         outStr += '<td>'
         if pair.mapQR1 < 20 or pair.mapQR2 < 20 or pair.mapQR1 == '*' or pair.mapQR2 == '*': outStr += '<font color="red">'
@@ -304,6 +330,7 @@ def cluster(cluster_id, readnumber=None):
         outStr += '</tr>'
     outStr += '</table>'
 
+    outStr += '<font face=courier size=1>'+bamStr+'</font>'
     outStr += '</body></html>\n'
     return outStr
 

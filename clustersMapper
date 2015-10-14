@@ -165,6 +165,7 @@ class ReadPairAligner(object):
 	    if self.analysisfolder.logfile: self.analysisfolder.logfile.write('Starting command: '+' '.join(command)+'\n')
 	    while True:
 		try:
+		    bamFilePos = None
 		    line1 = samtools.stdout.next().rstrip().split('\t')
 		    line2 = samtools.stdout.next().rstrip().split('\t')
 		    [QNAME1,FLAG1,RNAME1,POS1,MAPQ1,CIGAR1,RNEXT1,PNEXT1,TLEN1,SEQ1,QUAL1] = line1[:11]
@@ -174,7 +175,7 @@ class ReadPairAligner(object):
 		    if QNAME1 == QNAME2:
 			#print FLAG1, RNAME1,POS1,MAPQ1,CIGAR1,FLAG2, RNAME2,POS2,MAPQ2,CIGAR2,QNAME1
 			mappedReadCount += 1
-			updateValues.append( (int(FLAG1), RNAME1,int(POS1),int(MAPQ1),CIGAR1,int(FLAG2), RNAME2,int(POS2),int(MAPQ2),CIGAR2,abs(int(TLEN1)),header2id[str(QNAME1)]) )
+			updateValues.append( (int(FLAG1), RNAME1,int(POS1),int(MAPQ1),CIGAR1,int(FLAG2), RNAME2,int(POS2),int(MAPQ2),CIGAR2,abs(int(TLEN1)),bamFilePos,header2id[str(QNAME1)]) )
 			if len(updateValues) == updateChunkSize:
 			    updateChunks.append(updateValues)
 			    updateValues = []
@@ -207,7 +208,7 @@ class ReadPairAligner(object):
 	    
 	    while True:
 		try:
-		    pairInBamFilePosition = bamFile.tell()
+		    bamFilePos = bamFile.tell()
 		    r1 =  bamFile.next()
 		    r2 =  bamFile.next()
 		    if r1.qname == r2.qname:
@@ -216,11 +217,13 @@ class ReadPairAligner(object):
 
 			POS1   = r1.pos
 			MAPQ1  = r1.mapq
-			CIGAR1 = r1.cigarstring
+			try:CIGAR1 = r1.cigarstring
+			except AttributeError: CIGAR1 = str(r1.cigar)
 			FLAG2  = r2.flag
 		    	POS2   = r2.pos
 			MAPQ2  = r2.mapq
-			CIGAR2 = r2.cigarstring
+			try:CIGAR2 = r2.cigarstring
+			except AttributeError: CIGAR2 = str(r2.cigar)
 			TLEN1  = r1.isize
 			QNAME1 = r1.qname
 			f1 = SamFlag(int(FLAG1))
@@ -233,7 +236,7 @@ class ReadPairAligner(object):
 			    RNAME2 = bamFile.getrname(r2.tid)
 			    if r2.mapq >= 20: mappedReadCountQ20 += 1
 			else: RNAME2 = ''
-			updateValues.append( (int(FLAG1), RNAME1,int(POS1),int(MAPQ1),CIGAR1,int(FLAG2), RNAME2,int(POS2),int(MAPQ2),CIGAR2,abs(int(TLEN1)),header2id[str(QNAME1)]) )
+			updateValues.append( (int(FLAG1), RNAME1,int(POS1),int(MAPQ1),CIGAR1,int(FLAG2), RNAME2,int(POS2),int(MAPQ2),CIGAR2,abs(int(TLEN1)),bamFilePos,header2id[str(QNAME1)]) )
 			#updateValues.append( (int(r1.flag), bamFile.getrname(r1.tid),int(r1.pos),int(r1.mapq),r1.cigarstring,int(r2.flag), bamFile.getrname(r2.tid),int(r2.pos),int(r2.mapq),r2.cigarstring,abs(int(r1.isize)),header2id[str(rq.qname)]) )
 			if len(updateValues) == updateChunkSize:
 			    updateChunks.append(updateValues)
@@ -251,7 +254,7 @@ class ReadPairAligner(object):
 	with progress:
 	    for updateValues in updateChunks:
 		self.analysisfolder.database.getConnection()
-		self.analysisfolder.database.c.executemany('UPDATE reads SET mappingFlagR1=?, refNameR1=?, refPosR1=?, mapQR1=?, cigarR1=?, mappingFlagR2=?, refNameR2=?, refPosR2=?, mapQR2=?, cigarR2=?, insertSize=? WHERE id=?', updateValues)
+		self.analysisfolder.database.c.executemany('UPDATE reads SET mappingFlagR1=?, refNameR1=?, refPosR1=?, mapQR1=?, cigarR1=?, mappingFlagR2=?, refNameR2=?, refPosR2=?, mapQR2=?, cigarR2=?, insertSize=?, bamFilePos=? WHERE id=?', updateValues)
 		self.analysisfolder.database.commitAndClose()
 		for i in xrange(len(updateValues)): progress.update()
 
