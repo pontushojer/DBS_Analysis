@@ -594,7 +594,8 @@ class BarcodeClusterer(object):
     def addBarcodeClusterInfoToDatabase(self, barcodeClusters):
 
 	import misc
-        
+	import metadata
+
         #
 	# set initial values
 	#
@@ -617,10 +618,12 @@ class BarcodeClusterer(object):
 	#
 	# Convert the dictionary to be able to add info to database
 	#
+	progress = misc.Progress(len(barcodeClusters), logfile=self.logfile, unit='clusters', mem=True)
 	if self.logfile: self.logfile.write('Converting the data ... \n')
 	for clusterId,data in barcodeClusters.iteritems():
 	    for readPairId in data['readPairs']: tmpUpdateValues[readPairId]=clusterId
 	    addValues.append( (clusterId,data['clusterReadCount'],str(data['readPairs']),str(data['identities']),data['clusterBarcodeSequence'],data['clusterBarcodeQuality'],None,None) )
+	    progress.update()
 	for readPairId in sorted(tmpUpdateValues.keys()):
 	    updateValues.append( (int(tmpUpdateValues[readPairId]),int(readPairId)) )
 	    if len(updateValues) == updateChunkSize:
@@ -689,7 +692,7 @@ class BarcodeClusterer(object):
         else: temp = sys.stdout
         for fileName in a:
 	    if self.logfile: self.logfile.write('Starting process:'+' gzip -v9 '+fileName+'\n')
-	    p=subprocess.Popen(['gzip','-v9',fileName],stdout=temp)
+	    p=subprocess.Popen(['gzip','-f','-v9',fileName],stdout=temp)
 	    processes.append(p)
 	
 	#
@@ -788,6 +791,86 @@ class BarcodeClusterer(object):
 		try: yield int(clusterId[0])
 		except TypeError: yield clusterId[0]
 
+    def fillReadsDb(self,):
+	
+	import misc
+	import metadata
+	import os
+
+	#
+	# set initial values
+	#
+	MAX_READPAIRS_IN_MEM = 1e6
+	clusters = {'singletons':[]}
+	readPaircount = {}
+	pairsinmem = 0
+
+	#
+	# destroy and recreate readsdb
+	#
+	self.logfile.write('destroy and recreate readsdb ...\n')
+	if os.path.isfile(self.analysisfolder.readsdb.path): os.remove(self.analysisfolder.readsdb.path)
+	self.analysisfolder.readsdb.create()
+	self.analysisfolder.readsdb.getConnection()
+	self.analysisfolder.readsdb.c.execute("DROP TABLE IF EXISTS empty_table")
+	#self.analysisfolder.readsdb.c.execute("DROP TABLE IF EXISTS singletons")
+	self.analysisfolder.readsdb.c.execute("CREATE TABLE singletons (id, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos, PRIMARY KEY (id))")
+	self.logfile.write('done.\n')
+
+	#
+	# find cluster readcounts and create tables
+	#
+	self.logfile.write('Creating cluster tables ...\n')
+	progress = misc.Progress(self.analysisfolder.results.barcodeClusterCount, logfile=self.logfile, unit='clusters', mem=True)
+	for clusterid in self.getBarcodeClusterIds(shuffle=False,byMixedClusterReadCount=False):
+	    cluster = BarcodeCluster(clusterid,self.analysisfolder)
+	    cluster.loadClusterInfo()
+	    readPaircount[cluster.id] = cluster.readPairCount
+	    if cluster.readPairCount > 1:
+		#self.analysisfolder.readsdb.c.execute("DROP TABLE IF EXISTS cluster_"+str(clusterId)+"")
+		self.analysisfolder.readsdb.c.execute("CREATE TABLE cluster_"+str(cluster.id)+" (id, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos, PRIMARY KEY (id))")
+	    progress.update()
+	self.analysisfolder.readsdb.commitAndClose()
+
+	#
+	# 
+	#
+	self.logfile.write('filling the db ...\n')
+	readProgress = misc.Progress(self.analysisfolder.results.totalReadCount, logfile=self.analysisfolder.logfile, unit='reads-loaded', mem=True)
+	saveProgress = misc.Progress(self.analysisfolder.results.totalReadCount, logfile=self.analysisfolder.logfile, unit='reads-saved', mem=True)
+	for pair in self.analysisfolder.database.getAllReadPairs():
+	    if pair.clusterId and readPaircount[pair.clusterId] > 1:
+		try:
+		    clusters[pair.clusterId].append(pair.databaseTuple)
+		except KeyError:
+		    clusters[pair.clusterId] = [pair.databaseTuple]
+	    else:
+		clusters['singletons'].append(pair.databaseTuple)
+	    readProgress.update()
+	    pairsinmem += 1
+	    if pairsinmem > MAX_READPAIRS_IN_MEM:
+		self.analysisfolder.readsdb.getConnection()
+		for clusterId,readsToAdd in clusters.iteritems():
+		    if clusterId != 'singletons':
+			self.analysisfolder.readsdb.c.executemany('INSERT INTO cluster_'+str(clusterId)+' VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', readsToAdd)
+		    else:
+			self.analysisfolder.readsdb.c.executemany('INSERT INTO singletons VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', readsToAdd)
+		    for i in xrange(len(readsToAdd)): saveProgress.update()
+		clusters = {'singletons':[]}
+		pairsinmem = 0
+		self.analysisfolder.readsdb.commitAndClose()
+
+	self.analysisfolder.readsdb.getConnection()
+	for clusterId,readsToAdd in clusters.iteritems():
+	    if clusterId != 'singletons':
+		self.analysisfolder.readsdb.c.executemany('INSERT INTO cluster_'+str(clusterId)+' VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', readsToAdd)
+	    else:
+		self.analysisfolder.readsdb.c.executemany('INSERT INTO singletons VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', readsToAdd)
+	    for i in xrange(len(readsToAdd)): saveProgress.update()
+	clusters = {'singletons':[]}
+	pairsinmem = 0
+	self.analysisfolder.readsdb.commitAndClose()
+
 class BarcodeCluster(object,):
     
     def __init__(self, clusterId,analysisfolder):
@@ -839,12 +922,20 @@ class BarcodeCluster(object,):
     def loadReadPairs(self, ):
 	
 	import sqlite3
+	import time
+	starttime = time.time()
 #	try:
-	for readPair in self.analysisfolder.database.getReadPairs(self.readPairIdsList):
-	    self.readPairs.append(readPair)
-	    self.readPairsById[readPair.id] = readPair
+	if not self.analysisfolder.database.datadropped:
+	    for readPair in self.analysisfolder.database.getReadPairs(self.readPairIdsList):
+		self.readPairs.append(readPair)
+		self.readPairsById[readPair.id] = readPair
 #	except sqlite3.OperationalError: print 'ERROR: BarcodeCluster.loadReadPairs() is giving a sqlite3.OperationalError!!'
-	
+	else:
+	    for readPair in self.analysisfolder.readsdb.getClusterReadPairs(self.id):
+		self.readPairs.append(readPair)
+		self.readPairsById[readPair.id] = readPair
+	print self.id, time.time()-starttime
+
 	return 0
 
     def generateReadPairsFastq(self, oneFile=True, concatenate=True,r1Part='nobc'):
@@ -970,6 +1061,66 @@ class BarcodeCluster(object,):
 	elif count1 > 1 or count2 > 1: return False
 	else: return None
     
+    def createBamFile(self,):
+	
+	from misc import thousandString
+	import pysam
+	import time
+    
+	bamfile =  pysam.Samfile(self.analysisfolder.dataPath+'/mappedInserts.bam')
+	outputBam = pysam.Samfile(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.bam',mode='wb',header=bamfile.header)
+	for pair in self.readPairs:
+	    if pair.bamFilePos:
+		bamfile.seek(pair.bamFilePos)
+		r1 = bamfile.next()
+		r2 = bamfile.next()
+		outputBam.write(r1)
+		outputBam.write(r2)
+	outputBam.close()
+    
+	import subprocess
+	import sys
+	picardLogfile = open(self.analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'_picardSortSam.log.txt','w')
+	command2 = ['java',
+		    '-Xmx5g',
+		    '-jar',self.analysisfolder.settings.picardPath+'/SortSam.jar',
+		    'MAX_RECORDS_IN_RAM=2500000',
+		    'INPUT='+self.analysisfolder.temp+'/cluster_'+str(self.id)+'.bam',
+		    'OUTPUT='+self.analysisfolder.temp+'/cluster_'+str(self.id)+'.sorted.bam',
+		    'SORT_ORDER=coordinate',
+		    'CREATE_INDEX=TRUE'
+		    ]
+	picard = subprocess.Popen(command2,stdout=subprocess.PIPE,stderr=picardLogfile)
+	if self.analysisfolder.logfile: self.analysisfolder.logfile.write('Starting command: '+' '.join(command2)+'\n')
+	errdata = picard.communicate()
+	if (picard.returncode != 0 and picard.returncode != None):
+	    if picard.returncode != 0:
+		print '#\n# cmd: '+' '.join( command2 )+'\n#'
+		print 'picard view Error code', picard.returncode, errdata, open(picardLogfile.name).read()
+		#return 'FAIL'
+		sys.exit()
+	picardLogfile = open(self.analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'_picardMarkDup.log.txt','w')
+	command2 = ['java',
+		    '-Xmx5g',
+		    '-jar',self.analysisfolder.settings.picardPath+'/MarkDuplicates.jar',
+		    'MAX_RECORDS_IN_RAM=2500000',
+		    'INPUT='+self.analysisfolder.temp+'/cluster_'+str(self.id)+'.sorted.bam',
+		    'OUTPUT='+self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bam',
+		    'METRICS_FILE='+self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.metrics.txt',
+		    'CREATE_INDEX=TRUE'
+		    ]
+	picard = subprocess.Popen(command2,stdout=subprocess.PIPE,stderr=picardLogfile)
+	if self.analysisfolder.logfile: self.analysisfolder.logfile.write('Starting command: '+' '.join(command2)+'\n')
+	errdata = picard.communicate()
+	if (picard.returncode != 0 and picard.returncode != None):
+	    if picard.returncode != 0:
+		print '#\n# cmd: '+' '.join( command2 )+'\n#'
+		print 'picard view Error code', picard.returncode, errdata, open(picardLogfile.name).read()
+		#return 'FAIL'
+		sys.exit()
+	
+	return 0
+
 def readPairGenerator(fastq1,fastq2):
 
     #

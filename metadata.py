@@ -208,16 +208,25 @@ class Database(object):
         #
         self.getConnection()
                 
+
+	#
+	# faster getting reads from db
+	#
+	rows = self.c.execute('SELECT id, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos FROM reads WHERE id IN ('+', '.join(listOfIds)+')').fetchall()
+	for row in rows:
+	
+	    currentRead, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos = row
+	    yield seqdata.ReadPair(currentRead, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, eval(h1), eval(h2), eval(h3), constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, eval(annotations), fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos)
 	
 	#
 	# alternatively this
 	#
-	for readPairId in listOfIds:
-	    #row = self.c.execute('SELECT id,header,sequence1,sequence2,quality1,quality2,handleCoordinates,clusterId,annotation,fromFastq FROM reads WHERE id=?', (int(readPairId), ) ).fetchone()
-	    row = self.c.execute('SELECT id, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos FROM reads WHERE id=?', (int(readPairId), ) ).fetchone()
-
-	    currentRead, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos = row
-	    yield seqdata.ReadPair(currentRead, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, eval(h1), eval(h2), eval(h3), constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, eval(annotations), fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos)
+	#for readPairId in listOfIds:
+	#    #row = self.c.execute('SELECT id,header,sequence1,sequence2,quality1,quality2,handleCoordinates,clusterId,annotation,fromFastq FROM reads WHERE id=?', (int(readPairId), ) ).fetchone()
+	#    row = self.c.execute('SELECT id, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos FROM reads WHERE id=?', (int(readPairId), ) ).fetchone()
+	#
+	#    currentRead, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos = row
+	#    yield seqdata.ReadPair(currentRead, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, eval(h1), eval(h2), eval(h3), constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, eval(annotations), fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos)
 	
         self.commitAndClose()
  
@@ -233,6 +242,133 @@ class Database(object):
         self.commitAndClose()
         
         return runsInfo
+
+    @property
+    def datadropped(self,):
+
+	#
+        # Imports
+        #
+        import sys
+        import seqdata
+        
+        self.getConnection()
+        self.c.execute('SELECT * FROM reads')
+        self.commitAndClose()
+	columns = self.c.description
+
+	#cursor.execute(query)
+	#columns = cursor.description
+	#result = []
+	#for value in cursor.fetchall():
+	#    tmp = {}
+	#    for (index,column) in enumerate(value):
+	#	tmp[columns[index][0]] = column
+	#    result.append(tmp)
+	#pprint.pprint(result)
+	
+	return bool( len([col[0] for col in columns]) != 31 )
+
+    def dropReadColumns(self,):
+
+        #
+        # Imports
+        #
+        import sys
+	import seqdata
+        
+        #
+        # open connection to database and drop data
+        #
+        self.getConnection()
+	#self.c.execute("""BEGIN TRANSACTION;")
+	self.c.execute("CREATE TEMPORARY TABLE reads_backup(id, header, clusterId, annotations);")
+	self.c.execute("INSERT INTO reads_backup SELECT id, header, clusterId, annotations FROM reads;")
+	self.c.execute("DROP TABLE reads;")
+	self.c.execute("CREATE TABLE reads(id, header, clusterId, annotations);")
+	self.c.execute("INSERT INTO reads SELECT id, header, clusterId, annotations FROM reads_backup;")
+	self.c.execute("DROP TABLE reads_backup;")
+	#self.c.execute("COMMIT;""")
+	#self.c.execute("ALTER TABLE reads DROP COLUMN sequenceR1")
+	#self.c.execute("ALTER TABLE reads DROP COLUMN sequenceR2")
+	#self.c.execute("ALTER TABLE reads DROP COLUMN qualR1")
+	#self.c.execute("ALTER TABLE reads DROP COLUMN qualR2")
+	#self.c.execute("ALTER TABLE reads DROP COLUMN direction")
+	#self.c.execute("ALTER TABLE reads DROP COLUMN h1")
+	#self.c.execute("ALTER TABLE reads DROP COLUMN h2")
+	#self.c.execute("ALTER TABLE reads DROP COLUMN h3")
+	#self.c.execute("ALTER TABLE reads DROP COLUMN constructType")
+	#self.c.execute("ALTER TABLE reads DROP COLUMN dbsMatch")
+	#self.c.execute("ALTER TABLE reads DROP COLUMN dbsSeq")
+	#self.c.execute("ALTER TABLE reads DROP COLUMN dbsQual")
+	#self.c.execute("ALTER TABLE reads DROP COLUMN mappingFlagR1")
+	#self.c.execute("ALTER TABLE reads DROP COLUMN refNameR1")
+	#self.c.execute("ALTER TABLE reads DROP COLUMN refPosR1")
+	#self.c.execute("ALTER TABLE reads DROP COLUMN mapQR1")
+	#self.c.execute("ALTER TABLE reads DROP COLUMN cigarR1")
+	#self.c.execute("ALTER TABLE reads DROP COLUMN mappingFlagR2")
+	#self.c.execute("ALTER TABLE reads DROP COLUMN refNameR2")
+	#self.c.execute("ALTER TABLE reads DROP COLUMN refPosR2")
+	#self.c.execute("ALTER TABLE reads DROP COLUMN mapQR2")
+	#self.c.execute("ALTER TABLE reads DROP COLUMN cigarR2")
+	#self.c.execute("ALTER TABLE reads DROP COLUMN insertSize")
+	#self.c.execute("ALTER TABLE reads DROP COLUMN annotations")
+	#self.c.execute("ALTER TABLE reads DROP COLUMN fromFastqId")
+	#self.c.execute("ALTER TABLE reads DROP COLUMN r1PositionInFile")
+	#self.c.execute("ALTER TABLE reads DROP COLUMN r2PositionInFile")
+	#self.c.execute("ALTER TABLE reads DROP COLUMN bamFilePos")
+        self.commitAndClose()
+
+class ReadsDB(Database):
+
+    def create(self,):
+        """ creates the database holding all information used in the analysis """
+
+        self.getConnection()
+
+	#
+	# Create tables
+	#
+	self.c.execute("DROP TABLE IF EXISTS empty_table")
+	self.c.execute('''CREATE TABLE empty_table (id,empty_column_1,empty_column_2,empty_column_3,PRIMARY KEY (id))''')
+
+	self.commitAndClose()
+
+        import os
+        os.chmod(self.path, 0664)
+    
+    def getClusterReadPairs(self,clusterId):
+        #
+        # Imports
+        #
+        import sys
+        import seqdata
+        
+        #
+        # open connection to database
+        #
+        self.getConnection()
+                
+        #
+        # get att data in fastqs table
+        #
+        readPairs = self.c.execute('SELECT id, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos FROM cluster_'+str(clusterId)+'')
+        
+	while True:
+	    
+	    rows = readPairs.fetchmany()#size=readPairs.arraysize)
+	    
+	    if not rows: break
+	    
+	    for row in rows:
+		currentRead, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos = row
+		yield seqdata.ReadPair(currentRead, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, eval(h1), eval(h2), eval(h3), constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, eval(annotations), fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos)
+		#yield seqdata.ReadPair(pairId, header, header, sequence1, sequence2, qual1, qual2,eval(handleCoordinates),clusterId,eval(annotations), fromFastq)
+	
+        self.commitAndClose()
+
+    def doNothing(self, ):
+	pass
 
 class Results(object,):
     
@@ -556,6 +692,7 @@ class AnalysisFolder(object):
         
         # objects
         self.database  = Database(self.databaseFileName)
+	self.readsdb  =  ReadsDB(self.path+'/reads.db')
         self.settings = Settings(self)
         self.results = Results(self)
         

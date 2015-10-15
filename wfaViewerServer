@@ -184,7 +184,7 @@ def index():
     if app.analysisfolder.results.barcodeClusterCount:
         barcodeClusterer = BarcodeClusterer(app.analysisfolder)
         import multiprocessing
-        poolOfProcesses = multiprocessing.Pool(int(app.analysisfolder.settings.parallelProcesses)-1,maxtasksperchild=10000)
+        poolOfProcesses = multiprocessing.Pool(int(app.analysisfolder.settings.parallelProcesses),maxtasksperchild=10000)
         #parallelResults = poolOfProcesses.imap_unordered(indexForeachCluster,barcodeClusterer.getBarcodeClusterIds(shuffle=False,byMixedClusterReadCount=False),chunksize=1)
         parallelResults = poolOfProcesses.imap(indexForeachCluster,barcodeClusterer.getBarcodeClusterIds(shuffle=False,byMixedClusterReadCount=False),chunksize=1)
         outStr += '<table>'
@@ -237,9 +237,9 @@ def index():
             
     
             outStr += '</tr>'
-        poolOfProcesses.close();print 'Closing'
-        poolOfProcesses.terminate();print 'terminating'
-        poolOfProcesses.join();print 'joining'
+        #poolOfProcesses.close();print 'Closing'
+        #poolOfProcesses.terminate();print 'terminating'
+        #poolOfProcesses.join();print 'joining'
         outStr += '<tr>'
         outStr += '<td>'+str(counter)+'</td>'
         outStr += '<td><font face="Courier">NA</font></td>\n'
@@ -260,6 +260,7 @@ def cluster(cluster_id, readnumber=None):
 
     from seqdata import BarcodeCluster
     from misc import thousandString
+    from misc import percentage
     import pysam
 
     outStr = ''
@@ -295,48 +296,117 @@ def cluster(cluster_id, readnumber=None):
     cluster.loadClusterInfo()
     outStr += 'cluster id='+str(cluster_id)+' with barcode '+str(cluster.barcodeSequence)+' has '+str(cluster.readPairCount)+' read pairs'+'<br><br>\n'
     cluster.loadReadPairs()
+    cluster.createBamFile()
 
-    bamfile =  pysam.Samfile(app.analysisfolder.dataPath+'/mappedInserts.bam')    
-    bamStr = '<br><br>'
-    bamStr += str(bamfile.header)
-    outStr += '<table>'
-    outStr += '<tr>' 
-    outStr += '<th>header</th>'
-    outStr += '<th>flags</th>'
-    outStr += '<th>refchrom R1</th>'
-    outStr += '<th>refchrom R2</th>'
-    outStr += '<th>pos R1</th>'
-    outStr += '<th>pos R2</th>'
-    outStr += '<th>insertsize</th>'
-    outStr += '<th>mapQ</th>'
-    outStr += '<th>CIGAR</th>'
-    outStr += '<th>ProperPair</th>'
-    outStr += '</tr>'
-    for pair in cluster.readPairs:
-        if pair.bamFilePos:
-            bamfile.seek(pair.bamFilePos)
-            bamStr += str(bamfile.next())+'\n<br><br>'
-            bamStr += str(bamfile.next())+'\n<br><br>'
-        outStr += '<tr>'
-        outStr += '<td>'
-        if pair.mapQR1 < 20 or pair.mapQR2 < 20 or pair.mapQR1 == '*' or pair.mapQR2 == '*': outStr += '<font color="red">'
-        else: outStr += '<font color="green">'
-        outStr += pair.header+ '</td>'
-        outStr += '<td>'+str(pair.mappingFlagR1.flag)+' '+str(pair.mappingFlagR2.flag)+'</td>'
-        outStr += '<td>'+str(pair.refNameR1)+'</td>'
-        outStr += '<td>'+str(pair.refNameR2)+'</td>'
-        if pair.refPosR1: outStr += '<td>'+thousandString(pair.refPosR1)+'</td>'
-        else:outStr += '<td>'+str(pair.refPosR1)+'</td>'
-        if pair.refPosR2: outStr += '<td>'+thousandString(pair.refPosR2)+'</td>'
-        else:outStr += '<td>'+str(pair.refPosR2)+'</td>'
-        outStr += '<td>'+str(pair.insertSize)+'</td>'
-        outStr += '<td>'+str(pair.mapQR1)+' '+str(pair.mapQR2)+'</td>'
-        outStr += '<td>'+str(pair.cigarR1)+' '+str(pair.cigarR2)+'</td>'
-        outStr += '<td>'+str(pair.mappingFlagR1.properpair)+'</td>'
-        outStr += '</tr>'
-    outStr += '</table>'
+    tableStr = '<table>'
+    tableStr += '<tr>' 
+    tableStr += '<th>header</th>'
+    tableStr += '<th>flags</th>'
+    tableStr += '<th>refchrom R1</th>'
+    tableStr += '<th>refchrom R2</th>'
+    tableStr += '<th>pos R1</th>'
+    tableStr += '<th>pos R2</th>'
+    tableStr += '<th>insertsize</th>'
+    tableStr += '<th>mapQ</th>'
+    tableStr += '<th>CIGAR</th>'
+    tableStr += '<th>ProperPair</th>'
+    tableStr += '</tr>'
+    #for pair in cluster.readPairs:
+    #    tableStr += '<tr>'
+    #    tableStr += '<td>'
+    #    if pair.mapQR1 < 20 or pair.mapQR2 < 20 or pair.mapQR1 == '*' or pair.mapQR2 == '*': tableStr += '<font color="red">'
+    #    else: tableStr += '<font color="green">'
+    #    tableStr += pair.header+ '</td>'
+    #    tableStr += '<td>'+str(pair.mappingFlagR1.flag)+' '+str(pair.mappingFlagR2.flag)+'</td>'
+    #    tableStr += '<td>'+str(pair.refNameR1)+'</td>'
+    #    tableStr += '<td>'+str(pair.refNameR2)+'</td>'
+    #    if pair.refPosR1: tableStr += '<td>'+thousandString(pair.refPosR1)+'</td>'
+    #    else:tableStr += '<td>'+str(pair.refPosR1)+'</td>'
+    #    if pair.refPosR2: tableStr += '<td>'+thousandString(pair.refPosR2)+'</td>'
+    #    else:tableStr += '<td>'+str(pair.refPosR2)+'</td>'
+    #    tableStr += '<td>'+str(pair.insertSize)+'</td>'
+    #    tableStr += '<td>'+str(pair.mapQR1)+' '+str(pair.mapQR2)+'</td>'
+    #    tableStr += '<td>'+str(pair.cigarR1)+' '+str(pair.cigarR2)+'</td>'
+    #    tableStr += '<td>'+str(pair.mappingFlagR1.properpair)+'</td>'
+    #    tableStr += '</tr>'
+    #tableStr += '</table>'
 
-    outStr += '<font face=courier size=1>'+bamStr+'</font>'
+    bamfile =  pysam.Samfile(app.analysisfolder.temp+'/cluster_'+str(cluster.id)+'.markedDuplicates.bam')
+    positions = {}
+    chromSizes = {}
+    tableStrDup =''
+    duplicates = 0
+    tmptotal = 0
+    for chrom in bamfile.header['SQ']:
+        chromSizes[chrom['SN']]=chrom['LN']
+    for alignedReadRead in bamfile:
+        if not alignedReadRead.is_unmapped:
+            RNAME = bamfile.getrname(alignedReadRead.tid)
+            if alignedReadRead.is_duplicate: duplicates += 1
+            tmptotal+=1
+        else: RNAME = 'NA'
+        if not alignedReadRead.is_duplicate and alignedReadRead.mapq >= 20 and not alignedReadRead.is_unmapped and not alignedReadRead.mate_is_unmapped and alignedReadRead.is_read1:
+            try: positions[RNAME].append(min(alignedReadRead.pos,alignedReadRead.pnext))
+            except KeyError: positions[RNAME] = [min(alignedReadRead.pos,alignedReadRead.pnext)]
+        if alignedReadRead.is_read1:
+            tableStr += '<tr>'
+            tableStr += '<td>'
+            if not (not alignedReadRead.is_duplicate and alignedReadRead.mapq >= 20 and not alignedReadRead.is_unmapped and not alignedReadRead.mate_is_unmapped): tableStr += '<font color="red">'
+            else: tableStr += '<font color="green">'
+            tableStr += alignedReadRead.qname+ '</td>'
+            tableStr += '<td>'+str(alignedReadRead.flag)+'</td>'
+            tableStr += '<td>'+str(RNAME)+'</td>'
+            tableStr += '<td>'+str('NA')+'</td>'
+            if alignedReadRead.pos: tableStr += '<td>'+thousandString(alignedReadRead.pos)+'</td>'
+            else:tableStr += '<td>'+str(alignedReadRead.pos)+'</td>'
+            if alignedReadRead.pnext: tableStr += '<td>'+thousandString(alignedReadRead.pnext)+'</td>'
+            else:tableStr += '<td>'+str(alignedReadRead.pnext)+'</td>'
+            tableStr += '<td>'+str(alignedReadRead.isize)+'</td>'
+            tableStr += '<td>'+str(alignedReadRead.mapq)+' '+str('NA')+'</td>'
+            tableStr += '<td>'+str(alignedReadRead.cigar)+' '+str('NA')+'</td>'
+            tableStr += '<td>'+str(alignedReadRead.is_proper_pair)+'</td>'
+            tableStr += '</tr>'
+    tableStr += '</table>'
+    outStr += str(percentage(duplicates,tmptotal))+'% of the reads are duplicates ('+str(duplicates)+' of '+str(tmptotal)+' mapped reads).<br>\n'
+    #
+    # Make plot
+    #
+    import matplotlib.pyplot as plt
+    import operator
+    for chrom, data in positions.iteritems():
+        binSize = int(int(chromSizes[chrom])/100)
+        plots = []
+        fig, axes = plt.subplots(1, sharex=True)
+        chrom=str(chrom)
+        plots.append(axes.hist(data,range(0,int(chromSizes[chrom]),binSize),label='chrom '+str(chrom)))#,histtype='step'))
+        handles, labels = axes.get_legend_handles_labels()
+        hl = sorted(zip(handles, labels), key=operator.itemgetter(1))
+        handles2, labels2 = zip(*hl)
+        axes.legend(handles2, labels2,loc=0,fontsize='small')
+        axes.set_xlabel('coordinate')
+        axes.set_ylabel('# Number of reads')
+        axes.set_xlim([0,int(chromSizes[chrom])])
+        y_max = axes.get_ylim()[1]
+        x_max = axes.get_xlim()[1]
+        
+        #
+        # add text to graph
+        #
+        #axes.text(int(round(x_max*0.6,0)),int(round(y_max*0.85,0)),'Average = '+str(round(np.average(sizes),2))+' pL')
+        #axes.text(int(round(x_max*0.6,0)),int(round(y_max*0.85-1*int(round(y_max*0.05,0)),0)),'Median = '+str(round(np.median(sizes),2))+' pL')
+        #axes.text(int(round(x_max*0.6,0)),int(round(y_max*0.85-2*int(round(y_max*0.05,0)),0)),'Standard deviation = '+str(round(np.std(sizes),2)))
+        #axes.text(int(round(x_max*0.6,0)),int(round(y_max*0.85-3*int(round(y_max*0.05,0)),0)),'droplets in 50uL = '+str(round( 50/np.average(sizes) ,2))+'M')
+        #axes.text(int(round(x_max*0.6,0)),int(round(y_max*0.85-4*int(round(y_max*0.05,0)),0)),'Max = '+str(round(max(sizes),2))+' pL')
+        #axes.text(int(round(x_max*0.6,0)),int(round(y_max*0.85-5*int(round(y_max*0.05,0)),0)),'Min = '+str(round(min(sizes),2))+' pL')
+        #axes.text(int(round(x_max*0.6,0)),int(round(y_max*0.85-6*int(round(y_max*0.05,0)),0)),''+str(int(round(len(sizes),2)))+' droplets identified')
+        
+        #
+        # save to pdf
+        #
+        #plt.savefig('histogram2_sizes.pdf',dpi=300,bbox_inches='tight')
+        plt.savefig(app.analysisfolder.temp+'/cluster_'+str(cluster.id)+'.histogram.'+chrom+'.png',dpi=300,bbox_inches='tight')
+    
+    outStr += tableStr
     outStr += '</body></html>\n'
     return outStr
 
