@@ -925,15 +925,19 @@ class BarcodeCluster(object,):
 	import time
 	starttime = time.time()
 #	try:
+	from misc import Progress
+	p = Progress(self.readPairCount, logfile=self.analysisfolder.logfile,unit='cluster_'+str(self.id)+'_reads', mem=True)
 	if not self.analysisfolder.database.datadropped:
 	    for readPair in self.analysisfolder.database.getReadPairs(self.readPairIdsList):
 		self.readPairs.append(readPair)
 		self.readPairsById[readPair.id] = readPair
+		p.update()
 #	except sqlite3.OperationalError: print 'ERROR: BarcodeCluster.loadReadPairs() is giving a sqlite3.OperationalError!!'
 	else:
 	    for readPair in self.analysisfolder.readsdb.getClusterReadPairs(self.id):
 		self.readPairs.append(readPair)
 		self.readPairsById[readPair.id] = readPair
+		p.update()
 	print self.id, time.time()-starttime
 
 	return 0
@@ -1118,7 +1122,10 @@ class BarcodeCluster(object,):
 		print 'picard view Error code', picard.returncode, errdata, open(picardLogfile.name).read()
 		#return 'FAIL'
 		sys.exit()
-	
+	import os
+	os.remove(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.bam')
+	os.remove(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.sorted.bam')
+	os.remove(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.sorted.bai')
 	return 0
 
 def readPairGenerator(fastq1,fastq2):
