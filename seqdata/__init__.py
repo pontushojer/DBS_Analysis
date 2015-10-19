@@ -1321,31 +1321,31 @@ class BarcodeCluster(object,):
 	except ValueError: pass
 
     def updatedb(self):
-	#with self.analysisfolder.database.lock:
-	import sqlite3
-	import time
-	updated = False
-	while not updated:
-	    try: 
-		self.analysisfolder.database.getConnection()
-		self.analysisfolder.database.c.execute('PRAGMA table_info(barcodeClusters)')
-		columnNames = [col[1] for col in self.analysisfolder.database.c.fetchall()]
-		if 'constructTypes' not in columnNames:
-		    self.analysisfolder.logfile.write('Creating columns in table barcodeClusters in database \n')
+	with self.analysisfolder.database.lock:
+	    import sqlite3
+	    import time
+	    updated = False
+	    while not updated:
+		try: 
 		    self.analysisfolder.database.getConnection()
-		    self.analysisfolder.database.c.execute("alter table barcodeClusters add column constructTypes string")
-		    self.analysisfolder.database.c.execute("alter table barcodeClusters add column readPairsInBamFile integer")
-		    self.analysisfolder.database.c.execute("alter table barcodeClusters add column mappedSEReads integer")
-		    self.analysisfolder.database.c.execute("alter table barcodeClusters add column SEreadsPassMappingQualityFilter integer")
-		    self.analysisfolder.database.c.execute("alter table barcodeClusters add column goodReadPairs integer")
-		    self.analysisfolder.database.c.execute("alter table barcodeClusters add column duplicateReadPairs integer")
-		    self.analysisfolder.database.c.execute("alter table barcodeClusters add column goodReadPairPositions string")
-		    self.analysisfolder.database.c.execute("alter table barcodeClusters add column htmlTable string")
-		self.analysisfolder.database.c.execute('UPDATE barcodeClusters SET constructTypes=?,readPairsInBamFile=?, mappedSEReads=?, SEreadsPassMappingQualityFilter=?, goodReadPairs=?, duplicateReadPairs=?, goodReadPairPositions=?, htmlTable=? WHERE clusterId=?',(str(self.constructTypes),self.readPairsInBamFile,self.mappedSEReads,self.SEreadsPassMappingQualityFilter,self.goodReadPairs,self.duplicateReadPairs,str(self.goodReadPairPositions),self.tableStr,self.id))
-		self.analysisfolder.database.commitAndClose()
-		updated = True
-		print self.id, updated
-	    except sqlite3.OperationalError: time.sleep(1)
+		    self.analysisfolder.database.c.execute('PRAGMA table_info(barcodeClusters)')
+		    columnNames = [col[1] for col in self.analysisfolder.database.c.fetchall()]
+		    if 'constructTypes' not in columnNames:
+			self.analysisfolder.logfile.write('Creating columns in table barcodeClusters in database \n')
+			self.analysisfolder.database.getConnection()
+			self.analysisfolder.database.c.execute("alter table barcodeClusters add column constructTypes string")
+			self.analysisfolder.database.c.execute("alter table barcodeClusters add column readPairsInBamFile integer")
+			self.analysisfolder.database.c.execute("alter table barcodeClusters add column mappedSEReads integer")
+			self.analysisfolder.database.c.execute("alter table barcodeClusters add column SEreadsPassMappingQualityFilter integer")
+			self.analysisfolder.database.c.execute("alter table barcodeClusters add column goodReadPairs integer")
+			self.analysisfolder.database.c.execute("alter table barcodeClusters add column duplicateReadPairs integer")
+			self.analysisfolder.database.c.execute("alter table barcodeClusters add column goodReadPairPositions string")
+			self.analysisfolder.database.c.execute("alter table barcodeClusters add column htmlTable string")
+		    self.analysisfolder.database.c.execute('UPDATE barcodeClusters SET constructTypes=?,readPairsInBamFile=?, mappedSEReads=?, SEreadsPassMappingQualityFilter=?, goodReadPairs=?, duplicateReadPairs=?, goodReadPairPositions=?, htmlTable=? WHERE clusterId=?',(str(self.constructTypes),self.readPairsInBamFile,self.mappedSEReads,self.SEreadsPassMappingQualityFilter,self.goodReadPairs,self.duplicateReadPairs,str(self.goodReadPairPositions),self.tableStr,self.id))
+		    self.analysisfolder.database.commitAndClose()
+		    updated = True
+		    print self.id, updated
+		except sqlite3.OperationalError: time.sleep(1)
 
     def generateHtmlSummary(self):
 	#

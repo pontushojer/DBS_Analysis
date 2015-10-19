@@ -67,8 +67,8 @@ def cluster_generator(analysisfolder):
     from seqdata import BarcodeClusterer
     
     barcodeClusterer = BarcodeClusterer(analysisfolder)
-#    for cluster_id in barcodeClusterer.getBarcodeClusterIds(shuffle=True,byMixedClusterReadCount=True):
-    for cluster_id in barcodeClusterer.getBarcodeClusterIds(shuffle=False,byMixedClusterReadCount=False):
+    for cluster_id in barcodeClusterer.getBarcodeClusterIds(shuffle=True,byMixedClusterReadCount=True):
+#    for cluster_id in barcodeClusterer.getBarcodeClusterIds(shuffle=False,byMixedClusterReadCount=False):
 	cluster = BarcodeCluster(int(cluster_id), analysisfolder)
 	#if cluster.readPairCount < 10: continue
 	yield cluster
