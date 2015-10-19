@@ -9,12 +9,14 @@ def main():
     import metadata
     import time
     from seqdata import BarcodeClusterer
+    from misc import Progress
+    import multiprocessing
+    import sqlite3
     
     #
     # check input and get commandline args
     #
-    try:
-	analysisfolder = metadata.AnalysisFolder(sys.argv[1])
+    try: analysisfolder = metadata.AnalysisFolder(sys.argv[1])
     except IndexError: sys.stderr.write('please supply a commandline on format:\analyseClusters <analysis-output-folder>\n');sys.exit()
     
     #
@@ -32,14 +34,48 @@ def main():
     #
     # restructuring the data
     #
-    if not analysisfolder.database.datadropped:
+    if False:#not analysisfolder.database.datadropped:
 	logfile.write('Restructuring database ... \n')
 	barcodeClusterer = BarcodeClusterer(analysisfolder)
 	barcodeClusterer.fillReadsDb()
 	logfile.write('Dropping data ... \n')
 	analysisfolder.database.dropReadColumns()
 	logfile.write('done. \n')
-    
+
+    progress = Progress(analysisfolder.results.barcodeClusterCount,logfile=analysisfolder.logfile, unit='clusters')
+
+    runInParallel = True
+    if runInParallel:
+	poolOfProcesses = multiprocessing.Pool(int(analysisfolder.settings.parallelProcesses),maxtasksperchild=100000000)
+	parallelResults = poolOfProcesses.imap_unordered(foreachCluster,cluster_generator(analysisfolder),chunksize=1)
+	for cluster in parallelResults:
+	    cluster.updatedb()
+	    progress.update()
+	    #if progress.current == 20: break
+	
+    else:
+        for cluster in cluster_generator(analysisfolder):
+	    cluster = foreachCluster(cluster)
+	    cluster.updatedb()
+	    progress.update()
+
     logfile.write('analyseClusters FINISHED\n')
+
+def cluster_generator(analysisfolder):
+    
+    from seqdata import BarcodeCluster
+    from seqdata import BarcodeClusterer
+    
+    barcodeClusterer = BarcodeClusterer(analysisfolder)
+#    for cluster_id in barcodeClusterer.getBarcodeClusterIds(shuffle=True,byMixedClusterReadCount=True):
+    for cluster_id in barcodeClusterer.getBarcodeClusterIds(shuffle=False,byMixedClusterReadCount=False):
+	cluster = BarcodeCluster(int(cluster_id), analysisfolder)
+	#if cluster.readPairCount < 10: continue
+	yield cluster
+
+def foreachCluster(cluster):
+    cluster.analyze()
+    cluster.removeAllFiles()
+    return cluster
 
 if __name__ == "__main__": main()

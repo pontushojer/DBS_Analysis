@@ -34,7 +34,7 @@ class ReadPair(object):
 	self.annotations = annotations
         self.overlap = None
         self.brokenSequence = ''
-        self.construct = None
+        #self.construct = None
         self.insert= None
 	self.clusterId = clusterId
         
@@ -718,7 +718,7 @@ class BarcodeClusterer(object):
 	import random
 	
 	self.analysisfolder.database.getConnection()
-	clusterIds = self.analysisfolder.database.c.execute('SELECT clusterId FROM barcodeClusters').fetchall()
+	clusterIds = list(self.analysisfolder.database.c.execute('SELECT clusterId FROM barcodeClusters').fetchall())
 	if shuffle: random.shuffle(clusterIds)
 	self.analysisfolder.database.commitAndClose()
 	
@@ -901,22 +901,52 @@ class BarcodeCluster(object,):
 	self.filesCreated = []
 
     def loadClusterInfo(self, ):
+
+	import sqlite3, time
+	success = False
+	while not success:
+	    try:
+		self.analysisfolder.database.getConnection()
+		columnNames = [col[1] for col in self.analysisfolder.database.c.execute('PRAGMA table_info(barcodeClusters)').fetchall()]
+		if 'constructTypes' not in columnNames:
+		    info = self.analysisfolder.database.c.execute('SELECT clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations FROM barcodeClusters WHERE clusterId=?',(self.id,)).fetchall()
+		    assert len(info) == 1, 'More than one ('+str(len(info))+') clusters found with id '+str(self.id)
+		    (clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations) = info[0]
+		    constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,htmlTable = 'None',None,None,None,None,None,'None',None
+		else:
+		    info = self.analysisfolder.database.c.execute('SELECT clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions, htmlTable FROM barcodeClusters WHERE clusterId=?',(self.id,)).fetchall()
+		    assert len(info) == 1, 'More than one ('+str(len(info))+') clusters found with id '+str(self.id)
+		    (clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,htmlTable) = info[0]
 	
-	self.analysisfolder.database.getConnection()
-	info = self.analysisfolder.database.c.execute('SELECT clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations FROM barcodeClusters WHERE clusterId=?',(self.id,)).fetchall()
-	self.analysisfolder.database.commitAndClose()
-	assert len(info) == 1, 'More than one ('+str(len(info))+') clusters found with id '+str(self.id)
-	(clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations) = info[0]
-	assert clusterId == self.id
-	self.readPairCount      = int(clusterTotalReadCount)
-	self.readPairIdsList    = eval(readPairsList)
-	self.readPairIdentities = eval(readBarcodeIdentitiesList)
-	self.barcodeSequence    = clusterBarcodeSequence
-	self.barcodeQuality     = clusterBarcodeQuality
-	if contigSequencesList:
-	    self.contigIdsList  = eval(contigSequencesList)
-	if annotations:
-	    self.annotations    = eval(annotations)
+		self.analysisfolder.database.commitAndClose()
+	
+		assert clusterId == self.id
+		
+		self.readPairCount      = int(clusterTotalReadCount)
+		self.readPairIdsList    = eval(readPairsList)
+		self.readPairIdentities = eval(readBarcodeIdentitiesList)
+		self.barcodeSequence    = clusterBarcodeSequence
+		self.barcodeQuality     = clusterBarcodeQuality
+		if contigSequencesList:
+		    self.contigIdsList  = eval(contigSequencesList)
+		if annotations:
+		    self.annotations    = eval(annotations)
+		else:
+		    self.annotations    = {}
+	
+		if constructTypes: self.constructTypes = eval(constructTypes)
+		else: self.constructTypes = None
+		self.readPairsInBamFile = readPairsInBamFile
+		self.mappedSEReads = mappedSEReads
+		self.SEreadsPassMappingQualityFilter = SEreadsPassMappingQualityFilter
+		self.goodReadPairs = goodReadPairs
+		self.duplicateReadPairs = duplicateReadPairs
+		if goodReadPairPositions:self.goodReadPairPositions = eval(goodReadPairPositions)
+		else:self.goodReadPairPositions=None
+		self.tableStr = htmlTable
+		success = True
+	    except sqlite3.OperationalError: time.sleep(1)
+
 	return 0
 
     def loadReadPairs(self, ):
@@ -931,13 +961,15 @@ class BarcodeCluster(object,):
 	    for readPair in self.analysisfolder.database.getReadPairs(self.readPairIdsList):
 		self.readPairs.append(readPair)
 		self.readPairsById[readPair.id] = readPair
-		p.update()
+		try : p.update()
+		except ValueError: pass
 #	except sqlite3.OperationalError: print 'ERROR: BarcodeCluster.loadReadPairs() is giving a sqlite3.OperationalError!!'
 	else:
 	    for readPair in self.analysisfolder.readsdb.getClusterReadPairs(self.id):
 		self.readPairs.append(readPair)
 		self.readPairsById[readPair.id] = readPair
-		p.update()
+		try: p.update()
+		except ValueError: pass
 	print self.id, time.time()-starttime
 
 	return 0
@@ -1064,13 +1096,13 @@ class BarcodeCluster(object,):
 	if count1 == 1 and count2 == 1: return True
 	elif count1 > 1 or count2 > 1: return False
 	else: return None
-    
+
     def createBamFile(self,):
-	
+
 	from misc import thousandString
 	import pysam
 	import time
-    
+
 	bamfile =  pysam.Samfile(self.analysisfolder.dataPath+'/mappedInserts.bam')
 	outputBam = pysam.Samfile(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.bam',mode='wb',header=bamfile.header)
 	for pair in self.readPairs:
@@ -1081,10 +1113,11 @@ class BarcodeCluster(object,):
 		outputBam.write(r1)
 		outputBam.write(r2)
 	outputBam.close()
-    
+
 	import subprocess
 	import sys
-	picardLogfile = open(self.analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'_picardSortSam.log.txt','w')
+	picardLogfile = open(self.analysisfolder.temp+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'_picardSortSam.log.txt','w')
+	self.filesCreated.append(picardLogfile.name)
 	command2 = ['java',
 		    '-Xmx5g',
 		    '-jar',self.analysisfolder.settings.picardPath+'/SortSam.jar',
@@ -1095,7 +1128,9 @@ class BarcodeCluster(object,):
 		    'CREATE_INDEX=TRUE'
 		    ]
 	picard = subprocess.Popen(command2,stdout=subprocess.PIPE,stderr=picardLogfile)
-	if self.analysisfolder.logfile: self.analysisfolder.logfile.write('Starting command: '+' '.join(command2)+'\n')
+	if self.analysisfolder.logfile:
+	    try: self.analysisfolder.logfile.write('Starting command: '+' '.join(command2)+'\n')
+	    except ValueError:pass
 	errdata = picard.communicate()
 	if (picard.returncode != 0 and picard.returncode != None):
 	    if picard.returncode != 0:
@@ -1103,7 +1138,8 @@ class BarcodeCluster(object,):
 		print 'picard view Error code', picard.returncode, errdata, open(picardLogfile.name).read()
 		#return 'FAIL'
 		sys.exit()
-	picardLogfile = open(self.analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'_picardMarkDup.log.txt','w')
+	picardLogfile = open(self.analysisfolder.temp+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'_picardMarkDup.log.txt','w')
+	self.filesCreated.append(picardLogfile.name)
 	command2 = ['java',
 		    '-Xmx5g',
 		    '-jar',self.analysisfolder.settings.picardPath+'/MarkDuplicates.jar',
@@ -1114,7 +1150,9 @@ class BarcodeCluster(object,):
 		    'CREATE_INDEX=TRUE'
 		    ]
 	picard = subprocess.Popen(command2,stdout=subprocess.PIPE,stderr=picardLogfile)
-	if self.analysisfolder.logfile: self.analysisfolder.logfile.write('Starting command: '+' '.join(command2)+'\n')
+	if self.analysisfolder.logfile:
+	    try:self.analysisfolder.logfile.write('Starting command: '+' '.join(command2)+'\n')
+	    except ValueError:pass
 	errdata = picard.communicate()
 	if (picard.returncode != 0 and picard.returncode != None):
 	    if picard.returncode != 0:
@@ -1122,11 +1160,256 @@ class BarcodeCluster(object,):
 		print 'picard view Error code', picard.returncode, errdata, open(picardLogfile.name).read()
 		#return 'FAIL'
 		sys.exit()
+	self.filesCreated.append(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bam')
+	self.filesCreated.append(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bai')
+	self.filesCreated.append(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.metrics.txt')
 	import os
 	os.remove(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.bam')
 	os.remove(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.sorted.bam')
 	os.remove(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.sorted.bai')
 	return 0
+
+    def analyze(self):
+
+	#
+	# imports
+	#
+	import time
+	from misc import thousandString
+	from misc import percentage
+	import pysam
+
+	starttime = time.time()
+
+	#
+	# Load cluster data and initiate values for counters etc
+	#
+	print 'Analyzing data in cluster '+str(self.id)
+	try: self.analysisfolder.logfile.write('Analyzing data in cluster '+str(self.id)+' ... '+'\n')
+	except ValueError:
+	    #self.analysisfolder.logfile = open(self.analysisfolder.logfile.name,'a')
+	    #self.analysisfolder.logfile.write('Analyzing data in cluster '+str(self.id)+' ... '+'\n')
+	    pass
+
+	self.loadClusterInfo()
+	constructTypes = {}
+	readPairsInBamFile = 0
+	readPairsInBamFileCheck = 0
+	mappedSEReads = 0
+	SEreadsPassMappingQualityFilter = 0
+	goodReadPairs = 0
+	duplicateReadPairs = 0
+	goodReadPairsRows = ''
+	unmappedReadPairsRows = ''
+	duplicateReadPairsRows = ''
+	goodReadPairPositions = {}
+
+	#
+	# Load the read pairs from database
+	#
+	try: self.analysisfolder.logfile.write('Loading reads for cluster '+str(self.id)+' ... '+'\n')
+	except ValueError: pass
+	self.loadReadPairs()
+	#
+	# build the bamfile with read mappings
+	#
+	try:self.analysisfolder.logfile.write('Creating bamfiles for cluster_'+str(self.id)+' ... '+'\n')
+	except ValueError: pass
+	self.createBamFile()
+	try:self.analysisfolder.logfile.write('Bamfiles ready for cluster_'+str(self.id)+'.'+'\n')
+	except ValueError: pass
+	bamfile = pysam.Samfile(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bam')
+
+	#
+	# checking constructypes in read population...
+	#
+	for pair in self.readPairs:
+	    if pair.bamFilePos: readPairsInBamFile+=1
+	    try: constructTypes[ pair.construct ] += 1
+	    except KeyError: constructTypes[ pair.construct ] = 1
+
+	#
+	# Parse the bamfile
+	#
+	try:self.analysisfolder.logfile.write('Making reads table forcluster '+str(self.id)+'.\n')
+	except ValueError: pass
+	for alignedReadRead in bamfile:
+
+	    #
+	    # get the refernce names for both reads in the read pair
+	    #
+	    if not alignedReadRead.is_unmapped: r1ReferenceName = bamfile.getrname(alignedReadRead.tid)
+	    else: r1ReferenceName = 'NA'
+	    if not alignedReadRead.mate_is_unmapped: r2ReferenceName = bamfile.getrname(alignedReadRead.rnext)
+	    else: r2ReferenceName = 'NA'
+
+	    #
+	    # Filters
+	    #
+	    nicePair = bool( r1ReferenceName == r2ReferenceName and not alignedReadRead.is_unmapped and not alignedReadRead.mate_is_unmapped )
+	    passMappingQuality = bool(alignedReadRead.mapq >= int(self.analysisfolder.settings.mapqCutOff))
+	    if not alignedReadRead.is_unmapped: mappedSEReads += 1
+	    if passMappingQuality: SEreadsPassMappingQualityFilter += 1
+
+	    #
+	    # To do paired end checks choose read one
+	    #
+	    if alignedReadRead.is_read1: 
+
+		readPairsInBamFileCheck += 1
+
+		#
+		# Create a HTM table row for quick vizualisation later
+		#
+		row = '<tr><td>'
+		if nicePair and passMappingQuality and not alignedReadRead.is_duplicate:
+		    row += '<font color="green">'
+		elif nicePair and passMappingQuality:
+		    row += '<font color="blue">'
+		else:
+		    row += '<font color="red">'
+		row += alignedReadRead.qname+ '</td><td>'+str(alignedReadRead.flag)+'</td><td>'+str(r1ReferenceName)+'</td><td>'+str(r2ReferenceName)+'</td>'
+		if alignedReadRead.pos: row += '<td>'+thousandString(alignedReadRead.pos)+'</td>'
+		else:row += '<td>'+str(alignedReadRead.pos)+'</td>'
+		if alignedReadRead.pnext: row += '<td>'+thousandString(alignedReadRead.pnext)+'</td>'
+		else:row += '<td>'+str(alignedReadRead.pnext)+'</td>'
+		row += '<td>'+str(abs(alignedReadRead.isize))+'</td><td>'+str(alignedReadRead.mapq)+'</td><td>'+str(alignedReadRead.cigar)+'</td><td>'+str(alignedReadRead.is_proper_pair)+'</td>'
+		row += '</tr>'
+		if nicePair and passMappingQuality and not alignedReadRead.is_duplicate:
+		    goodReadPairsRows += row
+		elif nicePair and passMappingQuality:
+		    duplicateReadPairsRows += row
+		else:
+		    unmappedReadPairsRows += row
+
+
+		#
+		# Save coordinate of reads that mapp in nice pairs
+		#
+		if nicePair and passMappingQuality:
+		    goodReadPairs += 1
+		    if alignedReadRead.is_duplicate: duplicateReadPairs += 1
+		    else:
+			try:
+			    goodReadPairPositions[r1ReferenceName].append(min(alignedReadRead.pos,alignedReadRead.pnext))
+			except KeyError:
+			    goodReadPairPositions[r1ReferenceName]   =   [min(alignedReadRead.pos,alignedReadRead.pnext)]
+
+	#
+	# assert that the database and bamfile counts match
+	#
+	assert readPairsInBamFile == readPairsInBamFileCheck, '## ERROR ## : The number of reads in the bamfile is not correct!\n'
+	
+	#
+	# Make the full html table in one string
+	#
+	headerRow = '<tr>'+'<th>header</th>'+'<th>flags</th>'+'<th>refchrom R1</th>'+'<th>refchrom R2</th>'+'<th>pos R1</th>'+'<th>pos R2</th>'+'<th>insertsize</th>'+'<th>mapQ</th>'+'<th>CIGAR</th>'+'<th>ProperPair</th>'+'</tr>'
+	self.tableStr = '<table>' +headerRow+ goodReadPairsRows + duplicateReadPairsRows + unmappedReadPairsRows + '</table>'
+
+	#
+	# save some of the stats for later
+	#
+	self.constructTypes = constructTypes
+	self.readPairsInBamFile = readPairsInBamFile
+	self.mappedSEReads = mappedSEReads
+	self.SEreadsPassMappingQualityFilter = SEreadsPassMappingQualityFilter
+	self.goodReadPairs = goodReadPairs
+	self.duplicateReadPairs = duplicateReadPairs
+	self.goodReadPairPositions = goodReadPairPositions
+	
+	try:self.analysisfolder.logfile.write('Page for cluster '+str(self.id)+' generated in '+str(round(time.time()-starttime,2))+' seconds '+'\n')
+	except ValueError: pass
+
+    def updatedb(self):
+	#with self.analysisfolder.database.lock:
+	import sqlite3
+	import time
+	updated = False
+	while not updated:
+	    try: 
+		self.analysisfolder.database.getConnection()
+		self.analysisfolder.database.c.execute('PRAGMA table_info(barcodeClusters)')
+		columnNames = [col[1] for col in self.analysisfolder.database.c.fetchall()]
+		if 'constructTypes' not in columnNames:
+		    self.analysisfolder.logfile.write('Creating columns in table barcodeClusters in database \n')
+		    self.analysisfolder.database.getConnection()
+		    self.analysisfolder.database.c.execute("alter table barcodeClusters add column constructTypes string")
+		    self.analysisfolder.database.c.execute("alter table barcodeClusters add column readPairsInBamFile integer")
+		    self.analysisfolder.database.c.execute("alter table barcodeClusters add column mappedSEReads integer")
+		    self.analysisfolder.database.c.execute("alter table barcodeClusters add column SEreadsPassMappingQualityFilter integer")
+		    self.analysisfolder.database.c.execute("alter table barcodeClusters add column goodReadPairs integer")
+		    self.analysisfolder.database.c.execute("alter table barcodeClusters add column duplicateReadPairs integer")
+		    self.analysisfolder.database.c.execute("alter table barcodeClusters add column goodReadPairPositions string")
+		    self.analysisfolder.database.c.execute("alter table barcodeClusters add column htmlTable string")
+		self.analysisfolder.database.c.execute('UPDATE barcodeClusters SET constructTypes=?,readPairsInBamFile=?, mappedSEReads=?, SEreadsPassMappingQualityFilter=?, goodReadPairs=?, duplicateReadPairs=?, goodReadPairPositions=?, htmlTable=? WHERE clusterId=?',(str(self.constructTypes),self.readPairsInBamFile,self.mappedSEReads,self.SEreadsPassMappingQualityFilter,self.goodReadPairs,self.duplicateReadPairs,str(self.goodReadPairPositions),self.tableStr,self.id))
+		self.analysisfolder.database.commitAndClose()
+		updated = True
+		print self.id, updated
+	    except sqlite3.OperationalError: time.sleep(1)
+
+    def generateHtmlSummary(self):
+	#
+	# output for viewer
+	#
+	from misc import percentage
+	from misc import thousandString
+	outStr = 'Cluster id='+str(self.id)+', with barcode '+str(self.barcodeSequence)+' has a total of '+str(self.readPairCount)+' read pairs.'+'<br><br>\n'
+	outStr += '    ' + str(percentage(self.readPairsInBamFile,self.readPairCount))+'% of the read pairs are in the bamfile ('+str(thousandString(self.readPairsInBamFile))+' of '+str(thousandString(self.readPairCount))+'read pairs ) .<br>\n'
+	#outStr += str(self.constructTypes)+'.<br>\n'
+	outStr += str(percentage(self.mappedSEReads, self.readPairsInBamFile*2))+'% of the reads (SE) are mapped ('+str(thousandString(self.mappedSEReads))+' of '+str(thousandString(self.readPairsInBamFile*2))+' reads in the bamfile).<br>\n'
+	outStr += str(percentage(self.SEreadsPassMappingQualityFilter,self.readPairsInBamFile*2))+'% of the reads (SE) are mapped with mapQ GT q'+   str(self.analysisfolder.settings.mapqCutOff)+'  ('+str(thousandString(self.SEreadsPassMappingQualityFilter))+' of '+str(thousandString(self.readPairsInBamFile*2))+' reads in the bamfile).<br>\n'
+	outStr += str(percentage(self.goodReadPairs,self.readPairsInBamFile))+'% of the read Pairs are mapped nice and proper ('+str(thousandString(self.goodReadPairs))+' of '+str(thousandString(self.readPairsInBamFile))+' reads in the bamfile).<br>\n'
+	outStr += str(percentage(self.duplicateReadPairs,self.goodReadPairs))+'% of the mapped read pairs are duplicates ('+str(thousandString(self.duplicateReadPairs))+' of '+str(thousandString(self.goodReadPairs))+' mapped reads pairs).<br>\n'
+	return outStr
+
+    def makeGoodReadPairPositionsPlots(self,outputfilename = None):
+
+	import pysam
+	chromSizes = {}
+	for chrom in pysam.Samfile(self.analysisfolder.dataPath+'/mappedInserts.bam').header['SQ']: chromSizes[chrom['SN']] = chrom['LN']
+	
+	#
+	# Make plos for the chromosomes present
+	#
+	try: self.analysisfolder.logfile.write('Making plots for cluster '+str(self.id)+'.\n')
+	except ValueError: pass
+	import matplotlib.pyplot as plt
+	import operator
+	for chrom, data in self.goodReadPairPositions.iteritems():
+
+	    binSize = int(int(chromSizes[chrom])/100)
+	    chrom=str(chrom)
+
+	    plots = []
+	    fig, axes = plt.subplots(1, sharex=True)
+	    plots.append(axes.hist(data,range(0,int(chromSizes[chrom]),binSize),label='chrom '+str(chrom)))#,histtype='step'))
+
+	    handles, labels = axes.get_legend_handles_labels()
+	    hl = sorted(zip(handles, labels), key=operator.itemgetter(1))
+	    handles2, labels2 = zip(*hl)
+	    axes.legend(handles2, labels2,loc=0,fontsize='small')
+
+	    axes.set_xlabel('coordinate')
+	    axes.set_ylabel('# Number of reads')
+
+	    axes.set_xlim([0,int(chromSizes[chrom])])
+
+	    #
+	    # save to file
+	    #
+	    if outputfilename:
+		plt.savefig(outputfilename,dpi=300,bbox_inches='tight')
+		self.filesCreated.append(outputfilename)
+	    else:
+		#plt.savefig(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.histogram.'+chrom+'.pdf',dpi=300,bbox_inches='tight')
+		#self.filesCreated.append(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.histogram.'+chrom+'.pdf')
+		plt.savefig(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.histogram.'+chrom+'.png',dpi=300,bbox_inches='tight')
+		self.filesCreated.append(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.histogram.'+chrom+'.png')
+
+    def removeAllFiles(self):
+	import os
+	for filename in self.filesCreated:
+	    if os.path.exists(filename):os.remove(filename)
 
 def readPairGenerator(fastq1,fastq2):
 

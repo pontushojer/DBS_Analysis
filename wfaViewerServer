@@ -20,7 +20,7 @@ app = Flask(__name__)
 try: analysisfolder = metadata.AnalysisFolder(sys.argv[1])
 except IndexError: sys.stderr.write('please supply a commandline on format:\nwfaViewerServer <analysis-output-folder>\n');sys.exit()
 app.analysisfolder = analysisfolder
-
+app.analysisfolder.settings.mapqCutOff = int(app.analysisfolder.settings.mapqCutOff)
 #
 # check analysis folder
 #
@@ -29,7 +29,7 @@ if not analysisfolder.checkIntegrity() == 'PASS': print analysisfolder.checkInte
 #
 # create a logfile
 #
-logfile = open(analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'_wfaViewerServer','w',1)
+logfile = open(analysisfolder.logpath+'/wfaViewerServer','a',1)
 logfile.write('cmd: '+' '.join(sys.argv)+'\n')
 analysisfolder.logfile = logfile
 
@@ -194,9 +194,10 @@ def index():
         outStr += '<th>clusterID</th>'
         outStr += '<th>barcode</th>'
         outStr += '<th>readcount</th>'
-        outStr += '<th>sameCrom</th>'
-        outStr += '<th>chrom</th>'
-        outStr += '<th>duplicate</th>'
+        outStr += '<th>mapSE%</th>'
+        outStr += '<th>mapSEq20%</th>'
+        outStr += '<th>goodPair%</th>'
+        outStr += '<th>dup%</th>'
     #    outStr += '<th>pos R1</th>'
     #    outStr += '<th>pos R2</th>'
     #    outStr += '<th>insertsize</th>'
@@ -212,36 +213,51 @@ def index():
         #for cluster in parallelResults:
             counter += 1
             if counter == 1000: break
-            #if not cluster.allreadssamechrom or (cluster.allreadssamechrom==True and cluster.allreadssamepos): continue
+            
+            
+            inbamPerc = percentage(cluster.readPairsInBamFile,cluster.readPairCount)
+            if cluster.readPairsInBamFile:
+                mappedSE = percentage(cluster.mappedSEReads, cluster.readPairsInBamFile*2)
+                mappedSEqPass=percentage(cluster.SEreadsPassMappingQualityFilter,cluster.readPairsInBamFile*2)
+            else:
+                mappedSE = percentage(cluster.mappedSEReads, 0)
+                mappedSEqPass=percentage(cluster.SEreadsPassMappingQualityFilter,0)
+
+            goodReads = percentage(cluster.goodReadPairs,cluster.readPairsInBamFile)
+            dupPerc = percentage(cluster.duplicateReadPairs,cluster.goodReadPairs)
+
             outStr += '<tr>'
             outStr += '<td><a href="cluster'+str(cluster.id)+'">'+str(cluster.id)+'</a></td>'
             outStr += '<td><a href="cluster'+str(cluster.id)+'"><font face="Courier">'+str(cluster.barcodeSequence)+'</font></a></td>\n'
             outStr += '<td><a href="cluster'+str(cluster.id)+'">'+str(cluster.readPairCount)+'</a></td>\n'
             totalReadPairCount += cluster.readPairCount
-            outStr += '<td><a href="cluster'+str(cluster.id)+'">'
-            if True:#cluster.allreadssamechrom:
-                sameChrom += 1
-                outStr += '<font color="green">'
-            else:
-                outStr += '<font color="red">'
-            #outStr += str(cluster.allreadssamechrom)+'</a></td>\n'
-	    outStr += str('NA')+'</a></td>\n'
-            outStr += '<td><a href="cluster'+str(cluster.id)+'">'
-            if False:#cluster.allreadssamechrom:
-		outStr += str(cluster.chromosome)+'</a></td>\n'#readPairs[0].refNameR1)+'</a></td>\n'
-            else:
-		outStr += 'NA</a></td>\n'
-            outStr += '<td><a href="cluster'+str(cluster.id)+'">'
-            if False:#not (cluster.allreadssamechrom==True and cluster.allreadssamepos) and cluster.allreadssamepos != None:
-                outStr += '<font color="green">'
-            else:
-                pcrDup += 1
-                outStr += '<font color="red">'
-            #outStr += str(cluster.allreadssamechrom==True and cluster.allreadssamepos)+'</a></td>\n'
-	    outStr += 'NA'+'</a></td>\n'
 
-    
+            outStr += '<td><a href="cluster'+str(cluster.id)+'">'
+            if mappedSE == 'NA': outStr += '<font color="gray">'
+            elif mappedSE > 50:outStr += '<font color="green">'
+            else:            outStr += '<font color="red">'
+	    outStr += str(mappedSE)+'%</font></a></td>\n'
+
+            outStr += '<td><a href="cluster'+str(cluster.id)+'">'
+            if mappedSEqPass == 'NA': outStr += '<font color="gray">'
+            elif mappedSEqPass > 50:outStr += '<font color="green">'
+            else:            outStr += '<font color="red">'
+	    outStr += str(mappedSEqPass)+'%</font></a></td>\n'
+
+            outStr += '<td><a href="cluster'+str(cluster.id)+'">'
+            if goodReads == 'NA': outStr += '<font color="gray">'
+            elif goodReads > 50:outStr += '<font color="green">'
+            else:            outStr += '<font color="red">'
+	    outStr += str(goodReads)+'%</font></a></td>\n'
+
+            outStr += '<td><a href="cluster'+str(cluster.id)+'">'
+            if dupPerc == 'NA': outStr += '<font color="gray">'
+            elif dupPerc < 50:outStr += '<font color="green">'
+            else:            outStr += '<font color="red">'
+	    outStr += str(dupPerc)+'%</font></a></td>\n'
+
             outStr += '</tr>'
+
         #poolOfProcesses.close();print 'Closing'
         #poolOfProcesses.terminate();print 'terminating'
         #poolOfProcesses.join();print 'joining'
@@ -298,147 +314,19 @@ def cluster(cluster_id, readnumber=None):
         th,td {padding: 5px;}
         td {text-align: center;}
     </style></head>"""
-    outStr += '<body>'
+    outStr += '<body><a href=index.html>Back</a><br><br>'
 
     cluster = BarcodeCluster(int(cluster_id),app.analysisfolder)
     app.analysisfolder.logfile.write('Loading reads for cluster '+str(cluster_id)+' ... '+'\n')
     cluster.loadClusterInfo()
-    outStr += 'cluster id='+str(cluster_id)+' with barcode '+str(cluster.barcodeSequence)+' has '+str(cluster.readPairCount)+' read pairs'+'<br><br>\n'
-    cluster.loadReadPairs()
-    print 'creatingBamfile...'
-    app.analysisfolder.logfile.write('Creating bamfiles for cluster_'+str(cluster_id)+' ... '+'\n')
-    cluster.createBamFile()
-    app.analysisfolder.logfile.write('Bamfiles ready for cluster_'+str(cluster_id)+'.'+'\n')
+    if not cluster.tableStr:
+        cluster.analyze()
+        cluster.removeAllFiles()
+        cluster.updatedb()
 
-    tableStr = '<table>'
-    tableStr += '<tr>' 
-    tableStr += '<th>header</th>'
-    tableStr += '<th>flags</th>'
-    tableStr += '<th>refchrom R1</th>'
-    tableStr += '<th>refchrom R2</th>'
-    tableStr += '<th>pos R1</th>'
-    tableStr += '<th>pos R2</th>'
-    tableStr += '<th>insertsize</th>'
-    tableStr += '<th>mapQ</th>'
-    tableStr += '<th>CIGAR</th>'
-    tableStr += '<th>ProperPair</th>'
-    tableStr += '</tr>'
-    #for pair in cluster.readPairs:
-    #    tableStr += '<tr>'
-    #    tableStr += '<td>'
-    #    if pair.mapQR1 < 20 or pair.mapQR2 < 20 or pair.mapQR1 == '*' or pair.mapQR2 == '*': tableStr += '<font color="red">'
-    #    else: tableStr += '<font color="green">'
-    #    tableStr += pair.header+ '</td>'
-    #    tableStr += '<td>'+str(pair.mappingFlagR1.flag)+' '+str(pair.mappingFlagR2.flag)+'</td>'
-    #    tableStr += '<td>'+str(pair.refNameR1)+'</td>'
-    #    tableStr += '<td>'+str(pair.refNameR2)+'</td>'
-    #    if pair.refPosR1: tableStr += '<td>'+thousandString(pair.refPosR1)+'</td>'
-    #    else:tableStr += '<td>'+str(pair.refPosR1)+'</td>'
-    #    if pair.refPosR2: tableStr += '<td>'+thousandString(pair.refPosR2)+'</td>'
-    #    else:tableStr += '<td>'+str(pair.refPosR2)+'</td>'
-    #    tableStr += '<td>'+str(pair.insertSize)+'</td>'
-    #    tableStr += '<td>'+str(pair.mapQR1)+' '+str(pair.mapQR2)+'</td>'
-    #    tableStr += '<td>'+str(pair.cigarR1)+' '+str(pair.cigarR2)+'</td>'
-    #    tableStr += '<td>'+str(pair.mappingFlagR1.properpair)+'</td>'
-    #    tableStr += '</tr>'
-    #tableStr += '</table>'
-
-    bamfile =  pysam.Samfile(app.analysisfolder.temp+'/cluster_'+str(cluster.id)+'.markedDuplicates.bam')
-    positions = {}
-    chromSizes = {}
-    tableStrDup =''
-    duplicates = 0
-    tmptotal = 0
-    goodrows = ''
-    duplicateAndUnmappedRows = ''
-    for chrom in bamfile.header['SQ']:
-        chromSizes[chrom['SN']]=chrom['LN']
-    for alignedReadRead in bamfile:
-        
-	if alignedReadRead.is_read1: # just check read one to do paired data
-	     
-	    #mate = bamfile.mate(alignedReadRead)
-	    #
-	    # filters
-	    #
-	    goodMapping = bool(alignedReadRead.mapq >= app.analysisfolder.settings.mapqCutOff and not alignedReadRead.is_unmapped and not alignedReadRead.mate_is_unmapped)
-	    
-	    if goodMapping:
-		RNAME = bamfile.getrname(alignedReadRead.tid)
-		tmptotal += 1
-		if alignedReadRead.is_duplicate: duplicates += 1
-		else:
-		    try: positions[RNAME].append(min(alignedReadRead.pos,alignedReadRead.pnext))
-		    except KeyError: positions[RNAME] = [min(alignedReadRead.pos,alignedReadRead.pnext)]
-	    else: RNAME = 'NA'
-
-            row = '<tr><td>'
-            if not (not alignedReadRead.is_duplicate and goodMapping):
-		row += '<font color="red">'
-            else: row += '<font color="green">'
-            row += alignedReadRead.qname+ '</td>'
-            row += '<td>'+str(alignedReadRead.flag)+'</td>'
-            row += '<td>'+str(RNAME)+'</td>'
-            row += '<td>'+str('NA')+'</td>'
-            if alignedReadRead.pos: row += '<td>'+thousandString(alignedReadRead.pos)+'</td>'
-            else:row += '<td>'+str(alignedReadRead.pos)+'</td>'
-            if alignedReadRead.pnext: row += '<td>'+thousandString(alignedReadRead.pnext)+'</td>'
-            else:row += '<td>'+str(alignedReadRead.pnext)+'</td>'
-            row += '<td>'+str(alignedReadRead.isize)+'</td>'
-            row += '<td>'+str(alignedReadRead.mapq)+' '+str('mate.mapq')+'</td>'
-            row += '<td>'+str(alignedReadRead.cigar)+' '+str('mate.cigar')+'</td>'
-            row += '<td>'+str(alignedReadRead.is_proper_pair)+'</td>'
-            row += '</tr>'
-	    
-	    if alignedReadRead.is_duplicate or alignedReadRead.is_unmapped or alignedReadRead.mate_is_unmapped:
-		duplicateAndUnmappedRows += row
-	    else: goodrows += row
-
-    tableStr+= goodrows
-    #tableStr+= '<tr>'+ '<td>'+'<font color="green">NOWBADREADS</td><td>FLAG</td><td>RNAME</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>'
-    tableStr+=duplicateAndUnmappedRows
-    tableStr += '</table>'
-    outStr += str(percentage(duplicates,tmptotal))+'% of the reads are duplicates ('+str(duplicates)+' of '+str(tmptotal)+' mapped reads mapq GT '+str(app.analysisfolder.settings.mapqCutOff)+').<br>\n'
-
-    #
-    # Make plot
-    #
-    import matplotlib.pyplot as plt
-    import operator
-    for chrom, data in positions.iteritems():
-        binSize = int(int(chromSizes[chrom])/100)
-        plots = []
-        fig, axes = plt.subplots(1, sharex=True)
-        chrom=str(chrom)
-        plots.append(axes.hist(data,range(0,int(chromSizes[chrom]),binSize),label='chrom '+str(chrom)))#,histtype='step'))
-        handles, labels = axes.get_legend_handles_labels()
-        hl = sorted(zip(handles, labels), key=operator.itemgetter(1))
-        handles2, labels2 = zip(*hl)
-        axes.legend(handles2, labels2,loc=0,fontsize='small')
-        axes.set_xlabel('coordinate')
-        axes.set_ylabel('# Number of reads')
-        axes.set_xlim([0,int(chromSizes[chrom])])
-        y_max = axes.get_ylim()[1]
-        x_max = axes.get_xlim()[1]
-        
-        #
-        # add text to graph
-        #
-        #axes.text(int(round(x_max*0.6,0)),int(round(y_max*0.85,0)),'Average = '+str(round(np.average(sizes),2))+' pL')
-        #axes.text(int(round(x_max*0.6,0)),int(round(y_max*0.85-1*int(round(y_max*0.05,0)),0)),'Median = '+str(round(np.median(sizes),2))+' pL')
-        #axes.text(int(round(x_max*0.6,0)),int(round(y_max*0.85-2*int(round(y_max*0.05,0)),0)),'Standard deviation = '+str(round(np.std(sizes),2)))
-        #axes.text(int(round(x_max*0.6,0)),int(round(y_max*0.85-3*int(round(y_max*0.05,0)),0)),'droplets in 50uL = '+str(round( 50/np.average(sizes) ,2))+'M')
-        #axes.text(int(round(x_max*0.6,0)),int(round(y_max*0.85-4*int(round(y_max*0.05,0)),0)),'Max = '+str(round(max(sizes),2))+' pL')
-        #axes.text(int(round(x_max*0.6,0)),int(round(y_max*0.85-5*int(round(y_max*0.05,0)),0)),'Min = '+str(round(min(sizes),2))+' pL')
-        #axes.text(int(round(x_max*0.6,0)),int(round(y_max*0.85-6*int(round(y_max*0.05,0)),0)),''+str(int(round(len(sizes),2)))+' droplets identified')
-        
-        #
-        # save to pdf
-        #
-        #plt.savefig('histogram2_sizes.pdf',dpi=300,bbox_inches='tight')
-        plt.savefig(app.analysisfolder.temp+'/cluster_'+str(cluster.id)+'.histogram.'+chrom+'.png',dpi=300,bbox_inches='tight')
-    
-    outStr += tableStr
+    outStr += cluster.generateHtmlSummary()
+    outStr += '<br><br>'
+    outStr += cluster.tableStr
     outStr += '</body></html>\n'
     app.analysisfolder.logfile.write('Page for cluster '+str(cluster_id)+' generated in '+str(round(time.time()-starttime,2))+'seconds '+'\n')
     return outStr
