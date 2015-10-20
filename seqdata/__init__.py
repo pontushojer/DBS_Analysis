@@ -895,7 +895,9 @@ class BarcodeCluster(object,):
 	self.contigSequencesPassFilter = []
 	self.contigSequencesNotPassingFilter = []
 	self.nonSingletonContigs = None
-	
+
+	self.analyzed = False
+
 	self.minMAPQ = 0
 	
 	self.filesCreated = []
@@ -914,10 +916,10 @@ class BarcodeCluster(object,):
 		    (clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations) = info[0]
 		    constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,htmlTable = 'None',None,None,None,None,None,'None',None
 		else:
-		    info = self.analysisfolder.database.c.execute('SELECT clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions, htmlTable FROM barcodeClusters WHERE clusterId=?',(self.id,)).fetchall()
+		    info = self.analysisfolder.database.c.execute('SELECT clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions, htmlTable, analyzed FROM barcodeClusters WHERE clusterId=?',(self.id,)).fetchall()
 		    assert len(info) == 1, 'More than one ('+str(len(info))+') clusters found with id '+str(self.id)
-		    (clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,htmlTable) = info[0]
-	
+		    (clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,htmlTable,analyzed) = info[0]
+
 		self.analysisfolder.database.commitAndClose()
 	
 		assert clusterId == self.id
@@ -944,6 +946,7 @@ class BarcodeCluster(object,):
 		if goodReadPairPositions:self.goodReadPairPositions = eval(goodReadPairPositions)
 		else:self.goodReadPairPositions=None
 		self.tableStr = htmlTable
+		self.analyzed = analyzed
 		success = True
 	    except sqlite3.OperationalError: time.sleep(1)
 
@@ -1191,7 +1194,6 @@ class BarcodeCluster(object,):
 	    #self.analysisfolder.logfile.write('Analyzing data in cluster '+str(self.id)+' ... '+'\n')
 	    pass
 
-	self.loadClusterInfo()
 	constructTypes = {}
 	readPairsInBamFile = 0
 	readPairsInBamFileCheck = 0
@@ -1317,8 +1319,9 @@ class BarcodeCluster(object,):
 	self.duplicateReadPairs = duplicateReadPairs
 	self.goodReadPairPositions = goodReadPairPositions
 	
-	try:self.analysisfolder.logfile.write('Page for cluster '+str(self.id)+' generated in '+str(round(time.time()-starttime,2))+' seconds '+'\n')
+	try:self.analysisfolder.logfile.write('Cluster '+str(self.id)+' analyzed in '+str(round(time.time()-starttime,2))+' seconds '+'\n')
 	except ValueError: pass
+	self.analyzed = True
 
     def updatedb(self):
 	with self.analysisfolder.database.lock:
@@ -1331,7 +1334,8 @@ class BarcodeCluster(object,):
 		    self.analysisfolder.database.c.execute('PRAGMA table_info(barcodeClusters)')
 		    columnNames = [col[1] for col in self.analysisfolder.database.c.fetchall()]
 		    if 'constructTypes' not in columnNames:
-			self.analysisfolder.logfile.write('Creating columns in table barcodeClusters in database \n')
+			try: self.analysisfolder.logfile.write('Creating columns in table barcodeClusters in database \n')
+			except ValueError: pass
 			self.analysisfolder.database.getConnection()
 			self.analysisfolder.database.c.execute("alter table barcodeClusters add column constructTypes string")
 			self.analysisfolder.database.c.execute("alter table barcodeClusters add column readPairsInBamFile integer")
@@ -1341,7 +1345,8 @@ class BarcodeCluster(object,):
 			self.analysisfolder.database.c.execute("alter table barcodeClusters add column duplicateReadPairs integer")
 			self.analysisfolder.database.c.execute("alter table barcodeClusters add column goodReadPairPositions string")
 			self.analysisfolder.database.c.execute("alter table barcodeClusters add column htmlTable string")
-		    self.analysisfolder.database.c.execute('UPDATE barcodeClusters SET constructTypes=?,readPairsInBamFile=?, mappedSEReads=?, SEreadsPassMappingQualityFilter=?, goodReadPairs=?, duplicateReadPairs=?, goodReadPairPositions=?, htmlTable=? WHERE clusterId=?',(str(self.constructTypes),self.readPairsInBamFile,self.mappedSEReads,self.SEreadsPassMappingQualityFilter,self.goodReadPairs,self.duplicateReadPairs,str(self.goodReadPairPositions),self.tableStr,self.id))
+			self.analysisfolder.database.c.execute("alter table barcodeClusters add column analyzed BOOLEAN")
+		    self.analysisfolder.database.c.execute('UPDATE barcodeClusters SET constructTypes=?,readPairsInBamFile=?, mappedSEReads=?, SEreadsPassMappingQualityFilter=?, goodReadPairs=?, duplicateReadPairs=?, goodReadPairPositions=?, htmlTable=?, analyzed=? WHERE clusterId=?',(str(self.constructTypes),self.readPairsInBamFile,self.mappedSEReads,self.SEreadsPassMappingQualityFilter,self.goodReadPairs,self.duplicateReadPairs,str(self.goodReadPairPositions),self.tableStr,self.analyzed,self.id))
 		    self.analysisfolder.database.commitAndClose()
 		    updated = True
 		    print self.id, updated
