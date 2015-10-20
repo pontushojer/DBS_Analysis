@@ -46,19 +46,19 @@ def main():
 	logfile.write('done. \n')
 
     progress = Progress(analysisfolder.results.barcodeClusterCount,logfile=analysisfolder.logfile, unit='clusters')
+    updateChunk = []
 
     runInParallel = True
     if runInParallel:
 	poolOfProcesses = multiprocessing.Pool(int(analysisfolder.settings.parallelProcesses),maxtasksperchild=100000000)
 	parallelResults = poolOfProcesses.imap_unordered(foreachCluster,cluster_generator(analysisfolder),chunksize=1)
 	for cluster in parallelResults:
-	    forResultingCluster(progress,cluster)
-	    #if progress.current == 20: break
+	    updateChunk = forResultingCluster(progress,cluster,updateChunk)
 
     else:
         for cluster in cluster_generator(analysisfolder):
 	    cluster = foreachCluster(cluster)
-	    forResultingCluster(progress,cluster)
+	    updateChunk = forResultingCluster(progress,cluster)
 
     logfile.write('analyseClusters FINISHED\n')
 
@@ -67,9 +67,13 @@ def reAnalyze(analysisfolder):
     analysisfolder.database.c.execute('UPDATE barcodeClusters SET analyzed=?',(False,))
     analysisfolder.database.commitAndClose()
 
-def forResultingCluster(progress,cluster):
-    if cluster.analyzed: cluster.updatedb()
+def forResultingCluster(progress,cluster,updateChunk):
+    if cluster.analyzed: updateChunk.append(cluster.updatedb(doUpdate=False,returnTuple=True))
     progress.update()
+    if len(updateChunk) >= 1000:
+	updateClusterChunk(cluster.analysisfolder,updateChunk)
+	updateChunk = []
+    return updateChunk
 
 def cluster_generator(analysisfolder):
     
@@ -77,8 +81,8 @@ def cluster_generator(analysisfolder):
     from seqdata import BarcodeClusterer
     
     barcodeClusterer = BarcodeClusterer(analysisfolder)
-#    for cluster_id in barcodeClusterer.getBarcodeClusterIds(shuffle=True,byMixedClusterReadCount=True):
-    for cluster_id in barcodeClusterer.getBarcodeClusterIds(shuffle=False,byMixedClusterReadCount=False):
+    for cluster_id in barcodeClusterer.getBarcodeClusterIds(shuffle=True,byMixedClusterReadCount=True):
+#    for cluster_id in barcodeClusterer.getBarcodeClusterIds(shuffle=False,byMixedClusterReadCount=False):
 	cluster = BarcodeCluster(int(cluster_id), analysisfolder)
 	#if cluster.readPairCount < 10: continue
 	yield cluster
@@ -90,5 +94,38 @@ def foreachCluster(cluster):
 	cluster.removeAllFiles()
     else: cluster.analyzed = False; print cluster.id,'already analyzed'
     return cluster
+
+def updateClusterChunk(analysisfolder,chunk):
+    with analysisfolder.database.lock:
+	analysisfolder.database.writeInProgress.value = True
+	import sqlite3
+	import time
+	updated = False
+	while not updated:
+	    try: 
+		analysisfolder.database.getConnection()
+		analysisfolder.database.c.execute('PRAGMA table_info(barcodeClusters)')
+		columnNames = [col[1] for col in analysisfolder.database.c.fetchall()]
+		if 'constructTypes' not in columnNames:
+		    try: analysisfolder.logfile.write('Creating columns in table barcodeClusters in database \n')
+		    except ValueError: pass
+		    analysisfolder.database.getConnection()
+		    analysisfolder.database.c.execute("alter table barcodeClusters add column constructTypes string")
+		    analysisfolder.database.c.execute("alter table barcodeClusters add column readPairsInBamFile integer")
+		    analysisfolder.database.c.execute("alter table barcodeClusters add column mappedSEReads integer")
+		    analysisfolder.database.c.execute("alter table barcodeClusters add column SEreadsPassMappingQualityFilter integer")
+		    analysisfolder.database.c.execute("alter table barcodeClusters add column goodReadPairs integer")
+		    analysisfolder.database.c.execute("alter table barcodeClusters add column duplicateReadPairs integer")
+		    analysisfolder.database.c.execute("alter table barcodeClusters add column goodReadPairPositions string")
+		    analysisfolder.database.c.execute("alter table barcodeClusters add column htmlTable string")
+		    analysisfolder.database.c.execute("alter table barcodeClusters add column analyzed BOOLEAN")
+		analysisfolder.database.c.executemany('UPDATE barcodeClusters SET constructTypes=?,readPairsInBamFile=?, mappedSEReads=?, SEreadsPassMappingQualityFilter=?, goodReadPairs=?, duplicateReadPairs=?, goodReadPairPositions=?, htmlTable=?, analyzed=? WHERE clusterId=?', chunk)
+		analysisfolder.database.commitAndClose()
+		analysisfolder.database.writeInProgress.value = False
+		updated = True
+		print 'updated ',len(chunk),'clusters', updated,'(',','.join([str(x[-1]) for x in chunk]),')'
+	    except sqlite3.OperationalError: time.sleep(1)
+
+
 
 if __name__ == "__main__": main()

@@ -4,8 +4,10 @@ class Database(object):
         self.path = dbPath
 
 	import multiprocessing
+	import ctypes
 	manager = multiprocessing.Manager()
 	self.lock = manager.RLock()
+	self.writeInProgress = manager.Value(ctypes.c_bool,False)
 
     def getConnection(self,):
         #

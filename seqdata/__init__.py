@@ -907,6 +907,7 @@ class BarcodeCluster(object,):
 	import sqlite3, time
 	success = False
 	while not success:
+	    while self.analysisfolder.database.writeInProgress.value: time.sleep(0.1)
 	    try:
 		self.analysisfolder.database.getConnection()
 		columnNames = [col[1] for col in self.analysisfolder.database.c.execute('PRAGMA table_info(barcodeClusters)').fetchall()]
@@ -914,7 +915,7 @@ class BarcodeCluster(object,):
 		    info = self.analysisfolder.database.c.execute('SELECT clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations FROM barcodeClusters WHERE clusterId=?',(self.id,)).fetchall()
 		    assert len(info) == 1, 'More than one ('+str(len(info))+') clusters found with id '+str(self.id)
 		    (clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations) = info[0]
-		    constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,htmlTable = 'None',None,None,None,None,None,'None',None
+		    constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,htmlTable,analyzed = 'None',None,None,None,None,None,'None',None,False
 		else:
 		    info = self.analysisfolder.database.c.execute('SELECT clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions, htmlTable, analyzed FROM barcodeClusters WHERE clusterId=?',(self.id,)).fetchall()
 		    assert len(info) == 1, 'More than one ('+str(len(info))+') clusters found with id '+str(self.id)
@@ -959,6 +960,7 @@ class BarcodeCluster(object,):
 	starttime = time.time()
 #	try:
 	from misc import Progress
+	while self.analysisfolder.database.writeInProgress.value: time.sleep(0.1)
 	p = Progress(self.readPairCount, logfile=self.analysisfolder.logfile,unit='cluster_'+str(self.id)+'_reads', mem=True)
 	if not self.analysisfolder.database.datadropped:
 	    for readPair in self.analysisfolder.database.getReadPairs(self.readPairIdsList):
@@ -1119,7 +1121,7 @@ class BarcodeCluster(object,):
 
 	import subprocess
 	import sys
-	picardLogfile = open(self.analysisfolder.temp+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'_picardSortSam.log.txt','w')
+	picardLogfile = open(self.analysisfolder.temp+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'_picardSortSam.cluster_'+str(self.id)+'.log.txt','w')
 	self.filesCreated.append(picardLogfile.name)
 	command2 = ['java',
 		    '-Xmx5g',
@@ -1141,7 +1143,7 @@ class BarcodeCluster(object,):
 		print 'picard view Error code', picard.returncode, errdata, open(picardLogfile.name).read()
 		#return 'FAIL'
 		sys.exit()
-	picardLogfile = open(self.analysisfolder.temp+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'_picardMarkDup.log.txt','w')
+	picardLogfile = open(self.analysisfolder.temp+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'_picardMarkDup.cluster_'+str(self.id)+'.log.txt','w')
 	self.filesCreated.append(picardLogfile.name)
 	command2 = ['java',
 		    '-Xmx5g',
@@ -1323,34 +1325,39 @@ class BarcodeCluster(object,):
 	except ValueError: pass
 	self.analyzed = True
 
-    def updatedb(self):
-	with self.analysisfolder.database.lock:
-	    import sqlite3
-	    import time
-	    updated = False
-	    while not updated:
-		try: 
-		    self.analysisfolder.database.getConnection()
-		    self.analysisfolder.database.c.execute('PRAGMA table_info(barcodeClusters)')
-		    columnNames = [col[1] for col in self.analysisfolder.database.c.fetchall()]
-		    if 'constructTypes' not in columnNames:
-			try: self.analysisfolder.logfile.write('Creating columns in table barcodeClusters in database \n')
-			except ValueError: pass
+    def updatedb(self,doUpdate=True,returnTuple=False):
+	if doUpdate:
+	    with self.analysisfolder.database.lock:
+		self.analysisfolder.database.writeInProgress.value = True
+		import sqlite3
+		import time
+		updated = False
+		while not updated:
+		    try: 
 			self.analysisfolder.database.getConnection()
-			self.analysisfolder.database.c.execute("alter table barcodeClusters add column constructTypes string")
-			self.analysisfolder.database.c.execute("alter table barcodeClusters add column readPairsInBamFile integer")
-			self.analysisfolder.database.c.execute("alter table barcodeClusters add column mappedSEReads integer")
-			self.analysisfolder.database.c.execute("alter table barcodeClusters add column SEreadsPassMappingQualityFilter integer")
-			self.analysisfolder.database.c.execute("alter table barcodeClusters add column goodReadPairs integer")
-			self.analysisfolder.database.c.execute("alter table barcodeClusters add column duplicateReadPairs integer")
-			self.analysisfolder.database.c.execute("alter table barcodeClusters add column goodReadPairPositions string")
-			self.analysisfolder.database.c.execute("alter table barcodeClusters add column htmlTable string")
-			self.analysisfolder.database.c.execute("alter table barcodeClusters add column analyzed BOOLEAN")
-		    self.analysisfolder.database.c.execute('UPDATE barcodeClusters SET constructTypes=?,readPairsInBamFile=?, mappedSEReads=?, SEreadsPassMappingQualityFilter=?, goodReadPairs=?, duplicateReadPairs=?, goodReadPairPositions=?, htmlTable=?, analyzed=? WHERE clusterId=?',(str(self.constructTypes),self.readPairsInBamFile,self.mappedSEReads,self.SEreadsPassMappingQualityFilter,self.goodReadPairs,self.duplicateReadPairs,str(self.goodReadPairPositions),self.tableStr,self.analyzed,self.id))
-		    self.analysisfolder.database.commitAndClose()
-		    updated = True
-		    print self.id, updated
-		except sqlite3.OperationalError: time.sleep(1)
+			self.analysisfolder.database.c.execute('PRAGMA table_info(barcodeClusters)')
+			columnNames = [col[1] for col in self.analysisfolder.database.c.fetchall()]
+			if 'constructTypes' not in columnNames:
+			    try: self.analysisfolder.logfile.write('Creating columns in table barcodeClusters in database \n')
+			    except ValueError: pass
+			    self.analysisfolder.database.getConnection()
+			    self.analysisfolder.database.c.execute("alter table barcodeClusters add column constructTypes string")
+			    self.analysisfolder.database.c.execute("alter table barcodeClusters add column readPairsInBamFile integer")
+			    self.analysisfolder.database.c.execute("alter table barcodeClusters add column mappedSEReads integer")
+			    self.analysisfolder.database.c.execute("alter table barcodeClusters add column SEreadsPassMappingQualityFilter integer")
+			    self.analysisfolder.database.c.execute("alter table barcodeClusters add column goodReadPairs integer")
+			    self.analysisfolder.database.c.execute("alter table barcodeClusters add column duplicateReadPairs integer")
+			    self.analysisfolder.database.c.execute("alter table barcodeClusters add column goodReadPairPositions string")
+			    self.analysisfolder.database.c.execute("alter table barcodeClusters add column htmlTable string")
+			    self.analysisfolder.database.c.execute("alter table barcodeClusters add column analyzed BOOLEAN")
+			self.analysisfolder.database.c.execute('UPDATE barcodeClusters SET constructTypes=?,readPairsInBamFile=?, mappedSEReads=?, SEreadsPassMappingQualityFilter=?, goodReadPairs=?, duplicateReadPairs=?, goodReadPairPositions=?, htmlTable=?, analyzed=? WHERE clusterId=?',(str(self.constructTypes),self.readPairsInBamFile,self.mappedSEReads,self.SEreadsPassMappingQualityFilter,self.goodReadPairs,self.duplicateReadPairs,str(self.goodReadPairPositions),self.tableStr,self.analyzed,self.id))
+			self.analysisfolder.database.commitAndClose()
+			self.analysisfolder.database.writeInProgress.value = False
+			updated = True
+			print self.id, updated
+		    except sqlite3.OperationalError: time.sleep(1)
+	if returnTuple:
+	    return (str(self.constructTypes),self.readPairsInBamFile,self.mappedSEReads,self.SEreadsPassMappingQualityFilter,self.goodReadPairs,self.duplicateReadPairs,str(self.goodReadPairPositions),self.tableStr,self.analyzed,self.id)
 
     def generateHtmlSummary(self):
 	#
