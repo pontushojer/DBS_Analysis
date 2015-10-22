@@ -45,7 +45,7 @@ def main():
 	analysisfolder.database.dropReadColumns()
 	logfile.write('done. \n')
 
-    progress = Progress(analysisfolder.results.barcodeClusterCount,logfile=analysisfolder.logfile, unit='clusters')
+    progress = Progress(analysisfolder.results.barcodeClusterCount,logfile=analysisfolder.logfile, unit='clusters',printint=1)
     updateChunk = []
 
     runInParallel = True
@@ -89,10 +89,16 @@ def cluster_generator(analysisfolder):
 
 def foreachCluster(cluster):
     cluster.loadClusterInfo()
-    if not cluster.analyzed:
+    if not cluster.analyzed and cluster.readPairCount >= cluster.analysisfolder.settings.minPairsPerCluster:
 	cluster.analyze()
 	cluster.removeAllFiles()
-    else: cluster.analyzed = False; print cluster.id,'already analyzed'
+    elif cluster.analyzed:
+	cluster.analyzed = False;
+	print cluster.id,'already analyzed'
+    elif cluster.readPairCount < cluster.analysisfolder.settings.minPairsPerCluster:
+	cluster.analyzed = True;
+	cluster.annotations['LowReadCount']=True;
+	print cluster.id,' low read count'
     return cluster
 
 def updateClusterChunk(analysisfolder,chunk):
@@ -119,7 +125,7 @@ def updateClusterChunk(analysisfolder,chunk):
 		    analysisfolder.database.c.execute("alter table barcodeClusters add column goodReadPairPositions string")
 		    analysisfolder.database.c.execute("alter table barcodeClusters add column htmlTable string")
 		    analysisfolder.database.c.execute("alter table barcodeClusters add column analyzed BOOLEAN")
-		analysisfolder.database.c.executemany('UPDATE barcodeClusters SET constructTypes=?,readPairsInBamFile=?, mappedSEReads=?, SEreadsPassMappingQualityFilter=?, goodReadPairs=?, duplicateReadPairs=?, goodReadPairPositions=?, htmlTable=?, analyzed=? WHERE clusterId=?', chunk)
+		analysisfolder.database.c.executemany('UPDATE barcodeClusters SET annotations=?, constructTypes=?,readPairsInBamFile=?, mappedSEReads=?, SEreadsPassMappingQualityFilter=?, goodReadPairs=?, duplicateReadPairs=?, goodReadPairPositions=?, htmlTable=?, analyzed=? WHERE clusterId=?', chunk)
 		analysisfolder.database.commitAndClose()
 		analysisfolder.database.writeInProgress.value = False
 		updated = True
