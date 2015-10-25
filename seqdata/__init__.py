@@ -883,7 +883,7 @@ class BarcodeCluster(object,):
 	self.barcodeQuality = None
 	self.readPairIdsList = []
 	self.contigIdsList = []
-	self.annotations = None
+	self.annotations = {}
 
 	self.readPairs = []
 	self.readPairsById = {}
@@ -1350,14 +1350,14 @@ class BarcodeCluster(object,):
 			    self.analysisfolder.database.c.execute("alter table barcodeClusters add column goodReadPairPositions string")
 			    self.analysisfolder.database.c.execute("alter table barcodeClusters add column htmlTable string")
 			    self.analysisfolder.database.c.execute("alter table barcodeClusters add column analyzed BOOLEAN")
-			self.analysisfolder.database.c.execute('UPDATE barcodeClusters SET constructTypes=?,readPairsInBamFile=?, mappedSEReads=?, SEreadsPassMappingQualityFilter=?, goodReadPairs=?, duplicateReadPairs=?, goodReadPairPositions=?, htmlTable=?, analyzed=? WHERE clusterId=?',(str(self.constructTypes),self.readPairsInBamFile,self.mappedSEReads,self.SEreadsPassMappingQualityFilter,self.goodReadPairs,self.duplicateReadPairs,str(self.goodReadPairPositions),self.tableStr,self.analyzed,self.id))
+			self.analysisfolder.database.c.execute('UPDATE barcodeClusters SET annotations=?, constructTypes=?,readPairsInBamFile=?, mappedSEReads=?, SEreadsPassMappingQualityFilter=?, goodReadPairs=?, duplicateReadPairs=?, goodReadPairPositions=?, htmlTable=?, analyzed=? WHERE clusterId=?',(str(self.annotations),str(self.constructTypes),self.readPairsInBamFile,self.mappedSEReads,self.SEreadsPassMappingQualityFilter,self.goodReadPairs,self.duplicateReadPairs,str(self.goodReadPairPositions),self.tableStr,self.analyzed,self.id))
 			self.analysisfolder.database.commitAndClose()
 			self.analysisfolder.database.writeInProgress.value = False
 			updated = True
 			print self.id, updated
 		    except sqlite3.OperationalError: time.sleep(1)
 	if returnTuple:
-	    return (str(self.constructTypes),self.readPairsInBamFile,self.mappedSEReads,self.SEreadsPassMappingQualityFilter,self.goodReadPairs,self.duplicateReadPairs,str(self.goodReadPairPositions),self.tableStr,self.analyzed,self.id)
+	    return (str(self.annotations),str(self.constructTypes),self.readPairsInBamFile,self.mappedSEReads,self.SEreadsPassMappingQualityFilter,self.goodReadPairs,self.duplicateReadPairs,str(self.goodReadPairPositions),self.tableStr,self.analyzed,self.id)
 
     def generateHtmlSummary(self):
 	#

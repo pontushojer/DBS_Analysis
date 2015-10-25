@@ -550,7 +550,8 @@ class Settings(object,):
 	    'readsPerClusterCutOff':0,
 	    'bowtie2Reference':None,
 	    'picardPath':None,
-	    'mapqCutOff':0
+	    'mapqCutOff':0,
+	    'minPairsPerCluster':2
 
 	}
 	self.explenations = {
@@ -566,7 +567,8 @@ class Settings(object,):
 	    'readsPerClusterCutOff':'Number of reads supporting a barcode sequence cluster for it to passs filters',
 	    'bowtie2Reference':'path to the bowtie 2 reference index',
 	    'picardPath':'path to the picard installation to use',
-	    'mapqCutOff':'filter all reads with mapping quality less than this (default='+str(self.defaultValues['mapqCutOff'])+')'
+	    'mapqCutOff':'filter all reads with mapping quality less than this (default='+str(self.defaultValues['mapqCutOff'])+')',
+	    'minPairsPerCluster':'minimum number of read pairs supporting a cluster for it to be included in analysis (default 2)'
 	}
 	self.isDefault = {}
 	self.setTime = {}
@@ -584,6 +586,7 @@ class Settings(object,):
 	self.bowtie2Reference = None
 	self.picardPath = None
 	self.mapqCutOff = None
+	self.minPairsPerCluster=None
 	
 	self.setDefaults()
 
