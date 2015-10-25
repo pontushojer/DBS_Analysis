@@ -272,11 +272,11 @@ def index():
             goodReads = percentage(cluster.goodReadPairs,cluster.readPairsInBamFile)
             dupPerc = percentage(cluster.duplicateReadPairs,cluster.goodReadPairs)
 
-            totalmappedSEReads+=cluster.mappedSEReads
-            totalreadPairsInBamFile+=cluster.readPairsInBamFile
-            totalSEreadsPassMappingQualityFilter+=cluster.SEreadsPassMappingQualityFilter
-            totalgoodReadPairs+=cluster.goodReadPairs
-            totalduplicateReadPairs+=cluster.duplicateReadPairs
+            if cluster.mappedSEReads:      totalmappedSEReads+=cluster.mappedSEReads
+            if cluster.readPairsInBamFile: totalreadPairsInBamFile+=cluster.readPairsInBamFile
+            if cluster.SEreadsPassMappingQualityFilter: totalSEreadsPassMappingQualityFilter+=cluster.SEreadsPassMappingQualityFilter
+            if cluster.goodReadPairs:      totalgoodReadPairs+=cluster.goodReadPairs
+            if cluster.duplicateReadPairs: totalduplicateReadPairs+=cluster.duplicateReadPairs
 
             tableRows += '<tr>'
             tableRows += '<td><a href="cluster'+str(cluster.id)+'">'+str(cluster.id)+'</a></td>'
