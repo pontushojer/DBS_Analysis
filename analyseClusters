@@ -60,6 +60,8 @@ def main():
 	    cluster = foreachCluster(cluster)
 	    updateChunk = forResultingCluster(progress,cluster)
 
+    updateClusterChunk(cluster.analysisfolder,updateChunk)
+    
     logfile.write('analyseClusters FINISHED\n')
 
 def reAnalyze(analysisfolder):
