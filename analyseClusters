@@ -134,6 +134,4 @@ def updateClusterChunk(analysisfolder,chunk):
 		print 'updated ',len(chunk),'clusters', updated,'(',','.join([str(x[-1]) for x in chunk]),')'
 	    except sqlite3.OperationalError: time.sleep(1)
 
-
-
 if __name__ == "__main__": main()
