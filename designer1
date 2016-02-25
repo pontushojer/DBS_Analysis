@@ -1,0 +1,254 @@
+#! /usr/bin/env python
+
+def main():
+   
+    #
+    # imports
+    #
+    import time
+    import sys
+    import sequences
+    import design
+    from misc import hamming_distance, levenshtein, thousandString
+    from seqdata import revcomp, comp
+
+    sys.stdout = Unbuffered(sys.stdout)
+
+    #
+    # Settings
+    #
+    kmerLength = 10
+    minHD = 2
+    doblast = True
+    waitTime = 10
+    
+    #
+    # Initial values
+    #
+    timeforlastblast = 1#time.time()   
+    kmers={}
+    revcompkmers={}
+    handles = []
+    generated = 0
+ 
+    #
+    # Add all known active primer sequences to kmer collection and active primers list
+    #
+    activePrimers = [(sequences.ILLI5,'i5'),(revcomp(sequences.ILLI7),'i7')]
+    for sequence, name in activePrimers:
+        print name
+        kmers,revcompkmers = design.toKmers(kmers,revcompkmers,sequence,name,kmerLength)
+
+    print 'BRAF_Ex11_fwd_DNA'; BRAF_Ex11_fwd_DNA = design.Handle(kmerLength = kmerLength,minHD = minHD); BRAF_Ex11_fwd_DNA.id  ='BRAF_Ex11_fwd_DNA'; BRAF_Ex11_fwd_DNA.sequence = 'GTCCGTATCAGGCAATATGTTGTATCCCTCTCAGGCATAAG'; BRAF_Ex11_fwd_DNA,handles,kmers,revcompkmers,activePrimers = design.addHandleToCollection(BRAF_Ex11_fwd_DNA,handles,kmers,revcompkmers,activePrimers,kmerLength)
+    print 'BRAF_Ex15_fwd_DNA'; BRAF_Ex15_fwd_DNA = design.Handle(kmerLength = kmerLength,minHD = minHD); BRAF_Ex15_fwd_DNA.id = 'BRAF_Ex15_fwd_DNA'; BRAF_Ex15_fwd_DNA.sequence = 'GTCCGTATCAGGCAATATGTAAGAGCCTTTACTGCTCGCC'; BRAF_Ex15_fwd_DNA,handles,kmers,revcompkmers,activePrimers = design.addHandleToCollection(BRAF_Ex15_fwd_DNA,handles,kmers,revcompkmers,activePrimers,kmerLength)
+    print 'KRAS_fwd_DNA';      KRAS_fwd_DNA      = design.Handle(kmerLength = kmerLength,minHD = minHD); KRAS_fwd_DNA.id ='KRAS_fwd_DNA'; KRAS_fwd_DNA.sequence = 'GTCCGTATCAGGCAATATGTTTTAGCCGCCGCAGAACAG'; KRAS_fwd_DNA,handles,kmers,revcompkmers,activePrimers = design.addHandleToCollection(KRAS_fwd_DNA,handles,kmers,revcompkmers,activePrimers,kmerLength)
+    print 'EGFR_fwd_DNA';      EGFR_fwd_DNA      = design.Handle(kmerLength = kmerLength,minHD = minHD); EGFR_fwd_DNA.id = 'EGFR_fwd_DNA'; EGFR_fwd_DNA.sequence = 'GTCCGTATCAGGCAATATGTGTCAGCAGCGGGTTACATCT'; EGFR_fwd_DNA,handles,kmers,revcompkmers,activePrimers = design.addHandleToCollection(EGFR_fwd_DNA,handles,kmers,revcompkmers,activePrimers,kmerLength)
+    print 'EML4_ALK_fwd_DNA';  EML4_ALK_fwd_DNA  = design.Handle(kmerLength = kmerLength,minHD = minHD); EML4_ALK_fwd_DNA.id = 'EML4_ALK_fwd_DNA'; EML4_ALK_fwd_DNA.sequence = 'GTCCGTATCAGGCAATATGTACGACCAGGATCTGGCTTTC'; EML4_ALK_fwd_DNA,handles,kmers,revcompkmers,activePrimers = design.addHandleToCollection(EML4_ALK_fwd_DNA,handles,kmers,revcompkmers,activePrimers,kmerLength)
+
+    print 'BRAF_Ex11_rev_DNA'; BRAF_Ex11_rev_DNA = design.Handle(kmerLength = kmerLength,minHD = minHD); BRAF_Ex11_rev_DNA.id = 'BRAF_Ex11_rev_DNA'; BRAF_Ex11_rev_DNA.sequence = 'CTGCGAGTGTTGATAGCTAGGGAGGAGTCCTGAAACTAATC'; BRAF_Ex11_rev_DNA,handles,kmers,revcompkmers,activePrimers = design.addHandleToCollection(BRAF_Ex11_rev_DNA,handles,kmers,revcompkmers,activePrimers,kmerLength)
+    print 'BRAF_Ex15_rev_DNA'; BRAF_Ex15_rev_DNA = design.Handle(kmerLength = kmerLength,minHD = minHD); BRAF_Ex15_rev_DNA.id = 'BRAF_Ex15_rev_DNA'; BRAF_Ex15_rev_DNA.sequence = 'CTGCGAGTGTTGATAGCTAGGGACCCACTCCATCGAGATT'; BRAF_Ex15_rev_DNA,handles,kmers,revcompkmers,activePrimers = design.addHandleToCollection(BRAF_Ex15_rev_DNA,handles,kmers,revcompkmers,activePrimers,kmerLength)    
+    print 'KRAS_rev_DNA';      KRAS_rev_DNA      = design.Handle(kmerLength = kmerLength,minHD = minHD); KRAS_rev_DNA.id = 'KRAS_rev_DNA'; KRAS_rev_DNA.sequence = 'CTGCGAGTGTTGATAGCTAGAGAATGGTCCTGCACCAGTAA'; KRAS_rev_DNA,handles,kmers,revcompkmers,activePrimers = design.addHandleToCollection(KRAS_rev_DNA,handles,kmers,revcompkmers,activePrimers,kmerLength)
+    print 'EGFR_rev_DNA';      EGFR_rev_DNA      = design.Handle(kmerLength = kmerLength,minHD = minHD); EGFR_rev_DNA.id = 'EGFR_rev_DNA'; EGFR_rev_DNA.sequence = 'CTGCGAGTGTTGATAGCTAGTGGCTCACACTACCAGGAGA'; EGFR_rev_DNA,handles,kmers,revcompkmers,activePrimers = design.addHandleToCollection(EGFR_rev_DNA,handles,kmers,revcompkmers,activePrimers,kmerLength)
+    print 'EML4_ALK_rev_DNA';  EML4_ALK_rev_DNA  = design.Handle(kmerLength = kmerLength,minHD = minHD); EML4_ALK_rev_DNA.id = 'EML4_ALK_rev_DNA'; EML4_ALK_rev_DNA.sequence = 'CTGCGAGTGTTGATAGCTAGTTCAAGCCTCTGCCCATCTG'; EML4_ALK_rev_DNA,handles,kmers,revcompkmers,activePrimers = design.addHandleToCollection(EML4_ALK_rev_DNA,handles,kmers,revcompkmers,activePrimers,kmerLength)
+
+    print 'h1'; h1 = design.Handle(kmerLength = kmerLength,minHD = minHD); h1.id = 'h1'; h1.sequence = 'TAGAGACACCGAGTCATAGT'; h1,handles,kmers,revcompkmers,activePrimers = design.addHandleToCollection(h1,handles,kmers,revcompkmers,activePrimers,kmerLength)
+    print 'h2'; h2 = design.Handle(kmerLength = kmerLength,minHD = minHD); h2.id = 'h2'; h2.sequence = 'GTCCGTATCAGGCAATATGT'; h2,handles,kmers,revcompkmers,activePrimers = design.addHandleToCollection(h2,handles,kmers,revcompkmers,activePrimers,kmerLength)
+    print 'h3'; h3 = design.Handle(kmerLength = kmerLength,minHD = minHD); h3.id = 'h3'; h3.sequence = 'CTGCGAGTGTTGATAGCTAG'; h3,handles,kmers,revcompkmers,activePrimers = design.addHandleToCollection(h3,handles,kmers,revcompkmers,activePrimers,kmerLength)
+
+    print 'EGFR_fwd_RNA';  EGFR_fwd_RNA  = design.Handle(kmerLength = kmerLength,minHD = minHD); EGFR_fwd_RNA.id = 'EGFR_fwd_RNA';  EGFR_fwd_RNA.sequence = 'GTCCGTATCAGGCAATATGTAAACCCCCTCCTTACGCTTT';   EGFR_fwd_RNA,handles,kmers,revcompkmers,activePrimers = design.addHandleToCollection(EGFR_fwd_RNA,handles,kmers,revcompkmers,activePrimers,kmerLength)
+    print 'BRAF_fwd_RNA';  BRAF_fwd_RNA  = design.Handle(kmerLength = kmerLength,minHD = minHD); BRAF_fwd_RNA.id = 'BRAF_fwd_RNA';  BRAF_fwd_RNA.sequence = 'GTCCGTATCAGGCAATATGTTGAATCGGGCTGGTTTCCAA';   BRAF_fwd_RNA,handles,kmers,revcompkmers,activePrimers = design.addHandleToCollection(BRAF_fwd_RNA,handles,kmers,revcompkmers,activePrimers,kmerLength)
+    print 'HUWE1_fwd_RNA'; HUWE1_fwd_RNA = design.Handle(kmerLength = kmerLength,minHD = minHD); HUWE1_fwd_RNA.id= 'HUWE1_fwd_RNA'; HUWE1_fwd_RNA.sequence = 'GTCCGTATCAGGCAATATGTAGGACAAAGCATCACCTTGCT'; HUWE1_fwd_RNA,handles,kmers,revcompkmers,activePrimers = design.addHandleToCollection(HUWE1_fwd_RNA,handles,kmers,revcompkmers,activePrimers,kmerLength)
+    print 'KRAS_fwd_RNA';  KRAS_fwd_RNA  = design.Handle(kmerLength = kmerLength,minHD = minHD); KRAS_fwd_RNA.id = 'KRAS_fwd_RNA';  KRAS_fwd_RNA.sequence = 'GTCCGTATCAGGCAATATGTAACTGTTTGCCCCGAAATGG';   KRAS_fwd_RNA,handles,kmers,revcompkmers,activePrimers = design.addHandleToCollection(KRAS_fwd_RNA,handles,kmers,revcompkmers,activePrimers,kmerLength)
+    print 'ALK_fwd_RNA';   ALK_fwd_RNA   = design.Handle(kmerLength = kmerLength,minHD = minHD); ALK_fwd_RNA.id  = 'ALK_fwd_RNA';   ALK_fwd_RNA.sequence = 'GTCCGTATCAGGCAATATGTGGCAATGGCTCCTTCACAAA';    ALK_fwd_RNA,handles,kmers,revcompkmers,activePrimers = design.addHandleToCollection(ALK_fwd_RNA,handles,kmers,revcompkmers,activePrimers,kmerLength)
+
+    print 'EGFR_rev_RNA';  EGFR_rev_RNA  = design.Handle(kmerLength = kmerLength,minHD = minHD); EGFR_rev_RNA.id = 'EGFR_rev_RNA';  EGFR_rev_RNA.sequence = 'CTGCGAGTGTTGATAGCTAGAGGGCACACACAGATTAGGA';  EGFR_rev_RNA,handles,kmers,revcompkmers,activePrimers = design.addHandleToCollection(EGFR_rev_RNA,handles,kmers,revcompkmers,activePrimers,kmerLength)
+    print 'BRAF_rev_RNA';  BRAF_rev_RNA  = design.Handle(kmerLength = kmerLength,minHD = minHD); BRAF_rev_RNA.id = 'BRAF_rev_RNA';  BRAF_rev_RNA.sequence = 'CTGCGAGTGTTGATAGCTAGCCGGAACAGAAAGTAAAGCC';  BRAF_rev_RNA,handles,kmers,revcompkmers,activePrimers = design.addHandleToCollection(BRAF_rev_RNA,handles,kmers,revcompkmers,activePrimers,kmerLength)
+    print 'HUWE1_rev_RNA'; HUWE1_rev_RNA = design.Handle(kmerLength = kmerLength,minHD = minHD); HUWE1_rev_RNA.id= 'HUWE1_rev_RNA'; HUWE1_rev_RNA.sequence = 'CTGCGAGTGTTGATAGCTAGAAGGCTGGAACCATCGAAGT'; HUWE1_rev_RNA,handles,kmers,revcompkmers,activePrimers = design.addHandleToCollection(HUWE1_rev_RNA,handles,kmers,revcompkmers,activePrimers,kmerLength)
+    print 'KRAS_rev_RNA';  KRAS_rev_RNA  = design.Handle(kmerLength = kmerLength,minHD = minHD); KRAS_rev_RNA.id = 'KRAS_rev_RNA';  KRAS_rev_RNA.sequence = 'CTGCGAGTGTTGATAGCTAGTGCTGGTGACTGGCATTAACA'; KRAS_rev_RNA,handles,kmers,revcompkmers,activePrimers = design.addHandleToCollection(KRAS_rev_RNA,handles,kmers,revcompkmers,activePrimers,kmerLength)
+    print 'ALK_rev_RNA';   ALK_rev_RNA   = design.Handle(kmerLength = kmerLength,minHD = minHD); ALK_rev_RNA.id  = 'ALK_rev_RNA';   ALK_rev_RNA.sequence = 'CTGCGAGTGTTGATAGCTAGCCCTCTCCCCTCAAATGGCT';   ALK_rev_RNA,handles,kmers,revcompkmers,activePrimers = design.addHandleToCollection(ALK_rev_RNA,handles,kmers,revcompkmers,activePrimers,kmerLength)
+
+    print 'adding BRAF exon11 amplicon, 355 bp'
+    name = 'BRAF_exon11 amplicon'
+    sequence = 'GGAGGAGTCCTGAAACTAATCAAAATAGTTTATTGATGCGAACAGTGAATATTTCCTTTGATGATATTTTTTACAAAATAAAAGTTGTTAAACATATCCTATTATGACTTGTCACAATGTCACCACATTACATACTTACCATGCCACTTTCCCTTGTAGACTGTTCCAAATGATCCAGATCCAATTCTTTGTCCCACTGTAATCTGCCCATCAGGAATCTCCCAATCATCACTCGAGTCCCGTCTACCAAGTGTTTTCTTGATAAAAACAGTAAAAAAGTCAAGTCAAGCCAAACAGAAAAAGAAAACCTTATGTTTCACCCTAAGTACATTACCTTATGCCTGAGAGGGATACA'
+    kmers,revcompkmers = design.toKmers(kmers,revcompkmers,sequence,name,kmerLength)
+    print 'BRAF exon15 amplicon, 427 bp'
+    name = 'BRAF exon15 amplicon'
+    sequence = 'GGACCCACTCCATCGAGATTTCACTGTAGCTAGACCAAAATCACCTATTTTTACTGTGAGGTCTTCATGAAGAAATATATCTGAGGTGTAGTAAGTAAAGGAAAACAGTAGATCTCATTTTCCTATCAGAGCAAGCATTATGAAGAGTTTAGGTAAGAGATCTAATTTCTATAATTCTGTAATATAATATTCTTTAAAACATAGTACTTCATCTTTCCTCTTAGAGTCAATAAGTATGTCTAAAACAATGATTAGTTCTATTTAGCCTATATAACCTGCTTTTAAGATTTTTGGGGCTTGAAATGTGTTAGGATGAGGTGAGATGCTTTCCTAAGTTTATAGGAGAACCTAAAACTTTCCCATTAGATTTTAGCAATGTAGGCCCAGATATTCTCTTGGCACTCCTGGGCGAGCAGTAAAGGCTCTT'
+    kmers,revcompkmers = design.toKmers(kmers,revcompkmers,sequence,name,kmerLength)
+    print 'KRAS amplicon, 483 bp'
+    name = 'KRAS amplicon'
+    sequence = 'AGAATGGTCCTGCACCAGTAATATGCATATTAAAACAAGATTTACCTCTATTGTTGGATCATATTCGTCCACAAAATGATTCTGAATTAGCTGTATCGTCAAGGCACTCTTGCCTACGCCACCAGCTCCAACTACCACAAGTTTATATTCAGTCATTTTCAGCAGGCCTTATAATAAAAATAATGAAAATGTGACTATATTAGAACATGTCACACATAAGGTTAATACACTATCAAATACTCCACCAGTACCTTTTAATACAAACTCACCTTTATATGAAAAATTATTTCAAAATACCTTACAAAATTCAATCATGAAAATTCCAGTTGACTGCAGACGTGTATCGTAATGAACTGTACTTCATTTACAAACTCCTCCATCGACGCTTAAGAAAAATGCATAAATGCTACATAGACAGTTCTTTTATCTTAAAATCAAGTTGTTCTATCTAAATAGCCAGACTGCTGTTCTGCGGCGGCTAAA'
+    kmers,revcompkmers = design.toKmers(kmers,revcompkmers,sequence,name,kmerLength)
+    print 'EGFR amplicon, 524 bp'
+    name = 'EGFR amplicon'
+    sequence = 'GTCAGCAGCGGGTTACATCTTCTTTCATGCGCCTTTCCATTCTTTGGATCAGTAGTCACTAACGTTCGCCAGCCATAAGTCCTCGACGTGGAGAGGCTCAGAGCCTGGCATGAACATGACCCTGAATTCGGATGCAGAGCTTCTTCCCATGATGATCTGTCCCTCACAGCAGGGTCTTCTCTGTTTCAGGGCATGAACTACTTGGAGGACCGTCGCTTGGTGCACCGCGACCTGGCAGCCAGGAACGTACTGGTGAAAACACCGCAGCATGTCAAGATCACAGATTTTGGGCTGGCCAAACTGCTGGGTGCGGAAGAGAAAGAATACCATGCAGAAGGAGGCAAAGTAAGGAGGTGGCTTTAGGTCAGCCAGCATTTTCCTGACACCAGGGACCAGGCTGCCTTCCCACTAGCTGTATTGTTTAACACATGCAGGGGAGGATGCTCTCCAGACATTCTGGGTGAGCTCGCAGCAGCTGCTGCTGGCAGCTGGGTCCAGCCAGGGTCTCCTGGTAGTGTGAGCCA'
+    kmers,revcompkmers = design.toKmers(kmers,revcompkmers,sequence,name,kmerLength)
+    print 'ALK-EML4 fusion gene amplicon, 613 bp'
+    name = 'ALK-EML4 fusion gene amplicon'
+    sequence = 'AGACGACCAGGATCTGGCTTTCTCCGGCATCATGATTGGTGAGTGCACAGAGCCCCAGGGACTCCCAAGGGGGCAGGAAGGCAGGACTGAATAGTGTCTCAGGCTGTGCCACAGGTGCCAAGGTGTCACTTCGTTATGCTAGTCCCTGGAATTGGGTGGGGTGGTGATTAGGGCAGCCCAGGCCAAGCCAAAACGGAAGCTCCCAACCTTCCCCCCACCAGAGCAGCTGCAGTTCCCTGAGGAGCCCCTGATTCTGCACCTCAGCCCCGTGTGTATCCTCCTGGCTGATCAGGGGGTGGGGAGCTCCTTCAGTGTCCATCACGATGGTGAAAGCTCGCCCCCACCCCTAGACGTCACTTCTAGCTCCCACATGCTTCCACCGGCGCAGCTCCTGTTTGGCTCCCACCCTATGTAATGCACTAGCCCACTCTTCCCCAAACCAGCCCTCCACCACCCTCCAGGCAGAGAGATAGGAAAATCGGTTTCTGAGTATATTTCTGTTCAGCCTGTGAGCCAAGGTGAGCTGACCTGCAGGTCACAGAGAACTCAGTGTGGTCCCAACCAGCTCTTACTGCTGGCAGAGACATGCCCAGGACAGATGGGCAGAGGCTTGAAAAGGGCAGAGGGAAAGGCTCTTGAGAGCCCTCGCAGGCCAGGCCCCTGCAGGCAAAGGGATCTGCCGGTAGAAGGGAGATGGCAGCACACACTGTGTCCCCATATGGTGCCATCCCTCAAAGGGACAGGATAATAGGAGCTAACACTTGTTGCATGGTTACTACGTGCTCGGCAATTTACACATTTCAATTCATTCGATCCTCAGGTAACCCTAATCTGATCACGGTCGGTCCATTGCATAGAGGAGGGAACTGAGCACATAGCGGGTGACTCATTTGCCCTGGCCCATGTGTTGGGGGGCTGGGCTTTACACACAGAATCTACCCACTGAATCACAATTTTGTTCTGGCTTCCATGGAGTTTGCCTTCCAGAACATCCTCACATGTAGGAGTGATAATGGTCACTCACATTGGTAGAGCTCTTTAGGATTTTTCAAAACCATTTTATGTTGGTGAATTCATTTCATTGACAACCCTAGAGGGTGGGGAGTGGCAGCGGTTAGGGAAACAGGGCAGGAGTTACCATCCCTGCCTACAGAGAGGGAAACTGCAGTCCAAAGAGGTCCTGTGACCTGGTCCTCATGGCTCAGCTTGTAAGTAACAAGAGGCGGAATTAGAGCACAGATCCCCAGACACCAATTCAGAGATCTTTTCATGATGTGGCTCTTCTCCAACTCTGTGGCTTGGCAGTTCTCCAACTATAGGAAACACAACTGACCAAGATCCCAGCTGCACCCTCAAATCCACTGCTGTGATTGCACTGAAGCTGCCCTACCCAATGGCTGAGCACAGCAGAAATACTAAGGCAGGCCAATTCCTGGGAGTCATGGGACTCCTCTGATGACTGACTTTGGCTCCAGAACCCCTTATGGCCTTGCTGAAACTTCCTTAGGCTCCATGGCACCCAGGGTGCTTCCACCCAACCTTCCCTCCCTCCCTCGTTCACGTGGGGTTATACTTGCAACACAGTCTGCTGGTTCACCCAGCCTTCCCTGGCTCCCTCCCCATTTCCTCTCATGGGCATTTCTCCTAATAAAATCTGCAGACCGTATTGGGTCTAATCCCATCTCCAGTCTGCTTCTTGGAGGAACCAGACTAACATGACTCTGCCCTATATAATACAAATAATTATTTTCCATATATCTGGCTGCAAACTAATCAGGAATCGATCGATGACGAC'
+    kmers,revcompkmers = design.toKmers(kmers,revcompkmers,sequence,name,kmerLength)
+    print 'EGFR mRNA amplicon, 302 bp'
+    name = 'EGFR mRNA amplicon'
+    sequence = 'AAACCCCCTCCTTACGCTTTGTCACACAAAAAGTGTCTCTGCCTTGAGTCATCTATTCAAGCACTTACAGCTCTGGCCACAACAGGGCATTTTACAGGTGCGAATGACAGTAGCATTATGAGTAGTGTGGAATTCAGGTAGTAAATATGAAACTAGGGTTTGAAATTGATAATGCTTTCACAACATTTGCAGATGTTTTAGAAGGAAAAAAGTTCCTTCCTAAAATAATTTCTCTACAATTGGAAGATTGGAAGATTCAGCTAGTTAGGAGCCCACCTTTTTTCCTAATCTGTGTGTGCCCT'
+    kmers,revcompkmers = design.toKmers(kmers,revcompkmers,sequence,name,kmerLength)
+    print 'BRAF mRNA amplicon, 369 bp'
+    name = 'BRAF mRNA amplicon'
+    sequence = 'TGAATCGGGCTGGTTTCCAAACAGAGGATTTTAGTCTATATGCTTGTGCTTCTCCAAAAACACCCATCCAGGCAGGGGGATATGGTGCGTTTCCTGTCCACTGAAACAAATGAGTGAGAGAGTTCAGGAGAGTAGCAACAAAAGGAAAATAAATGAACATATGTTTGCTTATATGTTAAATTGAATAAAATACTCTCTTTTTTTTTAAGGTGAACCAAAGAACACTTGTGTGGTTAAAGACTAGATATAATTTTTCCCCAAACTAAAATTTATACTTAACATTGGATTTTTAACATCCAAGGGTTAAAATACATAGACATTGCTAAAAATTGGCAGAGCCTCTTCTAGAGGCTTTACTTTCTGTTCCGG'
+    kmers,revcompkmers = design.toKmers(kmers,revcompkmers,sequence,name,kmerLength)
+    print 'HUWE1 mRNA amplicon, 363 bp'
+    name = 'HUWE1 mRNA amplicon'
+    sequence = 'AGGACAAAGCATCACCTTGCTCAAGGGGAACAAACTGCAGCAGGTTGTACAAAACATTCAGAGAGCTCACTTGACCCAACCGAGGGTTTTACTTGGTGAGCCTTTCTAGTAGTCTTGAGTCTGGGGCTCAGTTTTAGATTTTTATTTCATTAATGTTTGTTTATTTCTAATAAATTTTAATAAGCGAGTAATTTAACTAGGTCGCCAGAAGACCATTATTTTTGTTTGTCTATTTTTGTTGTCGTCACTCCCTCTCTCGTCATCTGTCTGCCAGTCTGTTCACAGATCACCTTGTAGTCCCTTGTGGTTTTTACTCCATCCAGTGCTTAAAGCTGATCTAAGGACTTCGATGGTTCCAGCCTT'
+    kmers,revcompkmers = design.toKmers(kmers,revcompkmers,sequence,name,kmerLength)
+    print 'KRAS mRNA amplicon, 353 bp'
+    name = 'KRAS mRNA amplicon'
+    sequence = 'AACTGTTTGCCCCGAAATGGATATGGAATACTTTATAAGCCATAGACACTATAGTATACCAGTGAATCTTTTATGCAGCTTGTTAGAAGTATCCTTTATTTCTAAAAGGTGCTGTGGATATTATGTAAAGGCGTGTTTGCTTAAACTTAAAACCATATTTAGAAGTAGATGCAAAACAAATCTGCCTTTATGACAAAAAAATAGGATAACATTATTTATTTATTTCCTTTTATCAAAGAAGGTAATTGATACACAACAGGTGACTTGGTTTTAGGCCCAAAGGTAGCAGCAGCAACATTAATAATGGAAATAATTGAATAGTTAGTTATGTATGTTAATGCCAGTCACCAGCA'
+    kmers,revcompkmers = design.toKmers(kmers,revcompkmers,sequence,name,kmerLength)
+    print 'ALK mRNA amplicon, 359 bp'
+    name = 'ALK mRNA amplicon'
+    sequence = 'GGCAATGGCTCCTTCACAAACCAGAGACCAAATGTCACGTTTTGTTTTGTGCCAACCTATTTTGAAGTACCACCAAAAAAGCTGTATTTTGAAAATGCTTTAGAAAGGTTTTGAGCATGGGTTCATCCTATTCTTTCGAAAGAAGAAAATATCATAAAAATGAGTGATAAATACAAGGCCCAGATGTGGTTGCATAAGGTTTTTATGCATGTTTGTTGTATACTTCCTTATGCTTCTTTCAAATTGTGTGTGCTCTGCTTCAATGTAGTCAGAATTAGCTGCTTCTATGTTTCATAGTTGGGGTCATAGATGTTTCCTTGCCTTGTTGATGTGGACATGAGCCATTTGAGGGGAGAGGG'
+    kmers,revcompkmers = design.toKmers(kmers,revcompkmers,sequence,name,kmerLength)
+    print 'ALK-EML4 var1 mRNA amplicon, 247 bp'
+    name = 'ALK-EML4 var1 mRNA amplicon'
+    sequence = 'GTGCAGTGTTTAGCATTCTTGGGGAATGGAGATGTTCTTACTGGAGACTCAGGTGGAGTCATGCTTATATGGAGCAAAACTACTGTAGAGCCCACACCTGGGAAAGGACCTAAAGTGTACCGCCGGAAGCACCAGGAGCTGCAAGCCATGCAGATGGAGCTGCAGAGCCCTGAGTACAAGCTGAGCAAGCTCCGCACCTCGACCATCATGACCGACTACAACCCCAACTACTGCTTTGCTGGCAAGA'
+    kmers,revcompkmers = design.toKmers(kmers,revcompkmers,sequence,name,kmerLength)
+    print 'ALK-EML4 var2 mRNA amplicon'
+    name = 'ALK-EML4 var2 mRNA amplicon'
+    sequence = 'GGAGATGTTCTTACTGGAGACTCAGGTGGAGTCATGCTTATATGGAGCAAAACTACTGTAGAGCCCACACCTGGGAAAGGACCTAAAGGTGTATATCAAATCAGCAAACAAATCAAAGCTCATGATGGCAGTGTGTTCACACTTTGTCAGATGAGAAATGGGATGTTATTAACTGGAGGAGGGAAAGACAGAAAAATAATTCTGTGGGATCATGATCTGAATCCTGAAAGAGAAATAGAGGTTCCTGATCAGTATGGCACAATCAGAGCTGTAGCAGAAGGAAAGGCAGATCAATTTTTAGTAGGCACATCACGAAACTTTATTTTACGAGGAACATTTAATGATGGCTTCCAAATAGAAGTACAGGGTCATACAGATGAGCTTTGGGGTCTTGCCACACATCCCTTCAAAGATTTGCTCTTGACATGTGCTCAGGACAGGCAGGTGTGCCTGTGGAACTCAATGGAACACAGGCTGGAATGGACCAGGCTGGTAGATGAACCAGGACACTGTGCAGATTTTCATCCAAGTGGCACAGTGGTGGCCATAGGAACGCACTCAGGCAGGTGGTTTGTTCTGGATGCAGAAACCAGAGATCTAGTTTCTATCCACACAGACGGGAATGAACAGCTCTCTGTGATGCGCTACTCAATAGATGGTACCTTCCTGGCTGTAGGATCTCATGACAACTTTATTTACCTCTATGTAGTCTCTGAAAATGGAAGAAAATATAGCAGATATGGAAGGTGCACTGGACATTCCAGCTACATCACACACCTTGACTGGTCCCCAGACAACAAGTATATAATGTCTAACTCGGGAGACTATGAAATATTGTACTTGTACCGCCGGAAGCACCAGGAGCTGCAAGCCATGCAGATGGAGCTGCAGAGCCCTGAGTACAAGCTGAGCAAGCTCCGCACCTCGACCATCATGACCGAC'
+    kmers,revcompkmers = design.toKmers(kmers,revcompkmers,sequence,name,kmerLength)
+    
+    print "##################################"
+    tmp = max( len(str(len(kmers))),len(str(kmerLength**4)) ) + 10
+    print ''.join(' ' for i in range(tmp-len(str(len(kmers))))),len(kmers)
+    print ''.join(' ' for i in range(tmp-len(str(kmerLength**4)))), kmerLength**4
+    print "##################################"
+
+#    print handles,'\n\n\n\n',kmers,'\n\n\n\n',revcompkmers,'\n\n\n\n',activePrimers
+
+    #
+    # open output file
+    #
+    outputfile = open('handleSetsfromgeneration.'+time.strftime("%Y-%m-%d.%H.%M.%S",time.localtime())+'.txt','w',1)
+    outputfile.write('##### Generated handles #####\n')
+    
+    #
+    # Create handle h4
+    #
+    h4 = None
+    while not h4:
+        sys.stdout.write('.')
+        #generate a handle
+        handle = design.Handle(
+                    handle_length = 25,
+                    handle_upper_gc = 0.60,
+                    handle_lower_gc = 0.40,
+                    handle_min_tm = 50,
+                    handle_max_tm = 65,
+                    kmerLength = kmerLength,
+                    minHD = minHD
+                    )
+        handle.id = 'h4'
+        h4, message = handle.generateAndCheck(activePrimers,kmers,revcompkmers,handles)
+        if h4 and doblast: h4 = design.blastHandle(h4,timeforlastblast);timeforlastblast=time.time()
+    h4,handles,kmers,revcompkmers,activePrimers = design.addHandleToCollection(h4,handles,kmers,revcompkmers,activePrimers,kmerLength)
+    
+    #
+    # make a partial DBS to include sequence kmers from "between" h2-h4 
+    #
+    partialDBS = h1.sequence+'NNNNNNNNNNNNNNNNNNNN'+'BDHVBDHVBDHVBDHVBDHV'+h2.sequence+h4.sequence
+    kmers,revcompkmers = design.toKmers(kmers,revcompkmers,partialDBS,'partialDBS',kmerLength)
+
+    #
+    # Make e sequence
+    #
+    e = None
+    while not e:
+        sys.stdout.write('.')
+        #generate a handle
+        handle = design.Handle(
+                    handle_length = 25,
+                    handle_upper_gc = 0.60,
+                    handle_lower_gc = 0.40,
+                    handle_min_tm = 50,
+                    handle_max_tm = 65,
+                    kmerLength = kmerLength,
+                    minHD = minHD
+                    )
+        handle.id = 'e'
+        e, message = handle.generateAndCheck(activePrimers,kmers,revcompkmers,handles)
+        if e and doblast: e = design.blastHandle(e,timeforlastblast);timeforlastblast=time.time()
+    e,handles,kmers,revcompkmers,activePrimers = design.addHandleToCollection(e,handles,kmers,revcompkmers,activePrimers,kmerLength)
+    
+    #
+    # output all sequences
+    #
+    for handle in handles:
+       print 'Sequence '+str(handle.id),'sequence='+handle.sequence, 'GC=',handle.GCcontent, 'Tm=',handle.betterTm
+       outputfile.write('Sequence '+str(handle.id)+' sequence='+handle.sequence +' GC='+str(handle.GCcontent)+' Tm='+str(handle.betterTm)+'\n')
+    
+    DBSoligo = h1.sequence+e.sequence+'BDHVBDHVBDHVBDHVBDHV'+h2.sequence+revcomp(h4.sequence)
+    
+    print ''
+    print 'For copy paste:'
+    print '>DBS'
+    print DBSoligo
+    print '>h1'
+    print h1.sequence
+    print '>h2'
+    print h2.sequence
+    print '>h3'
+    print h3.sequence
+    print '>h4'
+    print h4.sequence
+    print '>e'
+    print e.sequence
+    print '>BRAF_Ex11_fwd_DNA'
+    print BRAF_Ex11_fwd_DNA.sequence
+    print '>BRAF_Ex15_fwd_DNA'
+    print BRAF_Ex15_fwd_DNA.sequence
+    print '>KRAS_fwd_DNA'
+    print KRAS_fwd_DNA.sequence
+    print '>EGFR_fwd_DNA'
+    print EGFR_fwd_DNA.sequence
+    print '>EML4_ALK_fwd_DNA'
+    print EML4_ALK_fwd_DNA.sequence
+    print '>BRAF_Ex11_rev_DNA'
+    print BRAF_Ex11_rev_DNA.sequence
+    print '>BRAF_Ex15_rev_DNA'
+    print BRAF_Ex15_rev_DNA.sequence
+    print '>KRAS_rev_DNA'
+    print KRAS_rev_DNA.sequence
+    print '>EGFR_rev_DNA'
+    print EGFR_rev_DNA.sequence
+    print '>EML4_ALK_rev_DNA'
+    print EML4_ALK_rev_DNA.sequence
+    print '>EGFR_fwd_RNA';
+    print EGFR_fwd_RNA.sequence
+    print '>BRAF_fwd_RNA';
+    print BRAF_fwd_RNA.sequence
+    print '>HUWE1_fwd_RNA'
+    print HUWE1_fwd_RNA.sequence
+    print '>KRAS_fwd_RNA';
+    print KRAS_fwd_RNA.sequence
+    print '>ALK_fwd_RNA'; 
+    print ALK_fwd_RNA.sequence
+    print '>EGFR_rev_RNA';
+    print EGFR_rev_RNA.sequence
+    print '>BRAF_rev_RNA';
+    print BRAF_rev_RNA.sequence
+    print '>HUWE1_rev_RNA'
+    print HUWE1_rev_RNA.sequence
+    print '>KRAS_rev_RNA';
+    print KRAS_rev_RNA.sequence
+    print '>ALK_rev_RNA';
+    print ALK_rev_RNA.sequence
+
+class Unbuffered(object):
+   def __init__(self, stream):
+       self.stream = stream
+   def write(self, data):
+       self.stream.write(data)
+       self.stream.flush()
+   def __getattr__(self, attr):
+       return getattr(self.stream, attr)
+
+if __name__ == "__main__": main()
