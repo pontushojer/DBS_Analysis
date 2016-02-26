@@ -2,12 +2,24 @@
 change sequences here and they will be used throughut the analysis
 """
 
-H1  = 'CAGTTGATCATCAGCAGGTAATCTGG'#'GGAGCCATTAAGTCGTAGCT' #H770
-DBS = 'BDHVBDHVBDHVBDHVBDHV'
-H2 = 'GACAGTTCCAAGAGGTCATG' #H1691
-H3 = 'TAGGACCAGCGTCTCAGTAT' #H4328
+#################### WFA system ##############################################################################
+#H1  = 'CAGTTGATCATCAGCAGGTAATCTGG'#'GGAGCCATTAAGTCGTAGCT' #H770
+#DBS = 'BDHVBDHVBDHVBDHVBDHV'
+#H2 = 'GACAGTTCCAAGAGGTCATG' #H1691
+#H3 = 'TAGGACCAGCGTCTCAGTAT' #H4328
+#ILLI5 = 'AATGATACGGCGACCACCGAGATCTACACTCTTTCCCTACACGACGCTCTTCCGATCT'
+#ILLI7 = 'AGATCGGAAGAGCACACGTCTGAACTCCAGTCACNNNNNNATCTCGTATGCCGTCTTCTGCTTG'
+#################### WFA system ##############################################################################
+
+#################### HLA system ##############################################################################
+import seqdata
+H1  = 'ACCGAGTGGTGAGTCATAGT'
+DBS = 'BDVHBDVHBDVHBDVHBDVH'
+H2 = seqdata.revcomp('CTAGCTTCACGAGTTCATCG')
+H3 = 'AGATGGCCGTTATGATAGCG'
 ILLI5 = 'AATGATACGGCGACCACCGAGATCTACACTCTTTCCCTACACGACGCTCTTCCGATCT'
 ILLI7 = 'AGATCGGAAGAGCACACGTCTGAACTCCAGTCACNNNNNNATCTCGTATGCCGTCTTCTGCTTG'
+#################### HLA system ##############################################################################
 
 def main():
     
