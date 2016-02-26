@@ -235,7 +235,7 @@ class Handle():
                         self.resonFordeath = name+'kmer match  in last5 '
                         break
                 
-                #if distFull < self.minHD+1 and ENDSEQ[-3] == kmer[-3]:  # looks for uniq three mers skip s«this mostly there are non 4**3 is to few
+                #if distFull < self.minHD+1 and ENDSEQ[-3] == kmer[-3]:  # looks for uniq three mers skip sthis mostly there are non 4**3 is to few
                 #      toCLose = True;
                 #      self.output+= ' lastbase(s) identical, '+name+' '+kmer
                 #      self.resonFordeath = name+'lastbase(s) identical '
