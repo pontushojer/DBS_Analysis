@@ -103,7 +103,13 @@ def start():
     return page
 
 @app.route("/index.html")
-def index():
+@app.route('/index.html&low<low>')
+@app.route('/index.html&high<high>')
+@app.route('/index.html&low<low>&high<high>')
+@app.route('/index.html&high<high>&low<low>')
+def index(high=1000,low=0):
+    
+    high = max(int(high),int(low)+10)
     
     app.analysisfolder.logfile.write('Generating index.html ...\n')
     
@@ -255,11 +261,11 @@ def index():
         totalduplicateReadPairs=0
         tableRows = ''
         for clusterId in barcodeClusterer.getBarcodeClusterIds(shuffle=False,byMixedClusterReadCount=False):
+            if int(clusterId) < int(low): continue
             cluster = indexForeachCluster(clusterId)
         #for cluster in parallelResults:
-            counter += 1
-            if counter == 1000: break
-            
+            if int(clusterId) > int(high): break
+            counter += 1            
             
             inbamPerc = percentage(cluster.readPairsInBamFile,cluster.readPairCount)
             if cluster.readPairsInBamFile:
@@ -279,7 +285,7 @@ def index():
             if cluster.duplicateReadPairs: totalduplicateReadPairs+=cluster.duplicateReadPairs
 
             tableRows += '<tr>'
-            tableRows += '<td><a href="cluster'+str(cluster.id)+'">'+str(cluster.id)+'</a></td>'
+            tableRows += '<td><a href="/cluster'+str(cluster.id)+'">'+str(cluster.id)+'</a></td>'
             tableRows += '<td><a href="cluster'+str(cluster.id)+'"><font face="Courier">'+str(cluster.barcodeSequence)+'</font></a></td>\n'
             tableRows += '<td><a href="cluster'+str(cluster.id)+'">'+str(cluster.readPairCount)+'</a></td>\n'
             totalReadPairCount += cluster.readPairCount
@@ -365,8 +371,8 @@ def index():
     return outStr
 
 @app.route('/cluster<cluster_id>')
-@app.route('/cluster<cluster_id>/read<readnumber>')
-def cluster(cluster_id, readnumber=None):
+@app.route('/cluster<cluster_id>&makebam=<makebam>')
+def cluster(cluster_id, makebam=False):
 
     import time
     starttime = time.time()
@@ -403,7 +409,7 @@ def cluster(cluster_id, readnumber=None):
         th,td {padding: 5px;}
         td {text-align: center;}
     </style></head>"""
-    outStr += '<body><a href=index.html>Back</a><br><br>'
+    outStr += '<body><a href=index.html>Back</a> | <a href=cluster'+str(cluster_id)+'&makebam=True >Make Bamfile</a><br><br>'
 
     cluster = BarcodeCluster(int(cluster_id),app.analysisfolder)
     app.analysisfolder.logfile.write('Loading reads for cluster '+str(cluster_id)+' ... '+'\n')
@@ -411,6 +417,10 @@ def cluster(cluster_id, readnumber=None):
     if not cluster.tableStr:
         cluster.analyze()
         cluster.removeAllFiles()
+        cluster.updatedb()
+
+    if makebam:
+        cluster.analyze()
         cluster.updatedb()
 
     outStr += cluster.generateHtmlSummary()
