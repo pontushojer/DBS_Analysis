@@ -229,7 +229,7 @@ class Handle():
                   
                 if distFull < self.minHD+1: # if almost to close check last five bases so that we have at least 2 nonmatching bases in this part
                     distLastFive = hamming_distance(ENDSEQ[-5:],kmer[-5:])
-                    if distLastFive < 2:
+                    if distLastFive < 3:
                         toCLose = True;
                         self.output+= str(distLastFive)+' mm in last5 to '+str(hits)+' ('+kmer+') too close,'
                         self.resonFordeath = name+'kmer match  in last5 '
