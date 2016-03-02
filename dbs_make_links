@@ -1,0 +1,38 @@
+#! /usr/bin/env python
+
+def main():
+   
+    #
+    # imports
+    #
+    import sys
+    import os
+    
+    if os.path.exists(os.getenv("HOME")+'/bin') and os.path.isdir(os.getenv("HOME")+'/bin'):
+        create_links()
+    else:
+        os.makedirs(os.getenv("HOME")+'/bin')
+    print 'ok all done!'
+
+def create_links():
+    program_names = [
+        'dbs_barcode_clustrer',
+        'dbs_change_settings',
+        'dbs_cluster_analyzer',
+        'dbs_handle_indetifier',
+        'dbs_insert_mapper',
+        'dbs_make_links',
+        'dbs_web_interface_server'
+        ]
+    for program_name in program_names: make_link(program_name)
+
+def make_link(program_name):
+    import os
+    src = os.path.dirname(os.path.realpath(__file__))+'/'+program_name
+    dst = os.getenv("HOME")+'/bin/'+program_name
+    if not os.path.exists(dst):os.symlink(src, dst)
+
+    
+
+
+if __name__ == "__main__": main()
