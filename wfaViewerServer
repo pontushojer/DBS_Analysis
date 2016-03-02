@@ -186,6 +186,49 @@ def index(high=1000,low=0):
             padding:20px;
             float:left;
         }
+        
+        #image {
+            padding:0px;
+            float:left;
+            font: 10px sans-serif;
+        }
+        #slider {
+            padding:0px;
+            float:left;
+            font: 10px sans-serif;
+        }
+        rect {
+            fill: steelblue;
+        }
+        rect:hover {
+            fill: black ;
+        }
+        .d3-tip {
+          line-height: 1;
+          font-weight: bold;
+          padding: 12px;
+          background: rgba(0, 0, 0, 0.8);
+          color: #fff;
+          border-radius: 2px;
+        }
+        .d3-tip:after {
+          box-sizing: border-box;
+          display: inline;
+          font: 10px sans-serif;
+          font-size: 10px;
+          width: 100%;
+          line-height: 1;
+          color: rgba(0, 0, 0, 0.8);
+          content: "\\25BC";
+          position: absolute;
+          text-align: center;
+        }
+        .d3-tip.n:after {
+          margin: -1px 0 0 0;
+          top: 100%;
+          left: 0;
+        }
+
     </style></head>"""
     outStr += '<body><div id="page">'
 
@@ -232,6 +275,7 @@ def index(high=1000,low=0):
     
     outStr += '<div id="details"><br><br><br><br><br>'
     outStr += """<br><br>
+    <script src="http://labratrevenge.com/d3-tip/javascripts/d3.tip.v0.6.3.js"></script>
     <script>
         d3.csv("readspercluster.csv", function (data) {
             
@@ -239,8 +283,7 @@ def index(high=1000,low=0):
             height = 300,
             padding = 50,
             move_left = 60,
-            move_down = 50,
-            bin_width = 100;
+            move_down = 5;
         
             // when the input range changes update the angle 
             d3.select("#nAngle").on("input", function() {
@@ -250,6 +293,7 @@ def index(high=1000,low=0):
             var map = data.map( function (i) { return parseInt(i.reads); } )
                 //.filter(function(i) { return i > nAngle })
 
+            var bin_width = d3.max(map)/100
             var bins = []
             for (var i = 0; i < d3.max(map)+1; i=i+bin_width) {
                 bins.push(i);
@@ -268,6 +312,7 @@ def index(high=1000,low=0):
                 .range([0, width-move_left]);
             d3.select("#nAngle").property("max", d3.max(map));
             d3.select("#nAngle").property("style", "width:" + ( width - move_left ) + "px");
+            d3.select("#nReadsMin").property("style","display: inline-block; width: " + ( move_left ) + "px; text-align: right");
                 
             var xAxis = d3.svg.axis()
                 .scale(x)
@@ -277,12 +322,20 @@ def index(high=1000,low=0):
                 .scale( y )
                 .orient("left");
 
+            var tip = d3.tip()
+              .attr('class', 'd3-tip')
+              .offset([-10, 0])
+              .html(function(d) {
+                return d.y + " clusters has " + Math.ceil(Math.round(d.x*10)/10) + " to " + Math.floor(Math.round((d.x + d.dx)*10)/10) + " reads";
+              })
+
             var canvas = d3.select("#image").append("svg")
                 .attr("width",width)
                 .attr("height",height + padding )
                 .append("g")
                     .attr( "transform", "translate( " + move_left + " ,  " + move_down + "  )" ) ;
-                    
+            
+            canvas.call(tip)
                 
             var group = canvas.append("g")
                 .attr("transform","translate(0," + (height-move_down) + ")" )
@@ -309,7 +362,9 @@ def index(high=1000,low=0):
                 .attr("y", function (d) { return y(d.y) } )
                 .attr("width", function (d) { return x(d.dx) } )
                 .attr("height", function (d) { return y(0) - y(d.y) } )
-                .attr("fill", "steelblue");
+                //.attr("fill", "steelblue")
+                .on('mouseover', tip.show)
+                .on('mouseout', tip.hide);
                 
             // Initial starting angle of the text 
             update(0);
@@ -344,7 +399,7 @@ def index(high=1000,low=0):
                 console.log(map)
                 
                 group2.transition()
-                    .duration(1)
+                    .duration(1000)
                     .call(yAxis);
                 
                 canvas.selectAll("rect")
@@ -355,22 +410,19 @@ def index(high=1000,low=0):
                         .attr("y", function (d) { return y(d.y) } )
                         .attr("width", function (d) { return x(d.dx) } )
                         .attr("height", function (d) { return y(0) - y(d.y) } )
-                        .attr("fill", "steelblue");
-
-
+                        //.attr("fill", "steelblue");
             }
-                
         } )
         </script>
-    <div id="image"></div>
-    <p>
-        <label for="nReadsMin" 
-           style="display: inline-block; width: 50px; text-align: right">
-        <span id="nReadsMin-value">...</span>
+    <div id="slider">
+        <span style="font: 12px sans-serif;color:black">Minimum Read Count Per Barcode Cluster</span><br>
+        <label for="nReadsMin" style="display: inline-block; width: 55px; text-align: right">
+        <span id="nReadsMin-value" style="font: 12px sans-serif;color:black">...</span>
         </label>
-        <input type="range" step="1" min="0" max="5000" id="nAngle" style="width:440px" value="0">
-        <br>Minimum Read Count Per Barcode Cluster
-    </p>
+        <input type="range" step="1" min="0" max="5000" id="nAngle" value="0"><br>
+        <div id="image"></div>
+    </div>
+    
     """
 
     outStr += '<h2>List of clusters:</h2>'
