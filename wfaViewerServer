@@ -239,6 +239,7 @@ def index(high=1000,low=0):
             height = 300,
             padding = 50,
             move_left = 60,
+            move_down = 50,
             bin_width = 100;
         
             // when the input range changes update the angle 
@@ -260,7 +261,7 @@ def index(high=1000,low=0):
                 
             var y = d3.scale.linear()
                 .domain([0, d3.max(histogram.map( function (i) { return i.length; } ) )])
-                .range([height, 0]);
+                .range([height-move_down, 0]);
 
             var x = d3.scale.linear()
                 .domain([0, d3.max(map)])
@@ -280,10 +281,11 @@ def index(high=1000,low=0):
                 .attr("width",width)
                 .attr("height",height + padding )
                 .append("g")
-                    .attr( "transform", "translate( " + move_left + " , 0 )" ) ;
+                    .attr( "transform", "translate( " + move_left + " ,  " + move_down + "  )" ) ;
+                    
                 
             var group = canvas.append("g")
-                .attr("transform","translate(0," + height + ")" )
+                .attr("transform","translate(0," + (height-move_down) + ")" )
                 .style({ 'stroke': 'Black', 'fill': 'none', 'stroke-width': '1px'})
                 .call(xAxis)
             .selectAll("text")
@@ -367,6 +369,7 @@ def index(high=1000,low=0):
         <span id="nReadsMin-value">...</span>
         </label>
         <input type="range" step="1" min="0" max="5000" id="nAngle" style="width:440px" value="0">
+        <br>Minimum Read Count Per Barcode Cluster
     </p>
     """
 
