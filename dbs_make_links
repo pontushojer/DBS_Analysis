@@ -21,7 +21,6 @@ def create_links():
         'dbs_cluster_analyzer',
         'dbs_handle_indetifier',
         'dbs_insert_mapper',
-        'dbs_make_links',
         'dbs_web_interface_server'
         ]
     for program_name in program_names: make_link(program_name)

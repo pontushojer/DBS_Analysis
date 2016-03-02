@@ -8,12 +8,13 @@ def main():
     #
     import metadata
     import time
+    import os
     
     #
     # check input and get commandline args
     #
     try: analysisfolder = metadata.AnalysisFolder(sys.argv[1])
-    except IndexError: sys.stderr.write('please supply a commandline on format:\nwfaChangeSettings <analysis-output-folder> [list settings] [settingName=Value]\n');sys.exit()
+    except IndexError: sys.stderr.write('please supply a commandline on format:\n'+os.path.basename(__file__)+' <analysis-output-folder> [list settings] [settingName=Value]\n');sys.exit()
     
     #
     # check analysis folder

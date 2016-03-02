@@ -9,13 +9,14 @@ def main():
     import metadata
     import time
     from seqdata import BarcodeClusterer
+    import os
     
     #
     # check input and get commandline args
     #
     try:
 	analysisfolder = metadata.AnalysisFolder(sys.argv[1])
-    except IndexError: sys.stderr.write('please supply a commandline on format:\nbarcodeClusterer <analysis-output-folder>\n');sys.exit()
+    except IndexError: sys.stderr.write('please supply a commandline on format:\n'+os.path.basename(__file__)+' <analysis-output-folder>\n');sys.exit()
     
     #
     # check analysis folder

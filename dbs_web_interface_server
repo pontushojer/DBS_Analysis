@@ -18,7 +18,7 @@ app = Flask(__name__)
 # check input and get commandline args
 #
 try: analysisfolder = metadata.AnalysisFolder(sys.argv[1])
-except IndexError: sys.stderr.write('please supply a commandline on format:\nwfaViewerServer <analysis-output-folder>\n');sys.exit()
+except IndexError: sys.stderr.write('please supply a commandline on format:\n'+os.path.basename(__file__)+' <analysis-output-folder>\n');sys.exit()
 app.analysisfolder = analysisfolder
 app.analysisfolder.settings.mapqCutOff = int(app.analysisfolder.settings.mapqCutOff)
 #

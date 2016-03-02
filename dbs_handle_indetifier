@@ -22,7 +22,7 @@ def main():
 	r1filename = sys.argv[1]
 	r2filename = sys.argv[2]
 	analysisfolder = metadata.AnalysisFolder(sys.argv[3])
-    except IndexError: sys.stderr.write('please supply an outfile and infiles on format:\nwfaChecker <r1> <r2> <analysis-output-folder>\n');sys.exit()
+    except IndexError: sys.stderr.write('please supply an outfile and infiles on format:\n'+os.path.basename(__file__)+' <r1> <r2> <analysis-output-folder>\n');sys.exit()
     
     #
     # check analysis folder
