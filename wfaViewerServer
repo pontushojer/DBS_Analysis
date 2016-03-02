@@ -228,14 +228,18 @@ def index(high=1000,low=0):
     outStr += 'Bowtie2 alignment Rate: '+str(app.analysisfolder.results.bt2AlignmentRate)+'%<br>\n'
     outStr += 'Percentage of SE alignments with mapq >= 20: '+str(app.analysisfolder.results.alignmentRateQ20)+'%<br>\n'+'<br>\n'
     outStr += '<br>\n'
-    outStr += """
+    outStr += '</div>'
+    
+    outStr += '<div id="details"><br><br><br><br><br>'
+    outStr += """<br><br>
     <script>
         d3.csv("readspercluster.csv", function (data) {
             
-            var width = 500,
+            var width = 600,
             height = 300,
             padding = 50,
-            move_left = 60;
+            move_left = 60,
+            bin_width = 100;
         
             // when the input range changes update the angle 
             d3.select("#nAngle").on("input", function() {
@@ -244,9 +248,14 @@ def index(high=1000,low=0):
             
             var map = data.map( function (i) { return parseInt(i.reads); } )
                 //.filter(function(i) { return i > nAngle })
+
+            var bins = []
+            for (var i = 0; i < d3.max(map)+1; i=i+bin_width) {
+                bins.push(i);
+            }
             
             var histogram = d3.layout.histogram()
-                .bins(100)
+                .bins(bins)
                 (map)
                 
             var y = d3.scale.linear()
@@ -257,6 +266,7 @@ def index(high=1000,low=0):
                 .domain([0, d3.max(map)])
                 .range([0, width-move_left]);
             d3.select("#nAngle").property("max", d3.max(map));
+            d3.select("#nAngle").property("style", "width:" + ( width - move_left ) + "px");
                 
             var xAxis = d3.svg.axis()
                 .scale(x)
@@ -319,10 +329,10 @@ def index(high=1000,low=0):
                 // Update
                 
                 var map = data.map( function (i) { return parseInt(i.reads); } )
-                    .filter(function(i) { return i > nAngle })
+                    .filter(function(i) { return i >= nAngle })
 
                 var histogram = d3.layout.histogram()
-                    .bins(100)
+                    .bins(bins)
                     (map)
                     
                 y.domain([0, d3.max(histogram.map( function (i) { return i.length; } ) )])
@@ -350,20 +360,16 @@ def index(high=1000,low=0):
                 
         } )
         </script>
-    """
-    outStr += """
     <div id="image"></div>
     <p>
         <label for="nReadsMin" 
            style="display: inline-block; width: 50px; text-align: right">
         <span id="nReadsMin-value">...</span>
         </label>
-        <input type="range" min="0" max="5000" id="nAngle" style="width:440px" value="0">
+        <input type="range" step="1" min="0" max="5000" id="nAngle" style="width:440px" value="0">
     </p>
     """
-    outStr += '</div>'
-    
-    outStr += '<div id="details"><br><br><br><br><br>'    
+
     outStr += '<h2>List of clusters:</h2>'
     if app.analysisfolder.results.barcodeClusterCount:
         barcodeClusterer = BarcodeClusterer(app.analysisfolder)
