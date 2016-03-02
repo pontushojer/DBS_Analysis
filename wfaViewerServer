@@ -228,59 +228,22 @@ def index(high=1000,low=0):
     outStr += 'Bowtie2 alignment Rate: '+str(app.analysisfolder.results.bt2AlignmentRate)+'%<br>\n'
     outStr += 'Percentage of SE alignments with mapq >= 20: '+str(app.analysisfolder.results.alignmentRateQ20)+'%<br>\n'+'<br>\n'
     outStr += '<br>\n'
-
-    outStr += """
-    <p>
-        <label for="nReadsMin" 
-           style="display: inline-block; width: 50px; text-align: right">
-        <span id="nReadsMin-value">...</span>
-        </label>
-        <input type="range" min="0" max="5000" id="nAngle" style="width:400px" value="0">
-    </p>
-    """
     outStr += """
     <script>
-
-        var width = 500,
+        d3.csv("readspercluster.csv", function (data) {
+            
+            var width = 500,
             height = 300,
-            padding = 50;
+            padding = 50,
+            move_left = 60;
         
-        // when the input range changes update the angle 
-        d3.select("#nAngle").on("input", function() {
-          update(+this.value);
-        });
-        
-        // Initial starting angle of the text 
-        update(0);
-        
-        // update the element
-        function update(nAngle) {
-        
-          // adjust the text on the range slider
-          d3.select("#nReadsMin-value").text(nAngle);
-          d3.select("#nAngle").property("value", nAngle);
-        
-          // rotate the text
-          //holder.select("text") 
-          //  .attr("transform", "translate(300,150) rotate("+nAngle+")");
-          //redraw(nAngle)
-        }
-        
-        function redraw(nAngle) {
-            // Update
-            canvas.selectAll("rect")
-                    .data(data)
-                    .filter(function(i) { return i > nAngle })
-                .transition()
-                    .duration(1000)
-                    //.attr("y", function(d) { return h - y(d.value) - .5; })
-                    //.attr("height", function(d) { return y(d.value); });
-                    .attr("y", function (d) { return y(d.y); } )
-                    .attr("height", function (d) { return y(0) - y(d.y); } )
-        }
-        
-        csvData = d3.csv("readspercluster.csv", function (data) {
+            // when the input range changes update the angle 
+            d3.select("#nAngle").on("input", function() {
+              update(+this.value);
+            });
+            
             var map = data.map( function (i) { return parseInt(i.reads); } )
+                //.filter(function(i) { return i > nAngle })
             
             var histogram = d3.layout.histogram()
                 .bins(100)
@@ -292,7 +255,8 @@ def index(high=1000,low=0):
 
             var x = d3.scale.linear()
                 .domain([0, d3.max(map)])
-                .range([0, width]);
+                .range([0, width-move_left]);
+            d3.select("#nAngle").property("max", d3.max(map));
                 
             var xAxis = d3.svg.axis()
                 .scale(x)
@@ -302,11 +266,11 @@ def index(high=1000,low=0):
                 .scale( y )
                 .orient("left");
 
-            var canvas = d3.select("#statistics").append("svg")
+            var canvas = d3.select("#image").append("svg")
                 .attr("width",width)
                 .attr("height",height + padding )
                 .append("g")
-                    .attr( "transform", "translate( 60 , 0 )" ) ;
+                    .attr( "transform", "translate( " + move_left + " , 0 )" ) ;
                 
             var group = canvas.append("g")
                 .attr("transform","translate(0," + height + ")" )
@@ -323,21 +287,80 @@ def index(high=1000,low=0):
                 .style({ 'stroke': 'Black', 'fill': 'none', 'stroke-width': '1px'})
                 .call(yAxis);
                 
-            var bars = canvas.selectAll(".bar")
+            var bars = canvas.selectAll("rect")
                 .data(histogram)
                 .enter()
-                .append("g");
+                .append("svg:rect")
             
-            bars.append("rect")
+            //bars.append("rect")
                 .attr("x", function (d) { return x(d.x) } )
                 .attr("y", function (d) { return y(d.y) } )
                 .attr("width", function (d) { return x(d.dx) } )
                 .attr("height", function (d) { return y(0) - y(d.y) } )
                 .attr("fill", "steelblue");
+                
+            // Initial starting angle of the text 
+            update(0);
+            
+            // update the element
+            function update(nAngle) {
+            
+              // adjust the text on the range slider
+              d3.select("#nReadsMin-value").text(nAngle);
+              d3.select("#nAngle").property("value", nAngle);
+            
+              // rotate the text
+              //holder.select("text") 
+              //  .attr("transform", "translate(300,150) rotate("+nAngle+")");
+              redraw(nAngle)
+            }
+            
+            function redraw(nAngle) {
+                // Update
+                
+                var map = data.map( function (i) { return parseInt(i.reads); } )
+                    .filter(function(i) { return i > nAngle })
+
+                var histogram = d3.layout.histogram()
+                    .bins(100)
+                    (map)
+                    
+                y.domain([0, d3.max(histogram.map( function (i) { return i.length; } ) )])
+    
+                x.domain([0, d3.max(map)])
+                    
+                console.log(map)
+                
+                group2.transition()
+                    .duration(1)
+                    .call(yAxis);
+                
+                canvas.selectAll("rect")
+                        .data(histogram)
+                    .transition()
+                        .duration(1000)
+                        .attr("x", function (d) { return x(d.x) } )
+                        .attr("y", function (d) { return y(d.y) } )
+                        .attr("width", function (d) { return x(d.dx) } )
+                        .attr("height", function (d) { return y(0) - y(d.y) } )
+                        .attr("fill", "steelblue");
+
+
+            }
+                
         } )
         </script>
     """
-
+    outStr += """
+    <div id="image"></div>
+    <p>
+        <label for="nReadsMin" 
+           style="display: inline-block; width: 50px; text-align: right">
+        <span id="nReadsMin-value">...</span>
+        </label>
+        <input type="range" min="0" max="5000" id="nAngle" style="width:440px" value="0">
+    </p>
+    """
     outStr += '</div>'
     
     outStr += '<div id="details"><br><br><br><br><br>'    
