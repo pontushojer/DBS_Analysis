@@ -23,7 +23,7 @@ def create_links():
         'dbs_insert_mapper',
         'dbs_web_interface_server'
         ]
-    for program_name in program_names: make_link(program_name)
+    for program_name in program_names: update_link(program_name)
 
 def make_link(program_name):
     import os
@@ -31,7 +31,10 @@ def make_link(program_name):
     dst = os.getenv("HOME")+'/bin/'+program_name
     if not os.path.exists(dst):os.symlink(src, dst)
 
-    
-
+def update_link(program_name):
+    import os
+    dst = os.getenv("HOME")+'/bin/'+program_name 
+    if os.path.islink(dst): os.remove(dst)
+    make_link(program_name)
 
 if __name__ == "__main__": main()
