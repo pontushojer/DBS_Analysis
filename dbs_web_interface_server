@@ -280,6 +280,8 @@ def index(high=1000,low=0):
         
         var partition = d3.layout.partition()
             .value(function(d) { return d.size; });
+            
+        var tmpText = d3.select("#handleinfo").text();
         
         var arc = d3.svg.arc()
             .startAngle(function(d) { return Math.max(0, Math.min(2 * Math.PI, x(d.x))); })
@@ -303,9 +305,7 @@ def index(high=1000,low=0):
               .style("fill", function(d) { return color((d.children ? d : d.parent).name); })
               .on("click", click)
               .on('mouseover', function changeLable(d) { d3.select("#handleinfo").text( d.name + " (" + formatNumber(d.value) + ")" );})
-    """
-    outStr +='              .on("mouseout", function () {d3.select("#handleinfo").text("Total read pairs '+thousandString(app.analysisfolder.results.totalReadCount)+'");})'
-    outStr +="""
+              .on("mouseout", function () {d3.select("#handleinfo").text(tmpText);})
             .append("title")
               .text(function(d) { return d.name + " (" + formatNumber(d.value) + ")"; });
         });
