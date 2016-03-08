@@ -12,7 +12,11 @@ import sys
 import time
 import os
 
-app = Flask(__name__)
+app = Flask(
+    __name__,
+    static_folder   = '/'.join(os.path.realpath(__file__).split('/')[:-1])+'/web_interface_static',
+    static_url_path = '/static'
+    )
 
 #
 # check input and get commandline args
@@ -261,71 +265,7 @@ def index(high=1000,low=0):
     #        outStr += '&nbsp&nbsp&nbsp&nbsp'+what+' => '+str(percentage(count,app.analysisfolder.results.totalReadCount))+'%, ('+thousandString(count)+')<br>\n'
     #else:outStr += 'No Data Available<br>\n'
     outStr += '<br>\n'
-    outStr += """
-    <script>
-        
-        var width = 250,
-            height = 250,
-            radius = (Math.min(width, height) / 2) - 10;
-        
-        var formatNumber = d3.format(",d");
-        
-        var x = d3.scale.linear()
-            .range([0, 2 * Math.PI]);
-        
-        var y = d3.scale.sqrt()
-            .range([0, radius]);
-        
-        var color = d3.scale.category20c();
-        
-        var partition = d3.layout.partition()
-            .value(function(d) { return d.size; });
-            
-        var tmpText = d3.select("#handleinfo").text();
-        
-        var arc = d3.svg.arc()
-            .startAngle(function(d) { return Math.max(0, Math.min(2 * Math.PI, x(d.x))); })
-            .endAngle(function(d) { return Math.max(0, Math.min(2 * Math.PI, x(d.x + d.dx))); })
-            .innerRadius(function(d) { return Math.max(0, y(d.y)); })
-            .outerRadius(function(d) { return Math.max(0, y(d.y + d.dy)); });
-        
-        var svg = d3.select("#handlesunburst").append("svg")
-            .attr("width", width)
-            .attr("height", height)
-          .append("g")
-            .attr("transform", "translate(" + width / 2 + "," + (height / 2) + ")");
-        
-        d3.json("handles.json", function(error, root) {
-          if (error) throw error;
-        
-          svg.selectAll("path")
-              .data(partition.nodes(root))
-            .enter().append("path")
-              .attr("d", arc)
-              .style("fill", function(d) { return color((d.children ? d : d.parent).name); })
-              .on("click", click)
-              .on('mouseover', function changeLable(d) { d3.select("#handleinfo").text( d.name + " (" + formatNumber(d.value) + ")" );})
-              .on("mouseout", function () {d3.select("#handleinfo").text(tmpText);})
-            .append("title")
-              .text(function(d) { return d.name + " (" + formatNumber(d.value) + ")"; });
-        });
-        
-        function click(d) {
-          svg.transition()
-              .duration(750)
-              .tween("scale", function() {
-                var xd = d3.interpolate(x.domain(), [d.x, d.x + d.dx]),
-                    yd = d3.interpolate(y.domain(), [d.y, 1]),
-                    yr = d3.interpolate(y.range(), [d.y ? 20 : 0, radius]);
-                return function(t) { x.domain(xd(t)); y.domain(yd(t)).range(yr(t)); };
-              })
-            .selectAll("path")
-              .attrTween("d", function(d) { return function() { return arc(d); }; });
-        }
-        
-        d3.select(self.frameElement).style("height", height + "px");
-    </script>
-    """
+    outStr += '<script src="/static/js/handlesSunburst.js"></script>'
     
     outStr += 'Barcodes match DBS pattern:<br>\n'
     if app.analysisfolder.results.readsWithDbsPatternMatch:
@@ -346,144 +286,7 @@ def index(high=1000,low=0):
     outStr += '<div id="details"><br><br><br><br><br>'
     outStr += """<br><br>
     <script src="http://labratrevenge.com/d3-tip/javascripts/d3.tip.v0.6.3.js"></script>
-    <script>
-        d3.csv("readspercluster.csv", function (data) {
-            
-            var width = 600,
-            height = 300,
-            padding = 50,
-            move_left = 60,
-            move_down = 5;
-        
-            // when the input range changes update the angle 
-            d3.select("#nAngle").on("input", function() {
-              update(+this.value);
-            });
-            
-            var map = data.map( function (i) { return parseInt(i.reads); } )
-                //.filter(function(i) { return i > nAngle })
-
-            var bin_width = d3.max(map)/100
-            var bins = []
-            for (var i = 0; i < d3.max(map)+1; i=i+bin_width) {
-                bins.push(i);
-            }
-            
-            var histogram = d3.layout.histogram()
-                .bins(bins)
-                (map)
-                
-            var y = d3.scale.linear()
-                .domain([0, d3.max(histogram.map( function (i) { return i.length; } ) )])
-                .range([height-move_down, 0]);
-
-            var x = d3.scale.linear()
-                .domain([0, d3.max(map)])
-                .range([0, width-move_left]);
-            d3.select("#nAngle").property("max", d3.max(map));
-            d3.select("#nAngle").property("style", "width:" + ( width - move_left ) + "px");
-            d3.select("#nReadsMin").property("style","display: inline-block; width: " + ( move_left ) + "px; text-align: right");
-                
-            var xAxis = d3.svg.axis()
-                .scale(x)
-                .orient("bottom");
-
-            var yAxis = d3.svg.axis()
-                .scale( y )
-                .orient("left");
-
-            var tip = d3.tip()
-              .attr('class', 'd3-tip')
-              .offset([-10, 0])
-              .html(function(d) {
-                return d.y + " clusters has " + Math.ceil(Math.round(d.x*10)/10) + " to " + Math.floor(Math.round((d.x + d.dx)*10)/10) + " reads";
-              })
-
-            var canvas = d3.select("#image").append("svg")
-                .attr("width",width)
-                .attr("height",height + padding )
-                .append("g")
-                    .attr( "transform", "translate( " + move_left + " ,  " + move_down + "  )" ) ;
-            
-            canvas.call(tip)
-                
-            var group = canvas.append("g")
-                .attr("transform","translate(0," + (height-move_down) + ")" )
-                .style({ 'stroke': 'Black', 'fill': 'none', 'stroke-width': '1px'})
-                .call(xAxis)
-            .selectAll("text")
-                .attr("y", 0)
-                .attr("x", 9)
-                .attr("dy", ".35em")
-                .attr("transform", "rotate(90)")
-                .style("text-anchor", "start");
-
-            var group2 = canvas.append("g")
-                .style({ 'stroke': 'Black', 'fill': 'none', 'stroke-width': '1px'})
-                .call(yAxis);
-                
-            var bars = canvas.selectAll("rect")
-                .data(histogram)
-                .enter()
-                .append("svg:rect")
-            
-            //bars.append("rect")
-                .attr("x", function (d) { return x(d.x) } )
-                .attr("y", function (d) { return y(d.y) } )
-                .attr("width", function (d) { return x(d.dx) } )
-                .attr("height", function (d) { return y(0) - y(d.y) } )
-                //.attr("fill", "steelblue")
-                .on('mouseover', tip.show)
-                .on('mouseout', tip.hide);
-                
-            // Initial starting angle of the text 
-            update(0);
-            
-            // update the element
-            function update(nAngle) {
-            
-              // adjust the text on the range slider
-              d3.select("#nReadsMin-value").text(nAngle);
-              d3.select("#nAngle").property("value", nAngle);
-            
-              // rotate the text
-              //holder.select("text") 
-              //  .attr("transform", "translate(300,150) rotate("+nAngle+")");
-              redraw(nAngle)
-            }
-            
-            function redraw(nAngle) {
-                // Update
-                
-                var map = data.map( function (i) { return parseInt(i.reads); } )
-                    .filter(function(i) { return i >= nAngle })
-
-                var histogram = d3.layout.histogram()
-                    .bins(bins)
-                    (map)
-                    
-                y.domain([0, d3.max(histogram.map( function (i) { return i.length; } ) )])
-    
-                x.domain([0, d3.max(map)])
-                    
-                console.log(map)
-                
-                group2.transition()
-                    .duration(1000)
-                    .call(yAxis);
-                
-                canvas.selectAll("rect")
-                        .data(histogram)
-                    .transition()
-                        .duration(1000)
-                        .attr("x", function (d) { return x(d.x) } )
-                        .attr("y", function (d) { return y(d.y) } )
-                        .attr("width", function (d) { return x(d.dx) } )
-                        .attr("height", function (d) { return y(0) - y(d.y) } )
-                        //.attr("fill", "steelblue");
-            }
-        } )
-        </script>
+    <script src="/static/js/readsPerClusterHistogram.js"></script>
     <div id="slider">
         <span style="font: 12px sans-serif;color:black">Minimum Read Count Per Barcode Cluster</span><br>
         <label for="nReadsMin" style="display: inline-block; width: 55px; text-align: right">
@@ -634,98 +437,6 @@ def index(high=1000,low=0):
     outStr += '</div>'
     outStr += '</div>'
     app.analysisfolder.logfile.write('index.html generated.\n')
-    return outStr
-
-@app.route('/test.html')
-def pellegurgelfnutt():
-    outStr = ''
-    outStr += '<html>'
-    outStr += """<head>
-        <script src="http://d3js.org/d3.v3.js"></script>
-        <style>
-        body {
-            background-color:white
-            font-family : Arial,"Myriad Web",Verdana,Helvetica,sans-serif;
-        }
-        h1   {color:black}
-        p    {color:green}
-        
-        table, th, td {
-            border: 1px solid black;
-            border-collapse: collapse;
-            
-            font-size : 12;
-        }
-        th {
-            text-align: center;
-            background-color:darkgray;
-            color:white;
-            border: 1px solid black;
-        }
-        table {border-spacing: 1px;}
-        th,td {padding: 5px;}
-        td {text-align: center;}
-    </style></head>"""
-    outStr += '<body>'
-    outStr += """
-    <script>
-        
-        var width = 1000,
-            height = 500,
-            padding = 50;
-        
-        d3.csv("readspercluster.csv", function (data) {
-            var map = data.map( function (i) { return parseInt(i.reads); } )
-            
-            var histogram = d3.layout.histogram()
-                .bins(100)
-                (map)
-                
-            var y = d3.scale.linear()
-                .domain([0, d3.max(histogram.map( function (i) { return i.length; } ) )])
-                .range([height, 0]);
-
-            var x = d3.scale.linear()
-                .domain([0, d3.max(map)])
-                .range([0, width]);
-                
-            var xAxis = d3.svg.axis()
-                .scale(x)
-                .orient("bottom");
-
-            var yAxis = d3.svg.axis()
-                .scale( y )
-                .orient("left");
-
-            var canvas = d3.select("body").append("svg")
-                .attr("width",width)
-                .attr("height",height + padding )
-                .append("g")
-                    .attr( "transform", "translate( 100 , 0 )" ) ;
-                
-            var group = canvas.append("g")
-                .attr("transform","translate(0," + height + ")" )
-                .style({ 'stroke': 'Black', 'fill': 'none', 'stroke-width': '1px'})
-                .call(xAxis);
-
-            var group2 = canvas.append("g")
-                .style({ 'stroke': 'Black', 'fill': 'none', 'stroke-width': '1px'})
-                .call(yAxis);
-                
-            var bars = canvas.selectAll(".bar")
-                .data(histogram)
-                .enter()
-                .append("g");
-            
-            bars.append("rect")
-                .attr("x", function (d) { return x(d.x) } )
-                .attr("y", function (d) { return y(d.y) } )
-                .attr("width", function (d) { return x(d.dx) } )
-                .attr("height", function (d) { return y(0) - y(d.y) } )
-                .attr("fill", "steelblue");
-        } ) </script>
-    """
-    outStr += '</body></html>\n'
     return outStr
 
 @app.route('/cluster<cluster_id>')
@@ -879,8 +590,6 @@ def makehandlejson():
 
     return json
 
-
 if __name__ == "__main__":
 #    createStaticFiles(app)
     app.run(host='0.0.0.0',port=5000,debug=True)
-
