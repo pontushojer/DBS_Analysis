@@ -28,241 +28,244 @@ def main():
     logfile.write('cmd: '+' '.join(sys.argv)+'\n')
     analysisfolder.logfile = logfile
     
+    #
+    # create and run the readpair aligner object
+    #
     aligner = ReadPairAligner(analysisfolder)
     returncode = aligner.run_bowtie2()
     aligner.mappedPairToDb()
  
-    logfile.write('clusterMapper FINISHED\n')
+    logfile.write(''+os.path.basename(__file__)+' FINISHED\n')
 
 class ReadPairAligner(object):
     
     def __init__(self,analysisfolder):
-	self.analysisfolder = analysisfolder
+        self.analysisfolder = analysisfolder
 
     def run_bowtie2(self,):
-	
-	#
-	# imports
-	#
-	import subprocess
+        
+        #
+        # imports
+        #
+        import subprocess
         import time
 
-	bowtie2Logfile = open(self.analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'_bowtie2.log.txt','w')
-	
-	#
-	# check that the variables are set
-	#
-	if not self.analysisfolder.settings.bowtie2Reference:
-	    msg = '# ERROR # bowtie2Reference not present.\n'
-	    sys.stderr.write(msg)
-	    if self.analysisfolder.logfile: self.analysisfolder.logfile.write(msg);
-	    sys.exit()
-	if not self.analysisfolder.settings.picardPath:
-	    msg = '# ERROR # picardPath not present.\n'
-	    sys.stderr.write(msg)
-	    if self.analysisfolder.logfile: self.analysisfolder.logfile.write(msg);
-	    sys.exit()
-
-	#
-	# run bowtie and pipe to picard for format conversion
-	#
-	command1 = ['bowtie2',
-		    '-1',self.analysisfolder.dataPath+'/inserts.r1.fastq',
-		    '-2',self.analysisfolder.dataPath+'/inserts.r2.fastq',
-		    #'-U',self.analysisfolder.dataPath+'/inserts.singlets.fastq',
-		    '-x',self.analysisfolder.settings.bowtie2Reference,
-		    '--maxins','2000',
-		    '-p',str(self.analysisfolder.settings.parallelProcesses)      # threads
-		    ]
-	bowtie2 = subprocess.Popen(command1,stdout=subprocess.PIPE,stderr=bowtie2Logfile )
-
-	picardLogfile = open(self.analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'picardSamFormatConverter.log.txt','w')
-	command2 = ['java',
-		    '-Xmx5g',
-		    '-jar',self.analysisfolder.settings.picardPath+'/SamFormatConverter.jar',
-		    'MAX_RECORDS_IN_RAM=2500000',
-		    'INPUT='+ '/dev/stdin',
-		    'OUTPUT='+self.analysisfolder.dataPath+'/mappedInserts.bam'
-		    ]
-	picard = subprocess.Popen(command2,stdin=bowtie2.stdout,stdout=subprocess.PIPE,stderr=picardLogfile )
-	
-	#
-	# run
-	#
-	if self.analysisfolder.logfile: self.analysisfolder.logfile.write('Starting command: '+' '.join(command1)+'\n')
-	if self.analysisfolder.logfile: self.analysisfolder.logfile.write('Starting command: '+' '.join(command2)+'\n')
-	errdata = picard.communicate()
-	
-	#
-	# check return codes
-	#
-	if (bowtie2.returncode != 0 and bowtie2.returncode != None) or picard.returncode != 0:
-	    if bowtie2.returncode != 0 and bowtie2.returncode != None:
-		print '#\n# cmd: '+' '.join( command1 )+'\n#'
-		print 'bowtie2 view Error code', bowtie2.returncode
-		print 'logfile content:\n'+open(bowtie2Logfile.name).read()
-	    if picard.returncode != 0:
-		print '#\n# cmd: '+' '.join( command2 )+'\n#'
-		print 'picard view Error code', picard.returncode, errdata, open(picardLogfile.name).read()
-	    #return 'FAIL'
-	    sys.exit()
-	
-	pattern="""(?P<totalReads>\d+) reads; of these:\n\s+(?P<pairedReads>\d+) \(\d+.\d+\%\) were paired; of these:\n\s+(?P<notPropMapedPair>\d+) \(\d+.\d+\%\) aligned concordantly 0 times\n\s+(?P<properPairs>\d+) \(\d+.\d+\%\) aligned concordantly exactly 1 time\n\s+(?P<properPairsMultiMap>\d+) \(\d+.\d+\%\) aligned concordantly >1 times\n\s+----\n\s+(?P<notPropMapedPair2>\d+) pairs aligned concordantly 0 times; of these:\n\s+(?P<discordantPairs>\d+) \(\d+.\d+\%\) aligned discordantly 1 time\n\s+----\n\s+(?P<unMappedPair>\d+) pairs aligned 0 times concordantly or discordantly; of these:\n\s+(?P<possibleSingletons>\d+) mates make up the pairs; of these:\n\s+(?P<unMappedReads>\d+) \(\d+.\d+\%\) aligned 0 times\n\s+(?P<singleSingleMap>\d+) \(\d+.\d+\%\) aligned exactly 1 time\n\s+(?P<singleMultiMap>\d+) \(\d+.\d+\%\) aligned >1 times\n(?P<overallAlignmentRate>\d+.\d+)\% overall alignment rate"""
-	import re
-	with open(bowtie2Logfile.name) as infile:
-	    data = infile.read()
-	    p = re.compile(pattern)
-	    m = p.search(data)
-	    self.analysisfolder.results.setResult('bt2AlignmentRate',m.groupdict()['overallAlignmentRate'])
-	    self.analysisfolder.results.saveToDb()
-
-	return 'COMPLETE'
-	
-    def mappedPairToDb(self,):
-	#
-	# imports
-	#
-	import subprocess
-        import time
-	import misc
-	from seqdata import SamFlag
+        bowtie2Logfile = open(self.analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'_bowtie2.log.txt','w')
+        
+        #
+        # check that the variables are set
+        #
+        if not self.analysisfolder.settings.bowtie2Reference:
+            msg = '# ERROR # bowtie2Reference not present.\n'
+            sys.stderr.write(msg)
+            if self.analysisfolder.logfile: self.analysisfolder.logfile.write(msg);
+            sys.exit()
+        if not self.analysisfolder.settings.picardPath:
+            msg = '# ERROR # picardPath not present.\n'
+            sys.stderr.write(msg)
+            if self.analysisfolder.logfile: self.analysisfolder.logfile.write(msg);
+            sys.exit()
 
         #
-	# set initial values
-	#
-	updateValues = []
-	updateChunks = []
-	updateChunkSize = 10000
-	mappedReadCount = 0 # total reads processed both mapped and unmapped
-	mappedReadCountQ20 = 0 # SE reads mapped with mapping quality more than q20
-	runSamtools = False
+        # run bowtie and pipe to picard for format conversion
+        #
+        command1 = ['bowtie2',
+                  '-1',self.analysisfolder.dataPath+'/inserts.r1.fastq',
+                  '-2',self.analysisfolder.dataPath+'/inserts.r2.fastq',
+                  #'-U',self.analysisfolder.dataPath+'/inserts.singlets.fastq',
+                  '-x',self.analysisfolder.settings.bowtie2Reference,
+                  '--maxins','2000',
+                  '-p',str(self.analysisfolder.settings.parallelProcesses)      # threads
+                  ]
+        bowtie2 = subprocess.Popen(command1,stdout=subprocess.PIPE,stderr=bowtie2Logfile )
 
-	#
-	# load read header to id mappings
-	#
-	header2id={}
-	self.analysisfolder.database.getConnection()
-	readPairs = self.analysisfolder.database.c.execute('SELECT id, header FROM reads')# WHERE constructType=?',('constructOK',))
-	while True:
-	    rows = readPairs.fetchmany()#size=readPairs.arraysize)
-	    if not rows: break
-	    for row in rows:
-		currentRead, header = row
-		header2id[str(header)[1:]] = currentRead
-	self.analysisfolder.database.commitAndClose()
+        picardLogfile = open(self.analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'picardSamFormatConverter.log.txt','w')
+        command2 = ['java',
+                  '-Xmx5g',
+                  '-jar',self.analysisfolder.settings.picardPath+'/SamFormatConverter.jar',
+                  'MAX_RECORDS_IN_RAM=2500000',
+                  'INPUT='+ '/dev/stdin',
+                  'OUTPUT='+self.analysisfolder.dataPath+'/mappedInserts.bam'
+                  ]
+        picard = subprocess.Popen(command2,stdin=bowtie2.stdout,stdout=subprocess.PIPE,stderr=picardLogfile )
 
-	if runSamtools:
-	    #
-	    # run samtools to get data
-	    #
-	    samtoolsLogfile = open(self.analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'samtoolsView.log.txt','w')
-	    command = ['samtools','view',self.analysisfolder.dataPath+'/mappedInserts.bam']
-	    samtools = subprocess.Popen(command,stdout=subprocess.PIPE,stderr=samtoolsLogfile )
+        #
+        # run
+        #
+        if self.analysisfolder.logfile: self.analysisfolder.logfile.write('Starting command: '+' '.join(command1)+'\n')
+        if self.analysisfolder.logfile: self.analysisfolder.logfile.write('Starting command: '+' '.join(command2)+'\n')
+        errdata = picard.communicate()
+        
+        #
+        # check return codes
+        #
+        if (bowtie2.returncode != 0 and bowtie2.returncode != None) or picard.returncode != 0:
+            if bowtie2.returncode != 0 and bowtie2.returncode != None:
+                print '#\n# cmd: '+' '.join( command1 )+'\n#'
+                print 'bowtie2 view Error code', bowtie2.returncode
+                print 'logfile content:\n'+open(bowtie2Logfile.name).read()
+            if picard.returncode != 0:
+                print '#\n# cmd: '+' '.join( command2 )+'\n#'
+                print 'picard view Error code', picard.returncode, errdata, open(picardLogfile.name).read()
+            #return 'FAIL'
+            sys.exit()
+
+        pattern="""(?P<totalReads>\d+) reads; of these:\n\s+(?P<pairedReads>\d+) \(\d+.\d+\%\) were paired; of these:\n\s+(?P<notPropMapedPair>\d+) \(\d+.\d+\%\) aligned concordantly 0 times\n\s+(?P<properPairs>\d+) \(\d+.\d+\%\) aligned concordantly exactly 1 time\n\s+(?P<properPairsMultiMap>\d+) \(\d+.\d+\%\) aligned concordantly >1 times\n\s+----\n\s+(?P<notPropMapedPair2>\d+) pairs aligned concordantly 0 times; of these:\n\s+(?P<discordantPairs>\d+) \(\d+.\d+\%\) aligned discordantly 1 time\n\s+----\n\s+(?P<unMappedPair>\d+) pairs aligned 0 times concordantly or discordantly; of these:\n\s+(?P<possibleSingletons>\d+) mates make up the pairs; of these:\n\s+(?P<unMappedReads>\d+) \(\d+.\d+\%\) aligned 0 times\n\s+(?P<singleSingleMap>\d+) \(\d+.\d+\%\) aligned exactly 1 time\n\s+(?P<singleMultiMap>\d+) \(\d+.\d+\%\) aligned >1 times\n(?P<overallAlignmentRate>\d+.\d+)\% overall alignment rate"""
+        import re
+        with open(bowtie2Logfile.name) as infile:
+            data = infile.read()
+            p = re.compile(pattern)
+            m = p.search(data)
+            self.analysisfolder.results.setResult('bt2AlignmentRate',m.groupdict()['overallAlignmentRate'])
+            self.analysisfolder.results.saveToDb()
+  
+        return 'COMPLETE'
+
+    def mappedPairToDb(self,):
+        #
+        # imports
+        #
+        import subprocess
+        import time
+        import misc
+        from seqdata import SamFlag
+
+        #
+        # set initial values
+        #
+        updateValues = []
+        updateChunks = []
+        updateChunkSize = 10000
+        mappedReadCount = 0 # total reads processed both mapped and unmapped
+        mappedReadCountQ20 = 0 # SE reads mapped with mapping quality more than q20
+        runSamtools = False
+
+        #
+        # load read header to id mappings
+        #
+        header2id={}
+        self.analysisfolder.database.getConnection()
+        readPairs = self.analysisfolder.database.c.execute('SELECT id, header FROM reads')# WHERE constructType=?',('constructOK',))
+        while True:
+            rows = readPairs.fetchmany()#size=readPairs.arraysize)
+            if not rows: break
+            for row in rows:
+                currentRead, header = row
+                header2id[str(header)[1:]] = currentRead
+        self.analysisfolder.database.commitAndClose()
+
+        if runSamtools:
+            #
+            # run samtools to get data
+            #
+            samtoolsLogfile = open(self.analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'samtoolsView.log.txt','w')
+            command = ['samtools','view',self.analysisfolder.dataPath+'/mappedInserts.bam']
+            samtools = subprocess.Popen(command,stdout=subprocess.PIPE,stderr=samtoolsLogfile )
     
     
-	    #
-	    # run
-	    #
-	    if self.analysisfolder.logfile: self.analysisfolder.logfile.write('Starting command: '+' '.join(command)+'\n')
-	    while True:
-		try:
-		    bamFilePos = None
-		    line1 = samtools.stdout.next().rstrip().split('\t')
-		    line2 = samtools.stdout.next().rstrip().split('\t')
-		    [QNAME1,FLAG1,RNAME1,POS1,MAPQ1,CIGAR1,RNEXT1,PNEXT1,TLEN1,SEQ1,QUAL1] = line1[:11]
-		    [QNAME2,FLAG2,RNAME2,POS2,MAPQ2,CIGAR2,RNEXT2,PNEXT2,TLEN2,SEQ2,QUAL2] = line2[:11]
-		    TAGS1 = line1[11:]
-		    TAGS2 = line2[11:]
-		    if QNAME1 == QNAME2:
-			#print FLAG1, RNAME1,POS1,MAPQ1,CIGAR1,FLAG2, RNAME2,POS2,MAPQ2,CIGAR2,QNAME1
-			mappedReadCount += 1
-			updateValues.append( (int(FLAG1), RNAME1,int(POS1),int(MAPQ1),CIGAR1,int(FLAG2), RNAME2,int(POS2),int(MAPQ2),CIGAR2,abs(int(TLEN1)),bamFilePos,header2id[str(QNAME1)]) )
-			if len(updateValues) == updateChunkSize:
-			    updateChunks.append(updateValues)
-			    updateValues = []
-			if int(MAPQ1) >= 20:
-			    f1 = SamFlag(int(FLAG1))
-			    if f1.mapped: mappedReadCountQ20 += 1
-			if int(MAPQ1) >= 20:
-			    f2 = SamFlag(int(FLAG2))
-			    if f2.mapped: mappedReadCountQ20 += 1
-		except StopIteration: break # end of file
-	    updateChunks.append(updateValues)
+            #
+            # run
+            #
+            if self.analysisfolder.logfile: self.analysisfolder.logfile.write('Starting command: '+' '.join(command)+'\n')
+            while True:
+              try:
+                  bamFilePos = None
+                  line1 = samtools.stdout.next().rstrip().split('\t')
+                  line2 = samtools.stdout.next().rstrip().split('\t')
+                  [QNAME1,FLAG1,RNAME1,POS1,MAPQ1,CIGAR1,RNEXT1,PNEXT1,TLEN1,SEQ1,QUAL1] = line1[:11]
+                  [QNAME2,FLAG2,RNAME2,POS2,MAPQ2,CIGAR2,RNEXT2,PNEXT2,TLEN2,SEQ2,QUAL2] = line2[:11]
+                  TAGS1 = line1[11:]
+                  TAGS2 = line2[11:]
+                  if QNAME1 == QNAME2:
+                    #print FLAG1, RNAME1,POS1,MAPQ1,CIGAR1,FLAG2, RNAME2,POS2,MAPQ2,CIGAR2,QNAME1
+                    mappedReadCount += 1
+                    updateValues.append( (int(FLAG1), RNAME1,int(POS1),int(MAPQ1),CIGAR1,int(FLAG2), RNAME2,int(POS2),int(MAPQ2),CIGAR2,abs(int(TLEN1)),bamFilePos,header2id[str(QNAME1)]) )
+                    if len(updateValues) == updateChunkSize:
+                        updateChunks.append(updateValues)
+                        updateValues = []
+                    if int(MAPQ1) >= 20:
+                        f1 = SamFlag(int(FLAG1))
+                        if f1.mapped: mappedReadCountQ20 += 1
+                    if int(MAPQ1) >= 20:
+                        f2 = SamFlag(int(FLAG2))
+                        if f2.mapped: mappedReadCountQ20 += 1
+              except StopIteration: break # end of file
+            updateChunks.append(updateValues)
     
-	    #
-	    # check return codes
-	    #
-	    if (samtools.returncode != 0 and samtools.returncode != None):
-		    print '#\n# cmd: '+' '.join( command1 )+'\n#'
-		    print 'samtools view view Error code', samtools.returncode
-		    print 'logfile content:\n'+open(samtoolsLogfile.name).read()
-		    #return 'FAIL'
-		    sys.exit()
-	else:
-	    #
-	    # Run with pysam instead
-	    #
-	    
-	    import pysam
-	    
-	    bamFile = pysam.Samfile(self.analysisfolder.dataPath+'/mappedInserts.bam')
-	    
-	    while True:
-		try:
-		    bamFilePos = bamFile.tell()
-		    r1 =  bamFile.next()
-		    r2 =  bamFile.next()
-		    if r1.qname == r2.qname:
-			mappedReadCount += 1
-			FLAG1  = r1.flag
+            #
+            # check return codes
+            #
+            if (samtools.returncode != 0 and samtools.returncode != None):
+                  print '#\n# cmd: '+' '.join( command1 )+'\n#'
+                  print 'samtools view view Error code', samtools.returncode
+                  print 'logfile content:\n'+open(samtoolsLogfile.name).read()
+                  #return 'FAIL'
+                  sys.exit()
+        else:
+            #
+            # Run with pysam instead
+            #
 
-			POS1   = r1.pos
-			MAPQ1  = r1.mapq
-			try:CIGAR1 = r1.cigarstring
-			except AttributeError: CIGAR1 = str(r1.cigar)
-			FLAG2  = r2.flag
-		    	POS2   = r2.pos
-			MAPQ2  = r2.mapq
-			try:CIGAR2 = r2.cigarstring
-			except AttributeError: CIGAR2 = str(r2.cigar)
-			TLEN1  = r1.isize
-			QNAME1 = r1.qname
-			f1 = SamFlag(int(FLAG1))
-			f2 = SamFlag(int(FLAG2))
-			if f1.mapped:
-			    RNAME1 = bamFile.getrname(r1.tid)
-			    if r1.mapq >= 20: mappedReadCountQ20 += 1
-			else: RNAME1 = ''
-			if f2.mapped:
-			    RNAME2 = bamFile.getrname(r2.tid)
-			    if r2.mapq >= 20: mappedReadCountQ20 += 1
-			else: RNAME2 = ''
-			updateValues.append( (int(FLAG1), RNAME1,int(POS1),int(MAPQ1),CIGAR1,int(FLAG2), RNAME2,int(POS2),int(MAPQ2),CIGAR2,abs(int(TLEN1)),bamFilePos,header2id[str(QNAME1)]) )
-			#updateValues.append( (int(r1.flag), bamFile.getrname(r1.tid),int(r1.pos),int(r1.mapq),r1.cigarstring,int(r2.flag), bamFile.getrname(r2.tid),int(r2.pos),int(r2.mapq),r2.cigarstring,abs(int(r1.isize)),header2id[str(rq.qname)]) )
-			if len(updateValues) == updateChunkSize:
-			    updateChunks.append(updateValues)
-			    updateValues = []
-		    else: print 'ERROR: reads not paired properly!!! has the file '+self.analysisfolder.dataPath+'/mappedInserts.bam changed manually??'
-		except StopIteration: break # end of file
-	    updateChunks.append(updateValues)
+            import pysam
+
+            bamFile = pysam.Samfile(self.analysisfolder.dataPath+'/mappedInserts.bam')
+
+            while True:
+                try:
+                    bamFilePos = bamFile.tell()
+                    r1 =  bamFile.next()
+                    r2 =  bamFile.next()
+                    if r1.qname == r2.qname:
+                        
+                        mappedReadCount += 1
+                        FLAG1  = r1.flag      
+                        POS1   = r1.pos
+                        MAPQ1  = r1.mapq
+                        try:CIGAR1 = r1.cigarstring
+                        except AttributeError: CIGAR1 = str(r1.cigar)
+                        FLAG2  = r2.flag
+                        POS2   = r2.pos
+                        MAPQ2  = r2.mapq
+                        try:CIGAR2 = r2.cigarstring
+                        except AttributeError: CIGAR2 = str(r2.cigar)
+                        TLEN1  = r1.isize
+                        QNAME1 = r1.qname
+                        f1 = SamFlag(int(FLAG1))
+                        f2 = SamFlag(int(FLAG2))
+                        if f1.mapped:
+                            RNAME1 = bamFile.getrname(r1.tid)
+                            if r1.mapq >= 20: mappedReadCountQ20 += 1
+                        else: RNAME1 = ''
+                        if f2.mapped:
+                            RNAME2 = bamFile.getrname(r2.tid)
+                            if r2.mapq >= 20: mappedReadCountQ20 += 1
+                        else: RNAME2 = ''
+                        updateValues.append( (int(FLAG1), RNAME1,int(POS1),int(MAPQ1),CIGAR1,int(FLAG2), RNAME2,int(POS2),int(MAPQ2),CIGAR2,abs(int(TLEN1)),bamFilePos,header2id[str(QNAME1)]) )
+                        #updateValues.append( (int(r1.flag), bamFile.getrname(r1.tid),int(r1.pos),int(r1.mapq),r1.cigarstring,int(r2.flag), bamFile.getrname(r2.tid),int(r2.pos),int(r2.mapq),r2.cigarstring,abs(int(r1.isize)),header2id[str(rq.qname)]) )
+                        if len(updateValues) == updateChunkSize:
+                            updateChunks.append(updateValues)
+                            updateValues = []
+                    else: print 'ERROR: reads not paired properly!!! has the file '+self.analysisfolder.dataPath+'/mappedInserts.bam changed manually??'
+                except StopIteration: break # end of file
+            updateChunks.append(updateValues)
 
 
-	#
-	# Update the reads table
-	#
-	if self.analysisfolder.logfile: self.analysisfolder.logfile.write('Updating read pair info in the database ... \n')
-	progress = misc.Progress(mappedReadCount, logfile=self.analysisfolder.logfile, unit='reads-updated', mem=True)
-	with progress:
-	    for updateValues in updateChunks:
-		self.analysisfolder.database.getConnection()
-		self.analysisfolder.database.c.executemany('UPDATE reads SET mappingFlagR1=?, refNameR1=?, refPosR1=?, mapQR1=?, cigarR1=?, mappingFlagR2=?, refNameR2=?, refPosR2=?, mapQR2=?, cigarR2=?, insertSize=?, bamFilePos=? WHERE id=?', updateValues)
-		self.analysisfolder.database.commitAndClose()
-		for i in xrange(len(updateValues)): progress.update()
+        #
+        # Update the reads table
+        #
+        if self.analysisfolder.logfile: self.analysisfolder.logfile.write('Updating read pair info in the database ... \n')
+        progress = misc.Progress(mappedReadCount, logfile=self.analysisfolder.logfile, unit='reads-updated', mem=True)
+        with progress:
+            for updateValues in updateChunks:
+                self.analysisfolder.database.getConnection()
+                self.analysisfolder.database.c.executemany('UPDATE reads SET mappingFlagR1=?, refNameR1=?, refPosR1=?, mapQR1=?, cigarR1=?, mappingFlagR2=?, refNameR2=?, refPosR2=?, mapQR2=?, cigarR2=?, insertSize=?, bamFilePos=? WHERE id=?', updateValues)
+                self.analysisfolder.database.commitAndClose()
+                for i in xrange(len(updateValues)): progress.update()
+  
+        print misc.percentage(mappedReadCountQ20,mappedReadCount*2),'% nice mappings (',mappedReadCountQ20,') in ',mappedReadCount,'read pairs'
+        self.analysisfolder.results.setResult('alignmentRateQ20',misc.percentage(mappedReadCountQ20,mappedReadCount*2))
+        self.analysisfolder.results.saveToDb()
+        
+        return 'COMPLETE'
 
-	print misc.percentage(mappedReadCountQ20,mappedReadCount*2),'% nice mappings (',mappedReadCountQ20,') in ',mappedReadCount,'read pairs'
-	self.analysisfolder.results.setResult('alignmentRateQ20',misc.percentage(mappedReadCountQ20,mappedReadCount*2))
-	self.analysisfolder.results.saveToDb()
-	
-	return 'COMPLETE'
-    
 if __name__ == "__main__": main()
