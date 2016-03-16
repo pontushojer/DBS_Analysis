@@ -532,159 +532,212 @@ class Settings(object,):
     
     def __init__(self, analysisfolder):
         """ object holding the settings used for each part of the analysis """
-	
+        
+        #
+        # NOTE: All variables needs to be defined in the Defaults,Explenation and Variable sections below!
+        #
+        
         self.analysisfolder = analysisfolder
         import multiprocessing
-	import sequences
+        import sequences
         
-	self.defaultValues = {
-	    'debug':False,
-	    'uppmaxProject':'b2014005',
-	    'parallelProcesses':multiprocessing.cpu_count(),
-	    'maxHandleMissMatches':0,
-	    'barcodeLength':len(sequences.DBS),
-#	    'analysisParts':None,
-	    'barcodeMissmatch':0,
-#	    'readsPerUmiCutOff':5,
-#	    'umiMaxMisMatch':2,
-	    'readsPerClusterCutOff':0,
-	    'bowtie2Reference':None,
-	    'picardPath':None,
-	    'mapqCutOff':0,
-	    'minPairsPerCluster':2
+        #
+        # Default values for all settings
+        #
+        self.defaultValues = {
+            'debug':False,
+            'uppmaxProject':'b2014005',
+            'parallelProcesses':multiprocessing.cpu_count(),
+            'maxHandleMissMatches':0,
+            'barcodeLength':len(sequences.DBS),
+            #'analysisParts':None,
+            'barcodeMissmatch':0,
+            #'readsPerUmiCutOff':5,
+            #'umiMaxMisMatch':2,
+            'readsPerClusterCutOff':0,
+            'bowtie2Reference':None,
+            'picardPath':None,
+            'mapqCutOff':0,
+            'minPairsPerCluster':2
 
-	}
-	self.explenations = {
-	    'debug':'Flag for running the scripts in multiprocessing or as single process run [True/False] (default=False)',
-	    'uppmaxProject':'Project id used at uppmax for sbatch scripts [bXXXXXXX] (default=b2014005)',
-	    'parallelProcesses':'Number of process to run when doing multiprocess parts of analysis (defaul=multiprocessing.cpu_count())',
-	    'barcodeLength':'The length of the bead barcode (default='+str(len(sequences.DBS))+')',
-#	    'analysisParts':'Parts of the analysis to run specific for each run.',
-	    'barcodeMissmatch':'Number of missmatches allowed in the barcode sequence',
-	    'maxHandleMissMatches':'Number of missmatches allowed in the handle sequence',
-#	    'readsPerUmiCutOff':'Number of reads supporting one UMI for it to passs filters',
-#	    'umiMaxMisMatch':'Number of missmatches allowed in the UMI sequence',
-	    'readsPerClusterCutOff':'Number of reads supporting a barcode sequence cluster for it to passs filters',
-	    'bowtie2Reference':'path to the bowtie 2 reference index',
-	    'picardPath':'path to the picard installation to use',
-	    'mapqCutOff':'filter all reads with mapping quality less than this (default='+str(self.defaultValues['mapqCutOff'])+')',
-	    'minPairsPerCluster':'minimum number of read pairs supporting a cluster for it to be included in analysis (default 2)'
-	}
-	self.isDefault = {}
-	self.setTime = {}
-
-	self.debug = None
-	self.uppmaxProject = None
-	self.parallelProcesses = None
-	self.maxHandleMissMatches = None
-	self.barcodeLength = None
-#	self.analysisParts = None
-	self.barcodeMissmatch = None
-#	self.readsPerUmiCutOff = None
-#	self.umiMaxMisMatch = None
-	self.readsPerClusterCutOff = None
-	self.bowtie2Reference = None
-	self.picardPath = None
-	self.mapqCutOff = None
-	self.minPairsPerCluster=None
-	
-	self.setDefaults()
+        }
+        
+        #
+        # Explenation strings for all settings
+        #
+        self.explenations = {
+            'debug':'Flag for running the scripts in multiprocessing or as single process run [True/False] (default=False)',
+            'uppmaxProject':'Project id used at uppmax for sbatch scripts [bXXXXXXX] (default=b2014005)',
+            'parallelProcesses':'Number of process to run when doing multiprocess parts of analysis (defaul=multiprocessing.cpu_count())',
+            'barcodeLength':'The length of the bead barcode (default='+str(len(sequences.DBS))+')',
+            #'analysisParts':'Parts of the analysis to run specific for each run.',
+            'barcodeMissmatch':'Number of missmatches allowed in the barcode sequence',
+            'maxHandleMissMatches':'Number of missmatches allowed in the handle sequence',
+            #'readsPerUmiCutOff':'Number of reads supporting one UMI for it to passs filters',
+            #'umiMaxMisMatch':'Number of missmatches allowed in the UMI sequence',
+            'readsPerClusterCutOff':'Number of reads supporting a barcode sequence cluster for it to passs filters',
+            'bowtie2Reference':'path to the bowtie 2 reference index',
+            'picardPath':'path to the picard installation to use',
+            'mapqCutOff':'filter all reads with mapping quality less than this (default='+str(self.defaultValues['mapqCutOff'])+')',
+            'minPairsPerCluster':'minimum number of read pairs supporting a cluster for it to be included in analysis (default 2)'
+        }
+        
+        #
+        # containers needed to store information about latest time of seting update to deceide if update is needed
+        #
+        self.isDefault = {}
+        self.setTime = {}
+        
+        #
+        # variables defenition so that they exist in self.__dict__
+        #
+        self.debug = None
+        self.uppmaxProject = None
+        self.parallelProcesses = None
+        self.maxHandleMissMatches = None
+        self.barcodeLength = None
+        #self.analysisParts = None
+        self.barcodeMissmatch = None
+        #self.readsPerUmiCutOff = None
+        #self.umiMaxMisMatch = None
+        self.readsPerClusterCutOff = None
+        self.bowtie2Reference = None
+        self.picardPath = None
+        self.mapqCutOff = None
+        self.minPairsPerCluster=None
+        
+        # set the default values
+        self.setDefaults()
 
     def setDefaults(self,):
-	for variableName, value in self.defaultValues.iteritems():
-	    self.__dict__[variableName] = value
-	    self.isDefault[variableName] = True
-	    self.setTime[variableName] = None
-	return 0
+        """ sets the default valeus to the variables using self.__dict__ and matching self.default  """
+        for variableName, value in self.defaultValues.iteritems():
+            self.__dict__[variableName] = value
+            self.isDefault[variableName] = True
+            self.setTime[variableName] = None
+        return 0
 
     def loadFromDb(self,):
-	
-	#
-	# Get the connection
-	#
-	self.analysisfolder.database.getConnection()
-	
-	#
-	# Select data
-	#
-	data = self.analysisfolder.database.c.execute('SELECT variableName,defaultValue,value,setTime FROM settings').fetchall()
-	
-	#
-	# Parse data and add to object __dict__
-	#
-	if data:
-	    for variableName,default,value,setTime in data:
-		self.__dict__[variableName]  = value
-		self.isDefault[variableName] = default
-		self.setTime[variableName]   = setTime
-	
-	#
-	# close connection
-	#
-	self.analysisfolder.database.commitAndClose()
+        """ Load any info from the database settings table and store it this object
+        """
+      
+        #
+        # Get the connection
+        #
+        self.analysisfolder.database.getConnection()
+
+        #
+        # Select data
+        #
+        data = self.analysisfolder.database.c.execute('SELECT variableName,defaultValue,value,setTime FROM settings').fetchall()
+
+        #
+        # Parse data and add to object __dict__
+        #
+        if data:
+            for variableName,default,value,setTime in data:
+                self.__dict__[variableName]  = value
+                self.isDefault[variableName] = default
+                self.setTime[variableName]   = setTime
+
+        #
+        # close connection
+        #
+        self.analysisfolder.database.commitAndClose()
 
     def setVariable(self,variableName,value):
-	import time
-	assert variableName in self.explenations,'Error: you are trying to set an undefined variable.\n'
-	self.__dict__[variableName]  = value
-	self.isDefault[variableName] = False
-	self.setTime[variableName]   = time.time()
-	return 0
+        """ update the variable value and the set time etc """
+        
+        import time
+        
+        # check that the variable name is valid
+        assert variableName in self.explenations,'Error: you are trying to set an undefined variable.\n'
+        
+        # set the values
+        self.__dict__[variableName]  = value
+        self.isDefault[variableName] = False
+        self.setTime[variableName]   = time.time()
+        
+        return 0
 
     def saveToDb(self,):
-	
-	#
-	# imports
-	#
-	import time
-	
-	#
-	# get connection
-	#
-	self.analysisfolder.database.getConnection()
-	
+
+        #
+        # imports
+        #
+        import time
+
+        #
+        # get connection
+        #
+        self.analysisfolder.database.getConnection()
+
         #
         # Look whats already in database, update it if older or default and set what is not
         #
-	self.analysisfolder.logfile.write('checking whats in db.\n')
+        self.analysisfolder.logfile.write('checking whats in db.\n')
         alreadyInDb = {}
-	data = self.analysisfolder.database.c.execute('SELECT variableName,defaultValue,value,setTime FROM settings').fetchall()
+        data = self.analysisfolder.database.c.execute('SELECT variableName,defaultValue,value,setTime FROM settings').fetchall()
         if data:
+
             for variableName,default,value,setTime in data:
-		self.analysisfolder.logfile.write('processing variable '+variableName+'')
-		alreadyInDb[variableName] = True
-		
-		if variableName in self.__dict__:
-		    if default and not self.isDefault[variableName] or setTime < self.setTime[variableName]:
-			if type(self.__dict__[variableName]) in [dict,list]: self.__dict__[variableName] = str(self.__dict__[variableName])
-			self.analysisfolder.logfile.write(', updating from '+str(value)+' to '+str(self.__dict__[variableName])+', old_setTime '+str(setTime)+' new_setTime '+str(self.setTime[variableName])+'.\n')
-			self.analysisfolder.database.c.execute('UPDATE settings SET defaultValue=?, value=?, setTime=? WHERE variableName=?', (self.isDefault[variableName],self.__dict__[variableName],self.setTime[variableName],variableName))
-		    else: self.analysisfolder.logfile.write(' no update needed.\n')
-        
+                self.analysisfolder.logfile.write('processing variable '+variableName+'')
+                alreadyInDb[variableName] = True
+
+                if variableName in self.__dict__:
+                    # check if the variable is the default value or needs update based on time of the set action
+                    if default and not self.isDefault[variableName] or setTime < self.setTime[variableName]:
+                        
+                        # convert any dicts or lists to strings
+                        if type(self.__dict__[variableName]) in [dict,list]: self.__dict__[variableName] = str(self.__dict__[variableName])
+                        
+                        # send a message to the log and update database
+                        self.analysisfolder.logfile.write(', updating from '+str(value)+' to '+str(self.__dict__[variableName])+', old_setTime '+str(setTime)+' new_setTime '+str(self.setTime[variableName])+'.\n')
+                        self.analysisfolder.database.c.execute('UPDATE settings SET defaultValue=?, value=?, setTime=? WHERE variableName=?', (self.isDefault[variableName],self.__dict__[variableName],self.setTime[variableName],variableName))
+                    
+                    else: self.analysisfolder.logfile.write(' no update needed.\n')
+
         #
         # Add new vars to database
         #
-	self.analysisfolder.logfile.write('adding new vars to db:\n')
+        self.analysisfolder.logfile.write('adding new vars to db:\n')
         for variableName in self.__dict__:
-	    if variableName in ['explenations','defaultValues','isDefault','setTime','analysisfolder']:continue
-	    if variableName not in alreadyInDb:
-		if type(self.__dict__[variableName]) in [dict,list]: self.__dict__[variableName] = str(self.__dict__[variableName])
-		values = (variableName,self.isDefault[variableName],self.__dict__[variableName],self.setTime[variableName])
-		self.analysisfolder.database.c.execute('INSERT INTO settings VALUES (?,?,?,?)', values)
-		self.analysisfolder.logfile.write('variable '+variableName+' added to db with value '+str(self.__dict__[variableName])+',')
-		if self.isDefault[variableName]:self.analysisfolder.logfile.write(' this is the default value.\n')
-		else:self.analysisfolder.logfile.write(' non-default value.\n')
-	    else: pass#SEAseqPipeLine.logfile.write('variable\t'+variableName+'\talready in db.\n')
-        
-	self.analysisfolder.logfile.write('commiting changes to database.\n')
+            
+            # if not variable but a known container of other types of info such as explenations or settimes
+            if variableName in ['explenations','defaultValues','isDefault','setTime','analysisfolder']:continue
+            
+            # new sets ie not updates which were already handled above
+            if variableName not in alreadyInDb:
+                
+                # to str conversion like earlier
+                if type(self.__dict__[variableName]) in [dict,list]: self.__dict__[variableName] = str(self.__dict__[variableName])
+                
+                # update the database
+                values = (variableName,self.isDefault[variableName],self.__dict__[variableName],self.setTime[variableName])
+                self.analysisfolder.database.c.execute('INSERT INTO settings VALUES (?,?,?,?)', values)
+                
+                # some info to logfile
+                self.analysisfolder.logfile.write('variable '+variableName+' added to db with value '+str(self.__dict__[variableName])+',')
+                if self.isDefault[variableName]:self.analysisfolder.logfile.write(' this is the default value.\n')
+                else:self.analysisfolder.logfile.write(' non-default value.\n')
+            
+            else: pass#SEAseqPipeLine.logfile.write('variable\t'+variableName+'\talready in db.\n')
+
+        self.analysisfolder.logfile.write('commiting changes to database.\n')
         self.analysisfolder.database.commitAndClose()
         
         return 0
 
 class AnalysisFolder(object):
-    """This class represent the analysis outpt folder, hold the structure for it and track the files within"""
+    """This class represent the analysis outpt folder, hold the structure for it and track the files within it is also the container that enables other info such as settings to be sent around among functions in a controlled way"""
     
     def __init__(self, path, logfile=None):
+
+        #
+        # imports
+        #
+        import os
+        import sqlite3
 
         # Folders
         self.path = path
@@ -708,19 +761,19 @@ class AnalysisFolder(object):
         
         # objects
         self.database  = Database(self.databaseFileName)
-	self.readsdb  =  ReadsDB(self.path+'/reads.db')
+        self.readsdb  =  ReadsDB(self.path+'/reads.db')
         self.settings = Settings(self)
         self.results = Results(self)
         
-        import os
-	import sqlite3
+        # if database already exists load the info from it
         if os.path.exists(self.databaseFileName):
             try:
-		self.settings.loadFromDb()
-		self.results.loadFromDb()
-	    except sqlite3.OperationalError:pass
+                self.settings.loadFromDb()
+                self.results.loadFromDb()
+            except sqlite3.OperationalError: pass
 
     def create(self, ):
+        """ This functions creates the folder structure and the database """
 
         import os
         for folder in self.folders:
@@ -729,8 +782,8 @@ class AnalysisFolder(object):
         
         self.database.create()
         
-
     def checkIntegrity(self, ):
+        """ A function that checks if all folders are in place """
         
         import os
         
@@ -740,4 +793,3 @@ class AnalysisFolder(object):
             if not os.path.isdir(folder): return 'FAIL: The folder structure is broken.'
         
         return 'PASS'
-
