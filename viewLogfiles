@@ -5,9 +5,12 @@ def main():
     logfileMonitor.run()
 
 class LogfileMonitor():
+    """ takes a directory from sys.argv and looks for files in that dir-tree and then runs tail follow on the files and shows output in parallel
+    """
     
     def __init__(self, ):
-        
+        """ find the directory from argv and set initial values of variables
+        """
     
         import sys
         import os
@@ -27,6 +30,8 @@ class LogfileMonitor():
                 sys.stderr.write(thing+'is not dir or file skipping\n')
 
     def checkDirectories(self, ):
+        """ function that loooks for new files in the monitored directories
+        """
         
         import os
         import time
@@ -42,15 +47,17 @@ class LogfileMonitor():
         return newFiles
     
     def startTail(self, filename, outputRows):
+        """ start the tail subprocess for a file
+        """
 
-	import subprocess
-	import sys
+        import subprocess
+        import sys
 
-	command = ['tail',
-		    '-fn',
-		    '0',
-		    filename
-		    ]
+        command = ['tail',
+                    '-fn',
+                    '0',
+                    filename
+                ]
 
         outputRows.put(('init','\n##############\n## New File ##'+' Starting command: '+' '.join(command)+'\n##############\n'+ open(filename).read()+'\n'))
         #sys.stderr.write('## New File ## Starting command: '+' '.join(command)+'\n')
@@ -62,25 +69,36 @@ class LogfileMonitor():
         
         for line in iter(tail.stdout.readline,''): outputRows.put((filename, line))
 
-	#errdata = tail.communicate()
-	#if (tail.returncode != 0 and tail.returncode != None):
-	#    if tail.returncode != 0:
-	#	print '#\n# cmd: '+' '.join( tail )+'\n#'
-	#	print 'tail view Error code', tail.returncode, errdata
-	#	#return 'FAIL'
-	#	sys.exit()
-    
-    def run(self):
+        #errdata = tail.communicate()
+        #if (tail.returncode != 0 and tail.returncode != None):
+        #    if tail.returncode != 0:
+        #	print '#\n# cmd: '+' '.join( tail )+'\n#'
+        #	print 'tail view Error code', tail.returncode, errdata
+        #	#return 'FAIL'
+        #	sys.exit()
 
+    def run(self):
+        """ runing the monitor of the directory to find new files and start the subprocesses
+        """
+
+        #
+        # imports
+        #
         import sys
         import time
         import multiprocessing
         import operator
         
+        #
+        # managers to keep track of data
+        #
         output_manager = multiprocessing.Manager()
         outputRows = output_manager.Queue()
         lastRowFrom = None
         
+        #
+        # running loop
+        #
         while True:
             try:
                 
