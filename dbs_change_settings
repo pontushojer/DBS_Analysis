@@ -20,9 +20,9 @@ def main():
     # check analysis folder
     #
     if not analysisfolder.checkIntegrity() == 'PASS':
-	if analysisfolder.checkIntegrity() == 'FAIL: The folder does not exist.': analysisfolder.create()
-	else:
-	    print analysisfolder.checkIntegrity()+'\nERROR: Now exiting'
+        if analysisfolder.checkIntegrity() == 'FAIL: The folder does not exist.': analysisfolder.create()
+        else:
+            print analysisfolder.checkIntegrity()+'\nERROR: Now exiting'
 
     #
     # create a logfile
@@ -31,27 +31,36 @@ def main():
     logfile.write('cmd: '+' '.join(sys.argv)+'\n')
     analysisfolder.logfile = logfile
     
+    #
+    # check that there is some instructions on the commandline otherwise print error message
+    #
     try:
-	settings2change = sys.argv[2:]
-	if not settings2change: raise IndexError
+        settings2change = sys.argv[2:]
+        if not settings2change: raise IndexError
     except IndexError:
-	msg = '#ERROR_MSG#'+time.strftime("%Y-%m-%d:%H:%M:%S",time.localtime())+'# Please supply atleast one variable name and value on your commandline on the format variableName=value or include the term "listsettings" to get a list of available variable names (currently: "'+' '.join(sys.argv)+'"), exiting.\n'
-	logfile.write(msg)
-	sys.stderr.write(msg)
-	sys.exit(1)
-    
-    if 'listsettings' in settings2change:
-	longestName = max([len(x) for x in analysisfolder.settings.explenations.keys()])
-	sys.stderr.write('VariableName:'+''.join(' ' for i in range(longestName-len('VariableName:')))+'\t'+'Description:'+'\n')
-	for variableName, description in analysisfolder.settings.explenations.iteritems():
-	    sys.stderr.write(variableName+''.join(' ' for i in range(longestName-len(variableName)))+'\t'+description+' (currentValue='+str(analysisfolder.settings.__dict__[variableName])+')\n')
+        msg = '#ERROR_MSG#'+time.strftime("%Y-%m-%d:%H:%M:%S",time.localtime())+'# Please supply atleast one variable name and value on your commandline on the format variableName=value or include the term "listsettings" to get a list of available variable names (currently: "'+' '.join(sys.argv)+'"), exiting.\n'
+        logfile.write(msg)
+        sys.stderr.write(msg)
+        sys.exit(1)
 
+    #
+    # if there is an instruction to change/set a setting value do that
+    #
     for setting2change in settings2change:
-	if setting2change == 'listsettings': continue
-	variableName,value = setting2change.split('=')
-	analysisfolder.settings.setVariable(variableName,value)
-	
+        if setting2change == 'listsettings': continue
+        variableName,value = setting2change.split('=')
+        analysisfolder.settings.setVariable(variableName,value)
+
     analysisfolder.settings.saveToDb()
+    
+    #
+    # if "listsettings" on commandline print a list of available settings current values etc
+    #
+    if 'listsettings' in settings2change:
+        longestName = max([len(x) for x in analysisfolder.settings.explenations.keys()])
+        sys.stderr.write('VariableName:'+''.join(' ' for i in range(longestName-len('VariableName:')))+'\t'+'Description:'+'\n')
+        for variableName, description in analysisfolder.settings.explenations.iteritems():
+            sys.stderr.write(variableName+''.join(' ' for i in range(longestName-len(variableName)))+'\t'+description+' (currentValue='+str(analysisfolder.settings.__dict__[variableName])+')\n')
  
     logfile.write('wfaChangeSettings FINISHED\n')
 
