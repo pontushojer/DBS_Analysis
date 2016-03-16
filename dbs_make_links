@@ -8,30 +8,45 @@ def main():
     import sys
     import os
     
+    #
+    # check for/ create bin folder and start the link creation
+    #
     if os.path.exists(os.getenv("HOME")+'/bin') and os.path.isdir(os.getenv("HOME")+'/bin'):
         create_links()
     else:
         os.makedirs(os.getenv("HOME")+'/bin')
+        sys.stderr.write('WARNING: the bin folder did not exist remember to add it to your path.\nTest to google "how to add home/bin to path" for help.')
+        create_links()
+    
     print 'ok all done!'
 
 def create_links():
+    """ for all program names in list defined below make links in the bin folder
+    """
+    
     program_names = [
         'dbs_barcode_clustrer',
         'dbs_change_settings',
         'dbs_cluster_analyzer',
         'dbs_handle_indetifier',
         'dbs_insert_mapper',
-        'dbs_web_interface_server'
+        'dbs_web_interface_server',
+        'viewLogfiles'
         ]
+    
     for program_name in program_names: update_link(program_name)
 
 def make_link(program_name):
+    """ create link to string program_name in the folder of this executable in HOME/bin
+    """
     import os
     src = os.path.dirname(os.path.realpath(__file__))+'/'+program_name
     dst = os.getenv("HOME")+'/bin/'+program_name
     if not os.path.exists(dst):os.symlink(src, dst)
 
 def update_link(program_name):
+    """ check if the link exist in that case remove it, always create it
+    """
     import os
     dst = os.getenv("HOME")+'/bin/'+program_name 
     if os.path.islink(dst): os.remove(dst)
