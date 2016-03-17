@@ -3,7 +3,6 @@
 #
 # Imports
 #
-
 from flask import Flask
 from flask import render_template
 from flask import json
@@ -12,6 +11,9 @@ import sys
 import time
 import os
 
+#
+# initiate the flask application
+#
 app = Flask(
     __name__,
     static_folder   = '/'.join(os.path.realpath(__file__).split('/')[:-1])+'/web_interface_static',
@@ -25,6 +27,7 @@ try: analysisfolder = metadata.AnalysisFolder(sys.argv[1])
 except IndexError: sys.stderr.write('please supply a commandline on format:\n'+os.path.basename(__file__)+' <analysis-output-folder>\n');sys.exit()
 app.analysisfolder = analysisfolder
 app.analysisfolder.settings.mapqCutOff = int(app.analysisfolder.settings.mapqCutOff)
+
 #
 # check analysis folder
 #
@@ -38,6 +41,7 @@ logfile.write('cmd: '+' '.join(sys.argv)+'\n')
 analysisfolder.logfile = logfile
 
 def createStaticFiles(app):
+    """ function for creating the static folder if not present and some csv file -- DEPRECATED """
     
     #
     # Imports
@@ -51,7 +55,7 @@ def createStaticFiles(app):
     if not os.path.isdir(pathToStatic): os.mkdir(pathToStatic)
     
     #insert sizes
-	
+
     #
     # open connection to database
     #
@@ -90,20 +94,23 @@ def indexForeachCluster(clusterId):
 
 @app.route("/")
 def start():
+    """ initial page does nothing but redirecting the user to the index.html route """
+    
     page =  """<!DOCTYPE HTML>
-    <html lang="en-US">
-	<head>
-	    <meta charset="UTF-8">
-	    <meta http-equiv="refresh" content="1;url=index.html">
-	    <script type="text/javascript">
-		window.location.href = "index.html"
-	    </script>
-	    <title>Page Redirection</title>
-	</head>
-	<body>
-	    If you are not redirected automatically, follow <a href='index.html'>this link</a>
-	</body>
-    </html>"""
+        <html lang="en-US">
+        <head>
+            <meta charset="UTF-8">
+            <meta http-equiv="refresh" content="1;url=index.html">
+            <script type="text/javascript">
+              window.location.href = "index.html"
+            </script>
+            <title>Page Redirection</title>
+        </head>
+        <body>
+            If you are not redirected automatically, follow <a href='index.html'>this link</a>
+        </body>
+      </html>"""
+    
     return page
 
 @app.route("/index.html")
@@ -112,134 +119,35 @@ def start():
 @app.route('/index.html&low<low>&high<high>')
 @app.route('/index.html&high<high>&low<low>')
 def index(high=1000,low=0):
-    
-    high = max(int(high),int(low)+10)
-    
-    app.analysisfolder.logfile.write('Generating index.html ...\n')
-    
+    """ function that builds the index page of the webinterface """
+
+    #
+    # Imports
+    #
     from seqdata import BarcodeClusterer, BarcodeCluster
     from misc import thousandString, percentage
     import os
     import operator
+
+    # convert high and low values for the cluster to show to integers
+    high = max(int(high),int(low)+10)
+    
+    app.analysisfolder.logfile.write('Generating index.html ...\n')
+    
+    #
+    # Initiate HTML file strucutre
+    #
     outStr = ''
     outStr += '<html>'
     outStr += """<head>
         <script src="http://d3js.org/d3.v3.js"></script>
-        <style>
-        body {
-            background-color:white
-            font-family : Arial,"Myriad Web",Verdana,Helvetica,sans-serif;
-        }
-        h1   {color:black}
-        p    {color:green}
-        
-        table, th, td {
-            border: 1px solid black;
-            border-collapse: collapse;
-            
-            font-size : 12;
-        }
-        th {
-            text-align: center;
-            background-color:darkgray;
-            color:white;
-            border: 1px solid black;
-        }
-        table {border-spacing: 1px;}
-        th,td {padding: 5px;}
-        td {text-align: center;}
-        
-        #page {
-            position:absolute;
-            top:0;
-            left:0;
-            width:100%;
-            width:100vw;
-        }
-        
-        #header {
-            background-color:black;
-            color:white;
-            text-align:left;
-            padding:5px;
-            height:60px;
-            width:100%;
-            width:100vw;
-            position:absolute;
-        }
-        
-        #status {
-            background-color:#e1e1e1;
-            text-align:center;
-            padding:10px;
-            width:100%;
-            left:0;
-            position:absolute;
-            top:60px
-        }
-        
-        #statistics {
-            line-height:20px;
-            background-color:#eeeeee;
-            width:500px;
-            padding:20px;
-            float:left;
-        }
-        
-        #details {
-            padding:20px;
-            float:left;
-        }
-        
-        #image {
-            padding:0px;
-            float:left;
-            font: 10px sans-serif;
-        }
-        #slider {
-            padding:0px;
-            float:left;
-            font: 10px sans-serif;
-        }
-        rect {
-            fill: steelblue;
-        }
-        rect:hover {
-            fill: black ;
-        }
-        .d3-tip {
-          line-height: 1;
-          font-weight: bold;
-          padding: 12px;
-          background: rgba(0, 0, 0, 0.8);
-          color: #fff;
-          border-radius: 2px;
-        }
-        .d3-tip:after {
-          box-sizing: border-box;
-          display: inline;
-          font: 10px sans-serif;
-          font-size: 10px;
-          width: 100%;
-          line-height: 1;
-          color: rgba(0, 0, 0, 0.8);
-          content: "\\25BC";
-          position: absolute;
-          text-align: center;
-        }
-        .d3-tip.n:after {
-          margin: -1px 0 0 0;
-          top: 100%;
-          left: 0;
-        }
-        
-        path {
-            stroke: #000;
-        }
-
-    </style></head>"""
+        <link rel="stylesheet" href="static/css/style.css">
+        </head>"""
     outStr += '<body><div id="page">'
-
+    
+    #
+    # The header bar seqction
+    #
     outStr += '<div id="header">'
     outStr += '<h2>'+'&nbsp&nbsp&nbsp&nbsp'+'Summary of analysis at '+str(os.path.abspath(app.analysisfolder.path))+':</h2>'
     outStr += '</div>'
@@ -249,6 +157,10 @@ def index(high=1000,low=0):
     outStr += '<svg height="32" width="180"><circle cx="16" cy="16" r="15" stroke="black" stroke-width="1" fill="gray" /><text x="40" y="20">clustersMapper</text></svg>'
     outStr += '<svg height="32" width="150"><circle cx="16" cy="16" r="15" stroke="black" stroke-width="1" fill="gray" /><text x="40" y="20">analyseClusters</text></svg>'
     outStr += '</div>'
+    
+    #
+    # The stats sidebar on the left
+    #
     outStr += '<div id="statistics"><br><br><br><br><br>'
     outStr += '<h2>Stats:</h2>'
     outStr += 'Total read pairs: '+thousandString(app.analysisfolder.results.totalReadCount)+'<br>\n'
@@ -259,11 +171,6 @@ def index(high=1000,low=0):
 
     outStr += 'Construct type dictionary: '+'<br>\n'
     outStr += '<center><div id="handlesunburst"></div><br><strong><span id="handleinfo">Total read pairs '+thousandString(app.analysisfolder.results.totalReadCount)+'</span></strong></center>'
-    #for what, count in eval(app.analysisfolder.results.constructTypes).iteritems():
-    #if app.analysisfolder.results.constructTypes:
-    #    for what, count in sorted(eval(app.analysisfolder.results.constructTypes).iteritems(), key=operator.itemgetter(1))[::-1]:
-    #        outStr += '&nbsp&nbsp&nbsp&nbsp'+what+' => '+str(percentage(count,app.analysisfolder.results.totalReadCount))+'%, ('+thousandString(count)+')<br>\n'
-    #else:outStr += 'No Data Available<br>\n'
     outStr += '<br>\n'
     outStr += '<script src="/static/js/handlesSunburst.js"></script>'
     
@@ -283,6 +190,9 @@ def index(high=1000,low=0):
     outStr += '<br>\n'
     outStr += '</div>'
     
+    #
+    # The cluster detail panel on the right
+    #
     outStr += '<div id="details"><br><br><br><br><br>'
     outStr += """<br><br>
     <script src="http://labratrevenge.com/d3-tip/javascripts/d3.tip.v0.6.3.js"></script>
@@ -292,7 +202,7 @@ def index(high=1000,low=0):
         <label for="nReadsMin" style="display: inline-block; width: 55px; text-align: right">
         <span id="nReadsMin-value" style="font: 12px sans-serif;color:black">...</span>
         </label>
-        <input type="range" step="1" min="0" max="5000" id="nAngle" value="0"><br>
+        <input type="range" step="1" min="0" max="5000" id="nRPCcutoff" value="0"><br>
         <div id="image"></div>
     </div>
     
@@ -313,11 +223,6 @@ def index(high=1000,low=0):
         tableHeader += '<th>map%q20 (SE)</th>'
         tableHeader += '<th>goodPair%</th>'
         tableHeader += '<th>dup%</th>'
-    #    outStr += '<th>pos R1</th>'
-    #    outStr += '<th>pos R2</th>'
-    #    outStr += '<th>insertsize</th>'
-    #    outStr += '<th>mapQ</th>'
-    #    outStr += '<th>CIGAR</th>'
         tableHeader += '</tr>' 
         counter = 0
         sameChrom = 0
@@ -363,25 +268,25 @@ def index(high=1000,low=0):
             if mappedSE == 'NA': tableRows += '<font color="gray">'
             elif mappedSE > 50:tableRows += '<font color="green">'
             else:            tableRows += '<font color="red">'
-	    tableRows += str(mappedSE)+'%</font></a></td>\n'
+            tableRows += str(mappedSE)+'%</font></a></td>\n'
 
             tableRows += '<td><a href="cluster'+str(cluster.id)+'">'
             if mappedSEqPass == 'NA': tableRows += '<font color="gray">'
             elif mappedSEqPass > 50:tableRows += '<font color="green">'
             else:            tableRows += '<font color="red">'
-	    tableRows += str(mappedSEqPass)+'%</font></a></td>\n'
+            tableRows += str(mappedSEqPass)+'%</font></a></td>\n'
 
             tableRows += '<td><a href="cluster'+str(cluster.id)+'">'
             if goodReads == 'NA': tableRows += '<font color="gray">'
             elif goodReads > 50:tableRows += '<font color="green">'
             else:            tableRows += '<font color="red">'
-	    tableRows += str(goodReads)+'%</font></a></td>\n'
+            tableRows += str(goodReads)+'%</font></a></td>\n'
 
             tableRows += '<td><a href="cluster'+str(cluster.id)+'">'
             if dupPerc == 'NA': tableRows += '<font color="gray">'
             elif dupPerc < 50:tableRows += '<font color="green">'
             else:            tableRows += '<font color="red">'
-	    tableRows += str(dupPerc)+'%</font></a></td>\n'
+            tableRows += str(dupPerc)+'%</font></a></td>\n'
 
             tableRows += '</tr>'
 
@@ -393,9 +298,8 @@ def index(high=1000,low=0):
 
 
         #
-        # summary row
+        # summary row for the clusters table
         #
-
         mappedSE = percentage(totalmappedSEReads, totalreadPairsInBamFile*2)
         mappedSEqPass=percentage(totalSEreadsPassMappingQualityFilter,totalreadPairsInBamFile*2)
         goodReads = percentage(totalgoodReadPairs,totalreadPairsInBamFile)
@@ -442,6 +346,7 @@ def index(high=1000,low=0):
 @app.route('/cluster<cluster_id>')
 @app.route('/cluster<cluster_id>&makebam=<makebam>')
 def cluster(cluster_id, makebam=False):
+    """ per cluster info page function """
 
     import time
     starttime = time.time()
@@ -501,8 +406,8 @@ def cluster(cluster_id, makebam=False):
 
 @app.route("/readspercluster.csv")
 def readspercluster():
-    from seqdata import BarcodeCluster, BarcodeClusterer
-
+    """ creates a csv from the info in database and dumps to string """
+    
     outstr = '"id","reads"'+'\n'    
     app.analysisfolder.database.getConnection()
     try: tmpData = list(app.analysisfolder.database.c.execute('SELECT clusterId,clusterTotalReadCount FROM barcodeClusters').fetchall())
@@ -510,31 +415,12 @@ def readspercluster():
     app.analysisfolder.database.commitAndClose()
     for i in tmpData:
         if int(i[1]) > 0 :outstr += '"'+str(i[0])+'",'+str(i[1])+'\n'
-
-    # outstr += '"pelle",0'+'\n'
-    # outstr += '"pelle",10'+'\n'
-    # outstr += '"pelle",20'+'\n'
-    # outstr += '"pelle",30'+'\n'
-    # outstr += '"pelle",40'+'\n'
-    # outstr += '"pelle",50'+'\n'
-    # outstr += '"pelle",50'+'\n'
-    # outstr += '"pelle",0'+'\n'
-    # outstr += '"pelle",10'+'\n'
-    # outstr += '"pelle",60'+'\n'
-    # if app.analysisfolder.results.barcodeClusterCount:
-    #     barcodeClusterer = BarcodeClusterer(app.analysisfolder)
-    #     counter = 0
-    #     sameChrom = 0
-    #     pcrDup = 0
-    #     for clusterId in barcodeClusterer.getBarcodeClusterIds(shuffle=False,byMixedClusterReadCount=False):
-    #         cluster = indexForeachCluster(clusterId)
-    #         outstr += '"'+str(cluster.id)+'",'+str(cluster.readPairCount)+'\n'
-    #         counter += 1
-    #         if counter == 100: break
     return outstr
 
 @app.route("/handles.json")
 def makehandlejson():
+    """ gets the handle content information and dums it to json """
+    
     import operator
     from misc import percentage
     from misc import thousandString
