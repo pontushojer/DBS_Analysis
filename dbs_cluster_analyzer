@@ -20,7 +20,7 @@ def main():
     try: analysisfolder = metadata.AnalysisFolder(sys.argv[1])
     except IndexError: sys.stderr.write('please supply a commandline on format:\n'+os.path.basename(__file__)+' <analysis-output-folder> [reanalyze=bool]\n');sys.exit()
     try:
-	if eval(sys.argv[2].split('=')[1])==True:reAnalyze(analysisfolder)
+        if eval(sys.argv[2].split('=')[1])==True:reAnalyze(analysisfolder)
     except IndexError: pass
 
     #
@@ -35,104 +35,154 @@ def main():
     logfile.write('cmd: '+' '.join(sys.argv)+'\n')
     analysisfolder.logfile = logfile
 
-    #
-    # restructuring the data
-    #
-    if False:#not analysisfolder.database.datadropped:
-	logfile.write('Restructuring database ... \n')
-	barcodeClusterer = BarcodeClusterer(analysisfolder)
-	barcodeClusterer.fillReadsDb()
-	logfile.write('Dropping data ... \n')
-	analysisfolder.database.dropReadColumns()
-	logfile.write('done. \n')
+    ############################################################################################################################
+    # restructuring the data                                                                                                   #
+    # This is an old approach that was dropped due to that it was not verry efficient, still here incase its needed later      #
+    if False:#not analysisfolder.database.datadropped:                                                                         #
+        logfile.write('Restructuring database ... \n')                                                                         #
+        barcodeClusterer = BarcodeClusterer(analysisfolder)                                                                    #
+        barcodeClusterer.fillReadsDb()                                                                                         #
+        logfile.write('Dropping data ... \n')                                                                                  #
+        analysisfolder.database.dropReadColumns()                                                                              #
+        logfile.write('done. \n')                                                                                              #
+    ############################################################################################################################
 
     progress = Progress(analysisfolder.results.barcodeClusterCount,logfile=analysisfolder.logfile, unit='clusters',printint=1)
     updateChunk = []
 
+    # flag for multiprocessing or not
     runInParallel = True
+    
+    #
+    # run the analysis functions for all the clusters aither using multiprocessing or not depending on the flag setting above
+    #
     if runInParallel:
-	poolOfProcesses = multiprocessing.Pool(int(analysisfolder.settings.parallelProcesses),maxtasksperchild=100000000)
-	parallelResults = poolOfProcesses.imap_unordered(foreachCluster,cluster_generator(analysisfolder),chunksize=1)
-	for cluster in parallelResults:
-	    updateChunk = forResultingCluster(progress,cluster,updateChunk)
+        poolOfProcesses = multiprocessing.Pool(int(analysisfolder.settings.parallelProcesses),maxtasksperchild=100000000)
+        parallelResults = poolOfProcesses.imap_unordered(foreachCluster,cluster_generator(analysisfolder),chunksize=1)
+        for cluster in parallelResults:
+            updateChunk = forResultingCluster(progress,cluster,updateChunk)
 
-    else:
+    else: # serial
         for cluster in cluster_generator(analysisfolder):
-	    cluster = foreachCluster(cluster)
-	    updateChunk = forResultingCluster(progress,cluster)
+            cluster = foreachCluster(cluster)
+            updateChunk = forResultingCluster(progress,cluster)
 
-    updateClusterChunk(cluster.analysisfolder,updateChunk)
+    updateClusterChunk(cluster.analysisfolder,updateChunk) # last update to not lose end values
     
     logfile.write('analyseClusters FINISHED\n')
 
 def reAnalyze(analysisfolder):
+    """ this function resets the analyzed flag for all clusters in the database so that they are analyzed again """
     analysisfolder.database.getConnection()
     analysisfolder.database.c.execute('UPDATE barcodeClusters SET analyzed=?',(False,))
     analysisfolder.database.commitAndClose()
 
 def forResultingCluster(progress,cluster,updateChunk):
+    """ post analysis processing for each cluster """
+    
+    #
+    # add the info to the cunk of clusters to be updated
+    #
     if cluster.analyzed: updateChunk.append(cluster.updatedb(doUpdate=False,returnTuple=True))
     progress.update()
+    
+    #
+    # if the chunk is more than 1000 clusters update the database table
+    #
     if len(updateChunk) >= 1000:
-	updateClusterChunk(cluster.analysisfolder,updateChunk)
-	updateChunk = []
+        updateClusterChunk(cluster.analysisfolder,updateChunk)
+        updateChunk = []
+    
+    # pass the chuck on to the next cluster
     return updateChunk
 
 def cluster_generator(analysisfolder):
+    """ function that gets the clusterids from the database and yields seqdata.BarcodeCluster() objects """
     
     from seqdata import BarcodeCluster
     from seqdata import BarcodeClusterer
     
     barcodeClusterer = BarcodeClusterer(analysisfolder)
     for cluster_id in barcodeClusterer.getBarcodeClusterIds(shuffle=True,byMixedClusterReadCount=True):
-#    for cluster_id in barcodeClusterer.getBarcodeClusterIds(shuffle=False,byMixedClusterReadCount=False):
-	cluster = BarcodeCluster(int(cluster_id), analysisfolder)
-	#if cluster.readPairCount < 10: continue
-	yield cluster
+        cluster = BarcodeCluster(int(cluster_id), analysisfolder)
+        yield cluster
 
 def foreachCluster(cluster):
+    """ functions to be run to analyze each of the clusters """
+    
+    #load info from the database
     cluster.loadClusterInfo()
+    
+    # if cluster is not analyzed and meet the req. run the analysis
     if not cluster.analyzed and cluster.readPairCount >= cluster.analysisfolder.settings.minPairsPerCluster:
-	cluster.analyze()
-	cluster.removeAllFiles()
+        cluster.analyze()
+        cluster.removeAllFiles()
+    
+    # if already analyzed move on
     elif cluster.analyzed:
-	cluster.analyzed = False;
-	print cluster.id,'already analyzed'
+        cluster.analyzed = False;
+        print cluster.id,'already analyzed'
+    
+    # flag cluster if below readcount cutof
     elif cluster.readPairCount < cluster.analysisfolder.settings.minPairsPerCluster:
-	cluster.analyzed = True;
-	cluster.annotations['LowReadCount']=True;
-	print cluster.id,' low read count'
+        cluster.analyzed = True;
+        cluster.annotations['LowReadCount']=True;
+        print cluster.id,' low read count'
+    
     return cluster
 
 def updateClusterChunk(analysisfolder,chunk):
+    """ function for updating the information for a chunk of clusters in the database """
+    
+    # Note that the parts with lock does not function properly due to the use of sqllite3 which only allows one conection to the database at a time
+
     with analysisfolder.database.lock:
-	analysisfolder.database.writeInProgress.value = True
-	import sqlite3
-	import time
-	updated = False
-	while not updated:
-	    try: 
-		analysisfolder.database.getConnection()
-		analysisfolder.database.c.execute('PRAGMA table_info(barcodeClusters)')
-		columnNames = [col[1] for col in analysisfolder.database.c.fetchall()]
-		if 'constructTypes' not in columnNames:
-		    try: analysisfolder.logfile.write('Creating columns in table barcodeClusters in database \n')
-		    except ValueError: pass
-		    analysisfolder.database.getConnection()
-		    analysisfolder.database.c.execute("alter table barcodeClusters add column constructTypes string")
-		    analysisfolder.database.c.execute("alter table barcodeClusters add column readPairsInBamFile integer")
-		    analysisfolder.database.c.execute("alter table barcodeClusters add column mappedSEReads integer")
-		    analysisfolder.database.c.execute("alter table barcodeClusters add column SEreadsPassMappingQualityFilter integer")
-		    analysisfolder.database.c.execute("alter table barcodeClusters add column goodReadPairs integer")
-		    analysisfolder.database.c.execute("alter table barcodeClusters add column duplicateReadPairs integer")
-		    analysisfolder.database.c.execute("alter table barcodeClusters add column goodReadPairPositions string")
-		    analysisfolder.database.c.execute("alter table barcodeClusters add column htmlTable string")
-		    analysisfolder.database.c.execute("alter table barcodeClusters add column analyzed BOOLEAN")
-		analysisfolder.database.c.executemany('UPDATE barcodeClusters SET annotations=?, constructTypes=?,readPairsInBamFile=?, mappedSEReads=?, SEreadsPassMappingQualityFilter=?, goodReadPairs=?, duplicateReadPairs=?, goodReadPairPositions=?, htmlTable=?, analyzed=? WHERE clusterId=?', chunk)
-		analysisfolder.database.commitAndClose()
-		analysisfolder.database.writeInProgress.value = False
-		updated = True
-		print 'updated ',len(chunk),'clusters', updated,'(',','.join([str(x[-1]) for x in chunk]),')'
-	    except sqlite3.OperationalError: time.sleep(1)
+        analysisfolder.database.writeInProgress.value = True
+        
+        #
+        # imports
+        #
+        import sqlite3
+        import time
+        
+        #set initial flag
+        updated = False
+        
+        while not updated: # try to update until sucess
+            try: 
+                
+                # get connection
+                analysisfolder.database.getConnection()
+                
+                # check the columns in the table and add missing columns
+                analysisfolder.database.c.execute('PRAGMA table_info(barcodeClusters)')
+                columnNames = [col[1] for col in analysisfolder.database.c.fetchall()]
+                if 'constructTypes' not in columnNames:
+                    try: analysisfolder.logfile.write('Creating columns in table barcodeClusters in database \n')
+                    except ValueError: pass
+                    analysisfolder.database.getConnection()
+                    analysisfolder.database.c.execute("alter table barcodeClusters add column constructTypes string")
+                    analysisfolder.database.c.execute("alter table barcodeClusters add column readPairsInBamFile integer")
+                    analysisfolder.database.c.execute("alter table barcodeClusters add column mappedSEReads integer")
+                    analysisfolder.database.c.execute("alter table barcodeClusters add column SEreadsPassMappingQualityFilter integer")
+                    analysisfolder.database.c.execute("alter table barcodeClusters add column goodReadPairs integer")
+                    analysisfolder.database.c.execute("alter table barcodeClusters add column duplicateReadPairs integer")
+                    analysisfolder.database.c.execute("alter table barcodeClusters add column goodReadPairPositions string")
+                    analysisfolder.database.c.execute("alter table barcodeClusters add column htmlTable string")
+                    analysisfolder.database.c.execute("alter table barcodeClusters add column analyzed BOOLEAN")
+                
+                # update the values for all the clusters in the chunk
+                analysisfolder.database.c.executemany('UPDATE barcodeClusters SET annotations=?, constructTypes=?,readPairsInBamFile=?, mappedSEReads=?, SEreadsPassMappingQualityFilter=?, goodReadPairs=?, duplicateReadPairs=?, goodReadPairPositions=?, htmlTable=?, analyzed=? WHERE clusterId=?', chunk)
+                
+                # commit the data and close the connection
+                analysisfolder.database.commitAndClose()
+                analysisfolder.database.writeInProgress.value = False
+                
+                # set flag to true
+                updated = True
+
+                print 'updated ',len(chunk),'clusters', updated,'(',','.join([str(x[-1]) for x in chunk]),')'
+                
+            except sqlite3.OperationalError: time.sleep(1) # will be executed if database is blocked
 
 if __name__ == "__main__": main()
