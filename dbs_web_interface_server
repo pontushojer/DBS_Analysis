@@ -478,4 +478,5 @@ def makehandlejson():
 
 if __name__ == "__main__":
 #    createStaticFiles(app)
-    app.run(host='0.0.0.0',port=5000,debug=True)
+    import random
+    app.run(host='0.0.0.0',port=random.randint(1000,9999),debug=True)
