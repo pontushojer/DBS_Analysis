@@ -78,6 +78,13 @@ def thousandString(string):
         if (i+1)%3 == 0: outstring += ' '
     return outstring[::-1]
 
+def sorted_nicely( l ): # funtion "stolen from the internet"
+    import re
+    """ Sort the given iterable in the way that humans expect.""" 
+    convert = lambda text: int(text) if text.isdigit() else text 
+    alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ] 
+    return sorted(l, key = alphanum_key)
+
 class Progress():
     """ a progress meter
     """
