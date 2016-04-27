@@ -1471,69 +1471,6 @@ class BarcodeCluster(object,):
         for filename in self.filesCreated:
             if os.path.exists(filename):os.remove(filename)
 
-def readPairGenerator(fastq1,fastq2):
-
-    #
-    # imports
-    #
-    import gzip
-    import sys
-    import misc
-
-    #
-    # Loop through infiles
-    #
-    currentRead = 0
-    totalReadcount = 0
-    readcount = misc.bufcount(fastq1)/4
-    readfromdiskProgress = misc.Progress(readcount, unit='reads-read-from-disk', mem=True)
-    with readfromdiskProgress:
-        #for filePairId, readcount, fastq1, fastq2 in self.infiles:
-        sys.stderr.write(str(currentRead)+' read pairs read from infiles, now starting to read from '+fastq1+'.\n')
-        totalReadcount += readcount
-        
-        #
-        # Open the files
-        #
-        if fastq1.split('.')[-1] in ['gz','gzip']: file1 = gzip.open(fastq1)
-        else: file1 = open(fastq1,'r')
-        if fastq2.split('.')[-1] in ['gz','gzip']: file2 = gzip.open(fastq2)
-        else: file2 = open(fastq2,'r')
-        
-        while 'NOT EOFError':
-            try:
-                header1 = file1.readline().rstrip()
-                header2 = file2.readline().rstrip()
-                sequence1 = file1.readline().rstrip()
-                sequence2 = file2.readline().rstrip()
-                trash = file1.readline().rstrip()
-                trash = file2.readline().rstrip()
-                qual1 = file1.readline().rstrip()
-                qual2 = file2.readline().rstrip()
-                if not header1: break
-                currentRead += 1
-                # data base has following info:
-                #    (id,header,sequence1,sequence2,quality1,quality2,barcodeSequence,clusterId,annotation,fromFastq)
-                barcodeSequence = None
-                clusterId = None
-                annotations = {}
-                if len(sequence1) == 0:
-                    sequence1 = 'NoSequence'
-                    qual1 =  'NoSequence'
-                if len(sequence2) == 0:
-                    sequence2 = 'NoSequence'
-                    qual2 =  'NoSequence'
-                pair = ReadPair(currentRead, header1, header2, sequence1, sequence2, qual1, qual2,barcodeSequence,clusterId,annotations, 0)#fastq1)
-                readfromdiskProgress.update()
-                yield pair#self.currentRead, header1, header2, sequence1, sequence2, qual1, qual2, fastq1
-            except EOFError: break
-            #if currentRead >= 10000:break # to testrun on subset
-        #assert totalReadcount == currentRead, 'Error while reading infiles: Read count after file '+fastq1+' is '+str(currentRead)+' should theoretically be '+str(totalReadcount)+'.\n'
-        sys.stderr.write('Reached the end of '+fastq1+'.\n')
-    grandTotal = totalReadcount
-    sys.stderr.write(str(grandTotal)+' read pairs read from infiles.\n')
-    #SEAseqPipeLine.results.setResult('totalReadCount',grandTotal)
-
 def revcomp(string):
     ''' Takes a sequence and reversecomplements it'''
     complementary = comp(string)
