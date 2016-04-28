@@ -969,6 +969,9 @@ class BarcodeCluster(object,):
 
     @property
     def allreadssamechrom(self,):
+        """ checks if all the reads are mapping on the same reference chromosome sequence and returns a bool
+        """
+        
         tmp = {}
         for readPair in self.readPairs:
             if readPair.mapQR1 >= self.minMAPQ and readPair.mapQR2 >= self.minMAPQ:
@@ -987,6 +990,9 @@ class BarcodeCluster(object,):
 
     @property
     def allreadssamepos(self,):
+        """ checks if all the reads has the same mapping posistion on the reference and returns a bool
+        """
+
         tmp1 = {}
         tmp2 = {}
         for readPair in self.readPairs:
@@ -1006,6 +1012,8 @@ class BarcodeCluster(object,):
         else: return None
 
     def createBamFile(self,):
+        """ creates a bamfile with the reads specific for the clusster
+        """
 
         #
         # imports
@@ -1097,6 +1105,8 @@ class BarcodeCluster(object,):
         return 0
 
     def analyze(self):
+        """ analyze and get statisstics about the cluster and how the reads in the cluster map to the reference
+        """
 
         #
         # imports
@@ -1248,6 +1258,9 @@ class BarcodeCluster(object,):
         self.analyzed = True
 
     def updatedb(self,doUpdate=True,returnTuple=False):
+        """ function for updating the daatabase with information about the cluster
+        """
+        
         if doUpdate:
             with self.analysisfolder.database.lock:
                 self.analysisfolder.database.writeInProgress.value = True
@@ -1282,6 +1295,8 @@ class BarcodeCluster(object,):
             return (str(self.annotations),str(self.constructTypes),self.readPairsInBamFile,self.mappedSEReads,self.SEreadsPassMappingQualityFilter,self.goodReadPairs,self.duplicateReadPairs,str(self.goodReadPairPositions),self.tableStr,self.analyzed,self.id)
 
     def generateHtmlSummary(self):
+        """ generates a small html style summary to use in later visualization of the cluster
+        """
         #
         # output for viewer
         #
@@ -1342,6 +1357,9 @@ class BarcodeCluster(object,):
                 self.filesCreated.append(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.histogram.'+chrom+'.png')
 
     def removeAllFiles(self):
+        """ just removes all temporary files created during the lifetime of the cluster
+        """
+        
         import os
         for filename in self.filesCreated:
             if os.path.exists(filename):os.remove(filename)
