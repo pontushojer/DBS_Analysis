@@ -1,4 +1,6 @@
 class ReadPair(object):
+    """ object that represent an illumina read pair
+    """
     
     import misc
     
@@ -68,7 +70,7 @@ class ReadPair(object):
         return (self.id, self.header, None,None,None,None,self.direction,str(self.h1),str(self.h2),str(self.h3),self.construct,self.dbsmatch,self.dbsSeq,self.dbsQual,self.mappingFlagR1.flag,self.refNameR1,self.refPosR1,self.mapQR1,self.cigarR1,self.mappingFlagR2.flag,self.refNameR2,self.refPosR2,self.mapQR2,self.cigarR2,self.insertSize,self.clusterId,str(self.annotations),self.fileOrigin, self.r1PositionInFile,self.r2PositionInFile,self.bamFilePos)
 
     def fixInsert(self,):
-        """ This functions gets the insert sequence depending on what handles where found earlier... I think... """
+        """ This functions gets the insert sequence depending on what handles where found earlier"""
 
         # the insert variable has the following layout
                       #r1s  r1q  r2s  r2q
@@ -330,6 +332,8 @@ class ReadPair(object):
         self.outputSeq = outputSeq
 
     def identifyDirection(self,):
+        """ function that uses the matchSequence function to find the handles deined in sequences
+        """
         
         import sequences
         
@@ -448,6 +452,8 @@ class BarcodeClusterer(object):
         self.logfile = self.analysisfolder.logfile
 
     def generateBarcodeFastq(self, ):
+        """ function that loads the barcode sequnces found from the database and creates a fasta file with these sequence formated and rady for running the clustering
+        """
 
         #
         # imports
@@ -506,6 +512,8 @@ class BarcodeClusterer(object):
         return readPairHasBarcodeCounter
 
     def runBarcodeClusteringPrograms(self, ):
+        """ runs the actual clustering programs as subprocesses
+        """
 
         #
         # imports
@@ -553,6 +561,8 @@ class BarcodeClusterer(object):
         return 0
 
     def parseBarcodeClusteringOutput(self, readPairsHasBarcode):
+        """ parse the output from the clustering programs to find what reads ids have beeen clustered together
+        """
 
         import misc
         
@@ -620,6 +630,8 @@ class BarcodeClusterer(object):
         return barcodeClusters
 
     def addBarcodeClusterInfoToDatabase(self, barcodeClusters):
+        """ adds the cluster info to the database both one entry for each cluster but also updates each readpair entry
+        """
 
         import misc
         import metadata
@@ -683,6 +695,8 @@ class BarcodeClusterer(object):
         return 0
 
     def clusterBarcodeSequences(self):
+        """ runns all the other functions in the right order
+        """
 
         #
         # imports
@@ -742,6 +756,9 @@ class BarcodeClusterer(object):
         return 0
 
     def getBarcodeClusterIds(self, shuffle=True,byMixedClusterReadCount=True):
+        """ function for fetching barcode cluster info from the database
+        this function should maybe not be under this object but rather be moved to the database object in the future(?)
+        """
 
         import random
 
@@ -820,9 +837,14 @@ class BarcodeClusterer(object):
                 except TypeError: yield clusterId[0]
 
 class BarcodeCluster(object,):
+    """ object that represent a cluster of ReadPairs that all have the same barcode sequence
+    """
     
     def __init__(self, clusterId,analysisfolder):
 
+        #
+        # information about the cluster
+        #
         self.id = clusterId
         self.analysisfolder = analysisfolder
         self.readPairCount = None
@@ -832,22 +854,29 @@ class BarcodeCluster(object,):
         self.readPairIdsList = []
         self.contigIdsList = []
         self.annotations = {}
+        self.analyzed = False
+        self.minMAPQ = 0
 
+        #
+        # connections to the reads
+        #
         self.readPairs = []
         self.readPairsById = {}
         self.readPairIdentities = []
         self.readPairsPassFilter = []
         self.readPairsNotPassingFilter = []
 
+        #
+        # for future usage if we do assebly of reads, only relavant for certain types of experimental data
+        #
         self.contigSequences = []
         self.contigSequencesPassFilter = []
         self.contigSequencesNotPassingFilter = []
         self.nonSingletonContigs = None
 
-        self.analyzed = False
-
-        self.minMAPQ = 0
-
+        #
+        # list to keep track of temporary files
+        #
         self.filesCreated = []
 
     def loadClusterInfo(self, ):
@@ -902,13 +931,24 @@ class BarcodeCluster(object,):
         return 0
 
     def loadReadPairs(self, ):
+        """ function for loading the readpairs from the database for the specific barcode cluster
+        """
 
+        #
+        # imports
+        #
         import sqlite3
         import time
         starttime = time.time()
 #	  try:
         from misc import Progress
+        
+        # wait for acces to the database
         while self.analysisfolder.database.writeInProgress.value: time.sleep(0.1)
+        
+        #
+        # get the reads from the database and add the readobjects to the appropriate containers
+        #
         p = Progress(self.readPairCount, logfile=self.analysisfolder.logfile,unit='cluster_'+str(self.id)+'_reads', mem=True)
         if not self.analysisfolder.database.datadropped:
             for readPair in self.analysisfolder.database.getReadPairs(self.readPairIdsList):
@@ -917,98 +957,13 @@ class BarcodeCluster(object,):
                 try : p.update()
                 except ValueError: pass
 #	  except sqlite3.OperationalError: print 'ERROR: BarcodeCluster.loadReadPairs() is giving a sqlite3.OperationalError!!'
-        else:
-            for readPair in self.analysisfolder.readsdb.getClusterReadPairs(self.id):
-                self.readPairs.append(readPair)
-                self.readPairsById[readPair.id] = readPair
-                try: p.update()
-                except ValueError: pass
+        # else: # THIS PART SHOULD BE OK TO REMOVE NOT USED ANYMORE!
+        #     for readPair in self.analysisfolder.readsdb.getClusterReadPairs(self.id):
+        #         self.readPairs.append(readPair)
+        #         self.readPairsById[readPair.id] = readPair
+        #         try: p.update()
+        #         except ValueError: pass
         print self.id, time.time()-starttime
-
-        return 0
-
-    def generateReadPairsFastq(self, oneFile=False, concatenate=False,r1Part='nobc'):
-
-        #
-        # Create files
-        #
-        if oneFile:
-            fastqFile = open(SEAseqPipeLine.tempFileFolder+'/cluster_'+str(self.id)+'.fastq','w')
-            self.filesCreated.append(fastqFile.name)
-        else:
-            fastqFileR1 = open(SEAseqPipeLine.tempFileFolder+'/cluster_'+str(self.id)+'.R1.fastq','w')
-            fastqFileR2 = open(SEAseqPipeLine.tempFileFolder+'/cluster_'+str(self.id)+'.R2.fastq','w')
-            self.filesCreated.append(fastqFileR1.name)
-            self.filesCreated.append(fastqFileR2.name)
-
-        if not self.readPairs: self.loadReadPairs()
-
-        #
-        # check readcount
-        #
-        assert len(self.readPairs) == self.readPairCount, 'BarcodeCluster.readcount does not match number of reads for cluster='+self.id
-
-        #
-        # create output and write to file(s)
-        #
-        for readPair in self.readPairs:
-
-            # remove barcode sequence and handle if requested
-            if r1Part == 'full':
-                r1Seq  = readPair.r1Seq
-                r1Qual = readPair.r1Qual
-            elif r1Part == 'nobc':
-                r1Seq  = readPair.r1Seq[ readPair.handleCoordinates[1]:SEAseqPipeLine.results.minR1readLength]
-                r1Qual = readPair.r1Qual[readPair.handleCoordinates[1]:SEAseqPipeLine.results.minR1readLength]
-
-            # concatenated output or not
-            if concatenate:
-                r1Header = '@'+str(readPair.id)#readPair.r1Header+' '+str(readPair.annotations)
-                for annotation in readPair.annotations: r1Header += ' '+annotation+'='+str(readPair.annotations[annotation])
-                r1 = r1Header+'\n'+r1Seq+'CCCCCCCCCCGGGGGGGGGG'+readPair.r2Seq[:SEAseqPipeLine.results.minR2readLength]+'\n'+'+'+'\n'+r1Qual+'CCCCCCCCCCGGGGGGGGGG'+readPair.r2Qual[:SEAseqPipeLine.results.minR2readLength]+'\n'
-                r2 = ''
-            else:
-                r1 = readPair.r1Header.split(' ')[0]+'/1 '+' '.join(readPair.r1Header.split(' ')[1:])+'\n'+r1Seq+'\n'+'+'+'\n'+r1Qual+'\n'
-                r2 = readPair.r2Header.split(' ')[0]+'/2 '+' '.join(readPair.r1Header.split(' ')[1:])+'\n'+readPair.r2Seq[:SEAseqPipeLine.results.minR2readLength]+'\n'+'+'+'\n'+readPair.r2Qual[:SEAseqPipeLine.results.minR2readLength]+'\n'
-            
-            # write to file(s)
-            if oneFile:
-                fastqFile.write(r1+r2)
-            else:
-                fastqFileR1.write(r1)
-                fastqFileR2.write(r2)
-
-        #
-        # close file connection(s)
-        #
-        if oneFile:
-            fastqFile.close()
-        else:
-            fastqFileR1.close()
-            fastqFileR2.close()
-
-        return 0
-
-    def saveContigInfoToDatabase(self, ):
-        """ function is not used might be usefull in future though right now only junk """
-
-        import sqlite3
-        try:
-            addValues = []
-            SEAseqPipeLine.database.getConnection()
-            if self.nonSingletonContigs:
-              for contigId, data in self.nonSingletonContigs.iteritems():
-                  for readPairId in data['readPairs']:
-                    for annotation, value in self.readPairsById[int(readPairId)].annotations.iteritems(): data['annotations'][annotation]=value
-                  #                  contigId, contigTotalReadCount,      readPairsList,     readPairIdentitiesList,    consensusSequence,       consensusQuality,    clusterId,annotations
-                  addValues.append( (contigId,data['contigReadCount'],str(data['readPairs']),str(data['identities']),data['consensusSequence'],data['consensusQuality'],self.id,str(data['annotations'])) )
-                  self.contigIdsList.append(contigId)
-              SEAseqPipeLine.database.c.executemany('INSERT INTO contigs VALUES (?,?,?,?,?,?,?,?)', addValues)
-              SEAseqPipeLine.database.c.execute('UPDATE barcodeClusters SET contigSequencesList=? WHERE clusterId=?', (str(self.contigIdsList), self.id))
-              #print self.id, self.contigIdsList
-              SEAseqPipeLine.database.commitAndClose()
-              #print 'Write OK!!'
-        except sqlite3.OperationalError: print 'ERROR: BarcodeCluster.saveContigInfoToDatabase() is giving a sqlite3.OperationalError!!'
 
         return 0
 
