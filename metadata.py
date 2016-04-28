@@ -332,58 +332,6 @@ class Database(object):
         #self.c.execute("ALTER TABLE reads DROP COLUMN bamFilePos")
         self.commitAndClose()
 
-class ReadsDB(Database):
-    
-    #
-    # This database object was created in a try to make the read data storage more effective... i didn't work... just lying around in case I will need it later...
-    #
-
-    def create(self,):
-        """ creates the database holding all information used in the analysis """
-
-        self.getConnection()
-
-        #
-        # Create tables
-        #
-        self.c.execute("DROP TABLE IF EXISTS empty_table")
-        self.c.execute('''CREATE TABLE empty_table (id,empty_column_1,empty_column_2,empty_column_3,PRIMARY KEY (id))''')
-  
-        self.commitAndClose()
-
-        import os
-        os.chmod(self.path, 0664)
-    
-    def getClusterReadPairs(self,clusterId):
-        #
-        # Imports
-        #
-        import sys
-        import seqdata
-        
-        #
-        # open connection to database
-        #
-        self.getConnection()
-                
-        #
-        # get att data in fastqs table
-        #
-        readPairs = self.c.execute('SELECT id, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos FROM cluster_'+str(clusterId)+'')
-        
-        while True:
-
-            rows = readPairs.fetchmany()#size=readPairs.arraysize)
-
-            if not rows: break
-
-            for row in rows:
-                currentRead, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos = row
-                yield seqdata.ReadPair(currentRead, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, eval(h1), eval(h2), eval(h3), constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, eval(annotations), fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos)
-                #yield seqdata.ReadPair(pairId, header, header, sequence1, sequence2, qual1, qual2,eval(handleCoordinates),clusterId,eval(annotations), fromFastq)
-
-        self.commitAndClose()
-
 class Results(object,):
     
     #
@@ -535,12 +483,15 @@ class Results(object,):
         return 0
 
 class Settings(object,):
+    """ The settings objects stores and saves variables in the database in a nice and controlled manner"""
     
     def __init__(self, analysisfolder):
         """ object holding the settings used for each part of the analysis """
         
         #
         # NOTE: All variables needs to be defined in the Defaults,Explenation and Variable sections below!
+        #       adding and removing variables can easily be done by modifying these three sections
+        #       without need to modify anything else
         #
         
         self.analysisfolder = analysisfolder
@@ -667,6 +618,8 @@ class Settings(object,):
         return 0
 
     def saveToDb(self,):
+        """ saves the variables in the object to the database table so that they can be loaded in the next executable or process etc...
+        """
 
         #
         # imports
@@ -738,6 +691,9 @@ class AnalysisFolder(object):
     """This class represent the analysis outpt folder, hold the structure for it and track the files within it is also the container that enables other info such as settings to be sent around among functions in a controlled way"""
     
     def __init__(self, path, logfile=None):
+        """ initiates the object and sets the paths to all files relative to commandline input
+        also creates the objects database and settings which will be used extensively during the analysis
+        """
 
         #
         # imports
@@ -779,7 +735,7 @@ class AnalysisFolder(object):
             except sqlite3.OperationalError: pass
 
     def create(self, ):
-        """ This functions creates the folder structure and the database """
+        """ This functions creates the folder-structure and the database """
 
         import os
         for folder in self.folders:

@@ -35,18 +35,6 @@ def main():
     logfile.write('cmd: '+' '.join(sys.argv)+'\n')
     analysisfolder.logfile = logfile
 
-    ############################################################################################################################
-    # restructuring the data                                                                                                   #
-    # This is an old approach that was dropped due to that it was not verry efficient, still here incase its needed later      #
-    if False:#not analysisfolder.database.datadropped:                                                                         #
-        logfile.write('Restructuring database ... \n')                                                                         #
-        barcodeClusterer = BarcodeClusterer(analysisfolder)                                                                    #
-        barcodeClusterer.fillReadsDb()                                                                                         #
-        logfile.write('Dropping data ... \n')                                                                                  #
-        analysisfolder.database.dropReadColumns()                                                                              #
-        logfile.write('done. \n')                                                                                              #
-    ############################################################################################################################
-
     progress = Progress(analysisfolder.results.barcodeClusterCount,logfile=analysisfolder.logfile, unit='clusters',printint=1)
     updateChunk = []
 

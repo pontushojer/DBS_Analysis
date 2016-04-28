@@ -52,12 +52,13 @@ def main():
     # create the fastq reader and runt it
     #
     reader = FastqReader(analysisfolder,logfile=logfile)
-    reader.runParallel()
+    reader.runParallel() # run it in parallel processing mode
     
     logfile.write('wfaChecker FINISHED\n')
 
 def foreachRead(readpair):
-    """ checks that are run in parallel using multiprocessing for each read pair """
+    """ checks that are run in parallel using multiprocessing for each read pair
+    This functions is used mainly by FastqReader.runParallel but also by the non-supported FastqReader.run"""
     
     readpair.isIlluminaAdapter()
     readpair.identifyDirection()
@@ -283,7 +284,7 @@ class FastqReader(object):
         return 0
 
     def chunkToDb(self, ):
-        """ add chunk of reads to the database """
+        """ adds one chunk of reads to the database """
         
         #
         # Imports
@@ -308,6 +309,8 @@ class FastqReader(object):
         return 0
 
     def run(self,):
+        """ old function for running the analysis in a seraial mode not supported but might work
+        """
         
         #
         # Write log message
@@ -343,6 +346,8 @@ class FastqReader(object):
         return 0
 
     def runParallel(self,):
+        """ Function that run the handle and adapter identification as well as some other function for each read in parallel before the information is added to the database
+        """
         
         #
         # imports
@@ -364,6 +369,7 @@ class FastqReader(object):
         #
         if self.logfile: self.logfile.write('Adding reads to database table (working in parallel).\n')
         
+        # set up the pool of processes to run the analysis for each read pair
         poolOfProcesses = multiprocessing.Pool(self.analysisfolder.settings.parallelProcesses,maxtasksperchild=100000000)
         self.parallelResults = poolOfProcesses.imap_unordered(foreachRead,self.readPairGenerator(),chunksize=1000)
         
@@ -373,15 +379,19 @@ class FastqReader(object):
         adapterCount = 0
         with self.progress:
             for pair in self.parallelResults:	    
+
                 #
                 # post procesing for each read, preparing and adding to db
                 #
                 self.foreachProcessedPair(pair)
+
                 if 'Read1IsIlluminaAdapter' in pair.annotations or 'Read2IsIlluminaAdapter' in pair.annotations: adapterCount += 1
+        
+        # Set the adapter count to the results value in the results database table
         self.analysisfolder.results.setResult('readPairsAreIlluminaAdapters',adapterCount)
 
         #
-        # add final chunk to db
+        # add final chunk to db and close the multiprocessing pool
         #
         if self.readsToAdd: self.chunkToDb()
         poolOfProcesses.close()
