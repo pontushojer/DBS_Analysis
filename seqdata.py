@@ -963,7 +963,7 @@ class BarcodeCluster(object,):
         #         self.readPairsById[readPair.id] = readPair
         #         try: p.update()
         #         except ValueError: pass
-        print self.id, time.time()-starttime
+        #print str(self.id)+'\t'+str(time.time()-starttime)+'\t'+str(len(self.readPairIdsList))
 
         return 0
 
@@ -1024,13 +1024,18 @@ class BarcodeCluster(object,):
         import subprocess
         import sys
         import os
+        import operator
 
         #
         # get the reads from the original bam file with all reads and write to new cluster specific bamfile
         #
         bamfile =  pysam.Samfile(self.analysisfolder.dataPath+'/mappedInserts.bam')
         outputBam = pysam.Samfile(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.bam',mode='wb',header=bamfile.header)
+        seekPos = {}
         for pair in self.readPairs:
+            if pair.bamFilePos: seekPos[pair.bamFilePos] = pair
+        #for pair in self.readPairs:
+        for fileposition, pair in sorted(seekPos.iteritems(), key=operator.itemgetter(0)):
             if pair.bamFilePos:
                 bamfile.seek(pair.bamFilePos)
                 r1 = bamfile.next()
@@ -1115,6 +1120,7 @@ class BarcodeCluster(object,):
         from misc import thousandString
         from misc import percentage
         import pysam
+        import sys
 
         starttime = time.time()
 
@@ -1145,14 +1151,18 @@ class BarcodeCluster(object,):
         #
         try: self.analysisfolder.logfile.write('Loading reads for cluster '+str(self.id)+' ... '+'\n')
         except ValueError: pass
+        loadPairsTime = time.time()
         self.loadReadPairs()
+        loadPairsTime = time.time() - loadPairsTime
 
         #
         # build the bamfile with read mappings
         #
         try:self.analysisfolder.logfile.write('Creating bamfiles for cluster_'+str(self.id)+' ... '+'\n')
         except ValueError: pass
+        createBamTime = time.time()
         self.createBamFile()
+        createBamTime = time.time() - createBamTime
         try:self.analysisfolder.logfile.write('Bamfiles ready for cluster_'+str(self.id)+'.'+'\n')
         except ValueError: pass
         bamfile = pysam.Samfile(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bam')
@@ -1168,6 +1178,7 @@ class BarcodeCluster(object,):
         #
         # Parse the bamfile
         #
+        parseBamTime = time.time()
         try:self.analysisfolder.logfile.write('Making reads table forcluster '+str(self.id)+'.\n')
         except ValueError: pass
         for alignedReadRead in bamfile:
@@ -1230,6 +1241,7 @@ class BarcodeCluster(object,):
                             goodReadPairPositions[r1ReferenceName].append(min(alignedReadRead.pos,alignedReadRead.pnext))
                         except KeyError:
                             goodReadPairPositions[r1ReferenceName]   =   [min(alignedReadRead.pos,alignedReadRead.pnext)]
+        parseBamTime = time.time() - parseBamTime
 
         #
         # assert that the database and bamfile counts match
@@ -1256,6 +1268,7 @@ class BarcodeCluster(object,):
         try:self.analysisfolder.logfile.write('Cluster '+str(self.id)+' analyzed in '+str(round(time.time()-starttime,2))+' seconds '+'\n')
         except ValueError: pass
         self.analyzed = True
+        sys.stdout.write(str(self.id)+'\t'+str(self.readPairCount)+'\t'+str(time.time()-starttime)+'\t'+str(loadPairsTime)+'\t'+str(createBamTime)+'\t'+str(parseBamTime)+'\n')
 
     def updatedb(self,doUpdate=True,returnTuple=False):
         """ function for updating the daatabase with information about the cluster
