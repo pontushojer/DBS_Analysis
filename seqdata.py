@@ -1030,75 +1030,48 @@ class BarcodeCluster(object,):
         # get the reads from the original bam file with all reads and write to new cluster specific bamfile
         #
         bamfile =  pysam.Samfile(self.analysisfolder.dataPath+'/mappedInserts.bam')
-        #outputBam = pysam.Samfile(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.bam',mode='wb',header=bamfile.header)
-        newHeader = bamfile.header
+        
+        # modify bamfile header to have the correct sort order tag in the cluster specific output bam file
+        newHeader = bamfile.header 
         newHeader['HD']['SO']='coordinate'
         outputBam = pysam.Samfile(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.sorted.bam',mode='wb',header=newHeader)
-        lengthOfChromByName = {}
-        for chrom in bamfile.header['SQ']: lengthOfChromByName[chrom['SN']] = chrom['LN']
-        #[reference['SN'] for reference in bamfile.header['SQ']]
+        
+        # create an dictionary to store the reads in memory
         readsDict = {reference['SN']:{} for reference in bamfile.header['SQ']}
         readsDict['unmapped'] = []
+        
+        # sort reads by position in bamfile to optimize reading file
         seekPos = {}
         for pair in self.readPairs:
             if pair.bamFilePos: seekPos[pair.bamFilePos] = pair
-        #for pair in self.readPairs:
+        
+        # get the reads in memory from original bamfile
         for fileposition, pair in sorted(seekPos.iteritems(), key=operator.itemgetter(0)):
-            if pair.bamFilePos:
-                bamfile.seek(pair.bamFilePos)
-                r1 = bamfile.next()
-                r2 = bamfile.next()
-                #outputBam.write(r1)
-                #outputBam.write(r2)
-                for read in [r1,r2]:
-                    if read.reference_id >= 0:
-                        try: readsDict[read.reference_name][read.reference_start].append(read)
-                        except KeyError:
-                             readsDict[read.reference_name][read.reference_start] = [read]
-                    else: readsDict['unmapped'].append( read )
-        for referenceName,positions in readsDict.iteritems():
-            if referenceName == 'unmapped': continue
-            else:
-                #print referenceName+' c'+str(self.id)
-                for position,readsList in sorted(positions.iteritems(), key=operator.itemgetter(0)):
-                    for read in readsList: outputBam.write(read)
-                    #print '\t'+str(position)+' '+str(len(readsList))
-        #print 'unmapped', str(len(readsDict['unmapped']))
+            bamfile.seek(pair.bamFilePos) # jump to position in file
+            r1 = bamfile.next() # get read 1 in pair
+            r2 = bamfile.next() # get read 2 in pair
+            
+            # add the reads to in memory dict
+            for read in [r1,r2]:
+                if read.reference_id >= 0:
+                    try: readsDict[read.reference_name][read.reference_start].append(read)
+                    except KeyError:
+                         readsDict[read.reference_name][read.reference_start] = [read]
+                else: readsDict['unmapped'].append( read )
+        
+        # print the reads to the bamfile in the order specified in bamfile header and coordinate sorted
+        for referenceName in reference in bamfile.header['SQ']:
+            positions = readsDict[referenceName]
+            for position,readsList in sorted(positions.iteritems(), key=operator.itemgetter(0)):
+                for read in readsList: outputBam.write(read)
+        # lastly print the unmapped (missing refID) reads to the bamfile and close the file
         for read in readsDict['unmapped']: outputBam.write(read)
         outputBam.close()
 
         #
-        # Sort the bamfile
-        #
-        # picardLogfile = open(self.analysisfolder.temp+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'_picardSortSam.cluster_'+str(self.id)+'.log.txt','w')
-        # self.filesCreated.append(picardLogfile.name)
-        # command2 = ['java',
-        #           '-Xmx5g',
-        #           '-jar',self.analysisfolder.settings.picardPath+'/SortSam.jar',
-        #           'MAX_RECORDS_IN_RAM=2500000',
-        #           'INPUT='+self.analysisfolder.temp+'/cluster_'+str(self.id)+'.bam',
-        #           'OUTPUT='+self.analysisfolder.temp+'/cluster_'+str(self.id)+'.sorted.bam',
-        #           'SORT_ORDER=coordinate',
-        #           'CREATE_INDEX=TRUE'
-        #           ]
-        # picard = subprocess.Popen(command2,stdout=subprocess.PIPE,stderr=picardLogfile)
-        # if self.analysisfolder.logfile:
-        #     try: self.analysisfolder.logfile.write('Starting command: '+' '.join(command2)+'\n')
-        #     except ValueError:pass
-        # errdata = picard.communicate()
-        # if (picard.returncode != 0 and picard.returncode != None):
-        #     if picard.returncode != 0:
-        #         print '#\n# cmd: '+' '.join( command2 )+'\n#'
-        #         print 'picard view Error code', picard.returncode, errdata, open(picardLogfile.name).read()
-        #         #return 'FAIL'
-        #         sys.exit()
-        picardLogfile = open(self.analysisfolder.temp+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'_picardMarkDup.cluster_'+str(self.id)+'.log.txt','w')
-        # self.filesCreated.append(picardLogfile.name)
-
-
-        #
         # Mark duplicates in the bamfile
         #
+        picardLogfile = open(self.analysisfolder.temp+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'_picardMarkDup.cluster_'+str(self.id)+'.log.txt','w')
         command2 = ['java',
                   '-Xmx5g',
                   '-jar',self.analysisfolder.settings.picardPath+'/MarkDuplicates.jar',
@@ -1126,9 +1099,7 @@ class BarcodeCluster(object,):
         #
         # remove temporary files
         #
-        #os.remove(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.bam')
         os.remove(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.sorted.bam')
-        #os.remove(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.sorted.bai')
 
         return 0
 
