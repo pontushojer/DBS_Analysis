@@ -46,7 +46,7 @@ def main():
     #
     if runInParallel:
         poolOfProcesses = multiprocessing.Pool(int(analysisfolder.settings.parallelProcesses),maxtasksperchild=100000000)
-        parallelResults = poolOfProcesses.imap_unordered(foreachCluster,cluster_generator(analysisfolder),chunksize=1)
+        parallelResults = poolOfProcesses.imap_unordered(foreachCluster,cluster_generator(analysisfolder),chunksize=10)
         for cluster in parallelResults:
             updateChunk = forResultingCluster(progress,cluster,updateChunk)
 
