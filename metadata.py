@@ -723,7 +723,6 @@ class AnalysisFolder(object):
         
         # objects
         self.database  = Database(self.databaseFileName)
-        self.readsdb  =  ReadsDB(self.path+'/reads.db')
         self.settings = Settings(self)
         self.results = Results(self)
         
