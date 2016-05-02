@@ -53,7 +53,7 @@ def main():
     else: # serial
         for cluster in cluster_generator(analysisfolder):
             cluster = foreachCluster(cluster)
-            updateChunk = forResultingCluster(progress,cluster)
+            updateChunk = forResultingCluster(progress,cluster,updateChunk)
 
     updateClusterChunk(cluster.analysisfolder,updateChunk) # last update to not lose end values
     
