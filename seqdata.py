@@ -137,18 +137,19 @@ class ReadPair(object):
                     #print 'ohhhnooooo!',dbsSeq
             else:pass#print 'BADSEQUENCE!',dbsSeq
             
-    def matchSequence(self, readsequence, matchsequence, maxDistance, matchfunk=misc.hamming_distance, startOfRead=False):
+    def matchSequence(self, readsequence, matchsequence, maxDistance, matchfunk=misc.hamming_distance, startOfRead=False,breakAtFirstMatch=False):
         """" function for finding sequenc motifs in the read sequence """
         
         import re
-        #matchfunk = hamming_distance
-
+        import misc
+        # matchfunk = hamming_distance
+        
         startPosition = None
         endPosition   = None
         missmatches   = None
-
+        
         #matchfunk=levenshtein
-
+        
         #
         # use regular expression to try and find a perfect match
         #
@@ -157,7 +158,7 @@ class ReadPair(object):
             startPosition = perfect_match.start()
             endPosition = perfect_match.end()
             missmatches = 0
-
+        
         #
         # if perfect match is not found use hamming distance to try and find a "near perfect" match
         #
@@ -169,9 +170,12 @@ class ReadPair(object):
                 
                 if i+len(matchsequence) <= len(readsequence): dist = matchfunk(matchsequence,readsequence[i:i+len(matchsequence)])
                 else: dist = 10001
+                if breakAtFirstMatch and matchfunk == misc.hamming_distance:
+                    if dist <= maxDistance:
+                        return [i,i+len(matchsequence),dist]
                 
                 if dist < mindist[0]: mindist =[dist,i]
-
+            
             if mindist[0] < int(maxDistance)+1:
                 startPosition = mindist[1]
                 endPosition = mindist[1]+len(matchsequence)
@@ -180,7 +184,7 @@ class ReadPair(object):
                 startPosition = None
                 endPosition = None
                 missmatches = None
-
+        
         return [startPosition,endPosition,missmatches]
 
     def makeColoredOut(self,):
@@ -343,21 +347,21 @@ class ReadPair(object):
         missmatchesAllowed = self.analysisfolder.settings.maxHandleMissMatches
 
         # look for h1 in read 1
-        self.h1 = self.matchSequence(self.r1Seq,sequences.H1,missmatchesAllowed,startOfRead=True)
+        self.h1 = self.matchSequence(self.r1Seq,sequences.H1,missmatchesAllowed,startOfRead=True,breakAtFirstMatch=True)
         startPosition,endPosition,missmatches = self.h1
         if startPosition!=None and startPosition <= 2: self.direction = '1 -> 2'
         if startPosition==None: self.h1 = None
         
         # look for H3 in read one
         if not not self.direction:
-            self.h3 = self.matchSequence(self.r1Seq,sequences.H3,missmatchesAllowed,startOfRead=True)
+            self.h3 = self.matchSequence(self.r1Seq,sequences.H3,missmatchesAllowed,startOfRead=True,breakAtFirstMatch=True)
             startPosition,endPosition,missmatches = self.h3
             if startPosition!=None and startPosition <= 2: self.direction = '2 -> 1'
             if startPosition==None: self.h3 = None
 
         # look for H1 in read 2
         self.h1_in_both_ends = None
-        startPosition,endPosition,missmatches = self.matchSequence(self.r2Seq,sequences.H1,missmatchesAllowed,startOfRead=True)
+        startPosition,endPosition,missmatches = self.matchSequence(self.r2Seq,sequences.H1,missmatchesAllowed,startOfRead=True,breakAtFirstMatch=True)
         if startPosition!=None and startPosition <= 2:
             if self.h1:
                 self.h1_in_both_ends = True
@@ -369,7 +373,7 @@ class ReadPair(object):
         
         # look for H3 in read two
         self.h3_in_both_ends = None
-        startPosition,endPosition,missmatches = self.matchSequence(self.r2Seq,sequences.H3,missmatchesAllowed,startOfRead=True)
+        startPosition,endPosition,missmatches = self.matchSequence(self.r2Seq,sequences.H3,missmatchesAllowed,startOfRead=True,breakAtFirstMatch=True)
         if startPosition!=None and startPosition <= 2:
             if self.h3:
                 self.h3_in_both_ends = True
@@ -386,7 +390,7 @@ class ReadPair(object):
         if self.direction == '1 -> 2': checkSeq = self.r1Seq
         elif self.direction == '2 -> 1': checkSeq = self.r2Seq
         if checkSeq:
-            startPosition,endPosition,missmatches = self.matchSequence(checkSeq,revcomp(sequences.H3),missmatchesAllowed)
+            startPosition,endPosition,missmatches = self.matchSequence(checkSeq,revcomp(sequences.H3),missmatchesAllowed,breakAtFirstMatch=True)
             if startPosition!=None:
                 self.readIntoh3 = True
                 self.readIntoh3Coordinates = [startPosition,endPosition,missmatches]
@@ -397,19 +401,19 @@ class ReadPair(object):
             
             # find the h2 handle and DBS sequence
             if self.direction == '1 -> 2':
-                self.h2 = self.matchSequence(self.r1Seq,revcomp(sequences.H2),missmatchesAllowed)
+                self.h2 = self.matchSequence(self.r1Seq,revcomp(sequences.H2),missmatchesAllowed,breakAtFirstMatch=True)
                 if not self.h2[0]: self.h2 = None
                 
                 if self.h1 and self.h2:
                     self.dbsPrimaryCoordinates = [self.r1Seq,self.h1[1],self.h2[0],self.r1Qual]
                 
                 if self.h1_in_both_ends: # find secondary h2
-                    self.annotations['h2_r2_coordinates'] = self.matchSequence(self.r2Seq,revcomp(H2),missmatchesAllowed)
+                    self.annotations['h2_r2_coordinates'] = self.matchSequence(self.r2Seq,revcomp(sequences.H2),missmatchesAllowed,breakAtFirstMatch=True)
                     if self.h1in2ndReadCoordinates[0]==0 and self.annotations['h2_r2_coordinates'][0] or (self.h1in2ndReadCoordinates[0] and self.annotations['h2_r2_coordinates'][0]):
                         self.annotations['secondary_dbs_coordinates'] = [self.r2Seq,self.h1in2ndReadCoordinates[1],self.annotations['h2_r2_coordinates'][0]]
 
             elif self.direction == '2 -> 1':
-                self.h2 = self.matchSequence(self.r2Seq,revcomp(sequences.H2),missmatchesAllowed)
+                self.h2 = self.matchSequence(self.r2Seq,revcomp(sequences.H2),missmatchesAllowed,breakAtFirstMatch=True)
                 if not self.h2[0]: self.h2 = None
 
                 if self.h1 and self.h2:
