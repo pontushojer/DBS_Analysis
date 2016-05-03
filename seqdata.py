@@ -1055,6 +1055,7 @@ class BarcodeCluster(object,):
             bamfile.seek(pair.bamFilePos) # jump to position in file
             r1 = bamfile.next() # get read 1 in pair
             r2 = bamfile.next() # get read 2 in pair
+            assert pair.header[1:] == r1.query_name, 'Error: read pair headers dont match '+pair.header[1:]+' == '+r1.query_name+'\n'
             pairs.append([r1,r2])
             
             # add the reads to in memory dict sorted by referencename and coordinate
@@ -1090,7 +1091,15 @@ class BarcodeCluster(object,):
         #
         # go through potential duplicates and check cigar + directions if duplicated score by basequalities and mark (set flag in bamfile)
         # (note that r1 are here defined as the read most towards the 3prim end not the first read in the pair)
-        # ALSO NOTE THAT SE MAPPING MIGHT NOT BE HANDLED IN THE CORRECT WAY CHECK THIS OUT LATER!!
+        #
+        
+        #
+        # Dupmarking as similar to picard as possible according to http://broadinstitute.github.io/picard/faq.html
+        # Q: How does MarkDuplicates work?
+        # A: The MarkDuplicates tool finds the 5' coordinates and mapping orientations of each read pair (single-end data is also handled).
+        # It takes all clipping into account as well as any gaps or jumps in the alignment. Matches all read pairs using the 5' coordinates and their orientations.
+        # It marks all but the "best" pair as duplicates, where "best" is defined as the read pair having the highest sum of base qualities of bases with Q >= 15.
+        # NOTE THAT: SE MAPPING MIGHT NOT BE HANDLED IN THE CORRECT WAY CHECK THIS OUT LATER!!
         #
         for reference_name, r1_positions in dupMarkingDict.iteritems():
             for r1_position,r2_positions in r1_positions.iteritems():
@@ -1117,7 +1126,8 @@ class BarcodeCluster(object,):
                                     for pair in identically_mapped_pairs:
                                         read1 = pair[0]
                                         read2 = pair[1]
-                                        pairBaseQualitySum = sum(read1.query_qualities)+sum(read2.query_qualities)
+                                        # calculate the pairBaseQualitySum as sum of base qualities of bases with Q >= 15
+                                        pairBaseQualitySum = sum([q for q in read1.query_qualities if q >= 15])+sum([q for q in read2.query_qualities if q >= 15])
                                         try:             baseQualitySums[pairBaseQualitySum].append(pair)
                                         except KeyError: baseQualitySums[pairBaseQualitySum]=[pair]
                                     pairsSortedbyqSum =[ (pairBaseQualitySum,pairList) for qSupairBaseQualitySumm,pairList in sorted(baseQualitySums.iteritems(), key=operator.itemgetter(0))]
