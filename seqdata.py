@@ -1034,7 +1034,6 @@ class BarcodeCluster(object,):
         # modify bamfile header to have the correct sort order tag in the cluster specific output bam file
         newHeader = bamfile.header 
         newHeader['HD']['SO']='coordinate'
-        #outputBam = pysam.Samfile(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.sorted.bam',mode='wb',header=newHeader)
         outputBam = pysam.Samfile(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bam',mode='wb',header=newHeader)
         
         # create an dictionary to store the reads in memory
@@ -1054,7 +1053,7 @@ class BarcodeCluster(object,):
             r2 = bamfile.next() # get read 2 in pair
             pairs.append([r1,r2])
             
-            # add the reads to in memory dict
+            # add the reads to in memory dict sorted by referencename and coordinate
             for read in [r1,r2]:
                 if read.reference_id >= 0:
                     try: readsDict[read.reference_name][read.reference_start].append(read)
@@ -1062,78 +1061,78 @@ class BarcodeCluster(object,):
                          readsDict[read.reference_name][read.reference_start] = [read]
                 else: readsDict['unmapped'].append( read )
         
-        # # print the reads to the bamfile in the order specified in bamfile header and coordinate sorted
-        # for referenceName in [ reference['SN'] for reference in bamfile.header['SQ'] ]:
-        #     positions = readsDict[referenceName]
-        #     for position,readsList in sorted(positions.iteritems(), key=operator.itemgetter(0)):
-        #         for read in readsList: outputBam.write(read)
-        # # lastly print the unmapped (missing refID) reads to the bamfile and close the file
-        # for read in readsDict['unmapped']: outputBam.write(read)
-        # outputBam.close()
-
         #
-        # Mark duplicates in the bamfile
+        # find potential duplicates in the bamfile
         #
-        readsDict2 = {reference['SN']:{} for reference in bamfile.header['SQ']}
+        dupMarkingDict = {reference['SN']:{} for reference in bamfile.header['SQ']}
         for pair in pairs:
             read1 = pair[0]
             read2 = pair[1]
+            
+            # check that read pair is mapped to a reference
             if read1.reference_id >= 0:
+                # define the most 3 prime read on the reference strand as being "first in pair" (only for this check comparison)
                 if read1.reference_start > read2.reference_start:
                     read1 = pair[1]
                     read2 = pair[0]
                     pair = pair[::-1]
                 
-                try:             readsDict2[read1.reference_name][read1.reference_start][read2.reference_start].append(pair)
+                # add to dictionary sorted by r1 and r2 positions to find groups of potential duplicates
+                try:             dupMarkingDict[read1.reference_name][read1.reference_start][read2.reference_start].append(pair)
                 except KeyError:
-                    try:             readsDict2[read1.reference_name][read1.reference_start][read2.reference_start] = [pair]
-                    except KeyError: readsDict2[read1.reference_name][read1.reference_start] = {read2.reference_start:[pair]}
-        for thing,pling in readsDict2.iteritems():
-            #print thing,len(pling)
-            for thong,plong in pling.iteritems():
-                #print '    ',thong,len(plong)
-                for thang,plang in plong.iteritems():
-                    #print '        ',thang,len(plang)
-                    tmp  = {False:{False:{},True:{}},True:{False:{},True:{}}}
+                    try:             dupMarkingDict[read1.reference_name][read1.reference_start][read2.reference_start] = [pair]
+                    except KeyError: dupMarkingDict[read1.reference_name][read1.reference_start] = {read2.reference_start:[pair]}
+        
+        #
+        # go through potential duplicates and check cigar + directions if duplicated score by basequalities and mark (set flag in bamfile)
+        # (note that r1 are here defined as the read most towards the 3prim end not the first read in the pair)
+        # ALSO NOTE THAT SE MAPPING MIGHT NOT BE HANDLED IN THE CORRECT WAY CHECK THIS OUT LATER!!
+        #
+        for reference_name, r1_positions in dupMarkingDict.iteritems():
+            for r1_position,r2_positions in r1_positions.iteritems():
+                for r2_position, reads_with_same_pos in r2_positions.iteritems():
                     
-                    for pair in plang:
+                    # make dict for direction and cigar check
+                    direction_and_cigar  = {'fwd':{'fwd':{},'rev':{}},'rev':{'fwd':{},'rev':{}}}
+                    
+                    # fill the direction and cigar check dict
+                    for pair in reads_with_same_pos:
                         read1 = pair[0]
                         read2 = pair[1]
-                        try:             tmp[read1.is_reverse][read2.is_reverse][str(read1.cigar)][str(read2.cigar)].append(pair)
-                        except KeyError: tmp[read1.is_reverse][read2.is_reverse][str(read1.cigar)] = {str(read2.cigar):[pair]}
+                        try:             direction_and_cigar[{True:'rev',False:'fwd'}[read1.is_reverse]][{True:'rev',False:'fwd'}[read2.is_reverse]][str(read1.cigar)][str(read2.cigar)].append(pair)
+                        except KeyError: direction_and_cigar[{True:'rev',False:'fwd'}[read1.is_reverse]][{True:'rev',False:'fwd'}[read2.is_reverse]][str(read1.cigar)] = {str(read2.cigar):[pair]}
                     
-                    for r1direction, tmp1 in tmp.iteritems():
-                        #print '            ',r1direction
-                        for r2direction, tmp2 in tmp1.iteritems():
-                            #print '                ',r2direction
-                            for r1cigar, tmp3 in tmp2.iteritems():
-                                #print '                    ',r1cigar
-                                for r2cigar, tmp4 in tmp3.iteritems():
-                                    #print '                        ',r2cigar
-                                    #print '                            ',read1.is_reverse,read2.is_reverse,read1.cigar,read2.cigar,len(tmp4),'potential duplicates ->score and mark'
-                                    tmp99 = {}
-                                    for pair2 in tmp4:
-                                        
-                                        read1 = pair2[0]
-                                        read2 = pair2[1]
-                                        
-                                        qSum = sum(read1.query_qualities)+sum(read2.query_qualities)
-                                        try:             tmp99[qSum].append(pair2)
-                                        except KeyError: tmp99[qSum]=[pair2]
+                    # for all groups of identically mapped reads
+                    for r1_direction, r2_directions in direction_and_cigar.iteritems():
+                        for r2_direction, r1_cigars in r2_directions.iteritems():
+                            for r1_cigar, r2_cigars in r1_cigars.iteritems():
+                                for r2_cigar, identically_mapped_pairs in r2_cigars.iteritems():
+
+                                    # calculate the sum of all base qualities in read pair, add them to dict and sort by them
+                                    baseQualitySums = {}
+                                    for pair in identically_mapped_pairs:
+                                        read1 = pair[0]
+                                        read2 = pair[1]
+                                        pairBaseQualitySum = sum(read1.query_qualities)+sum(read2.query_qualities)
+                                        try:             baseQualitySums[pairBaseQualitySum].append(pair)
+                                        except KeyError: baseQualitySums[pairBaseQualitySum]=[pair]
+                                    pairsSortedbyqSum =[ (pairBaseQualitySum,pairList) for qSupairBaseQualitySumm,pairList in sorted(baseQualitySums.iteritems(), key=operator.itemgetter(0))]
                                     
-                                    pairsSortedbyqSum =[ (qSum,alles) for qSum,alles in sorted(tmp99.iteritems(), key=operator.itemgetter(0))]
-                                    for (qSumma,hoppa) in pairsSortedbyqSum[:-1]:
-                                        #print qSumma, 'is duplicate',
-                                        for r1,r2 in hoppa:
+                                    # for all but the highest scoring mark the reads as duplicates
+                                    for (pairBaseQualitySum,pairList) in pairsSortedbyqSum[:-1]:
+                                        for r1,r2 in pairList:
                                             r1.is_duplicate = True
                                             r2.is_duplicate  = True
-                                            #print r1.is_duplicate,r2.is_duplicate,
-                                        #print ''
-                                    #print pairsSortedbyqSum[-1][0], 'is best of the duplicates'
-                                        #print '                            ',read1.query_name,read2.query_name
-                        #print '            ',read1.is_reverse,read2.is_reverse,read1.cigar,read2.cigar
+                                    
+                                    # get all the pairs with the highest score and mark all but one as duplicate no sorting just what happens to be last in list
+                                    pairBaseQualitySum,pairList = pairsSortedbyqSum[-1]
+                                    for r1,r2 in pairList[:-1]:
+                                        r1.is_duplicate = True
+                                        r2.is_duplicate  = True
 
+        #
         # print the reads to the bamfile in the order specified in bamfile header and coordinate sorted
+        #
         for referenceName in [ reference['SN'] for reference in bamfile.header['SQ'] ]:
             positions = readsDict[referenceName]
             for position,readsList in sorted(positions.iteritems(), key=operator.itemgetter(0)):
@@ -1141,40 +1140,12 @@ class BarcodeCluster(object,):
         # lastly print the unmapped (missing refID) reads to the bamfile and close the file
         for read in readsDict['unmapped']: outputBam.write(read)
         outputBam.close()
-
-        # #
-        # # Mark duplicates in the bamfile using picard
-        # #            
-        # picardLogfile = open(self.analysisfolder.temp+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'_picardMarkDup.cluster_'+str(self.id)+'.log.txt','w')
-        # command2 = ['java',
-        #           '-Xmx5g',
-        #           '-jar',self.analysisfolder.settings.picardPath+'/MarkDuplicates.jar',
-        #           'MAX_RECORDS_IN_RAM=2500000',
-        #           'INPUT='+self.analysisfolder.temp+'/cluster_'+str(self.id)+'.sorted.bam',
-        #           'OUTPUT='+self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bam',
-        #           'METRICS_FILE='+self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.metrics.txt',
-        #           'CREATE_INDEX=TRUE'
-        #           ]
-        # picard = subprocess.Popen(command2,stdout=subprocess.PIPE,stderr=picardLogfile)
-        # if self.analysisfolder.logfile:
-        #     try:self.analysisfolder.logfile.write('Starting command: '+' '.join(command2)+'\n')
-        #     except ValueError:pass
-        # errdata = picard.communicate()
-        # if (picard.returncode != 0 and picard.returncode != None):
-        #     if picard.returncode != 0:
-        #       print '#cluster'+str(self.id)+'\n# cmd: '+' '.join( command2 )+'\n#'
-        #       print 'picard view Error code', picard.returncode, errdata, open(picardLogfile.name).read()
-        #       #return 'FAIL'
-        #       sys.exit()
-        # self.filesCreated.append(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bam')
+        self.filesCreated.append(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bam')
+        
+        # these files will not be created anymore if needed run the picard marking or write a function that creates them
         # self.filesCreated.append(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bai')
         # self.filesCreated.append(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.metrics.txt')
         
-        #
-        # remove temporary files
-        #
-        #os.remove(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.sorted.bam')
-
         return 0
 
     def analyze(self):
