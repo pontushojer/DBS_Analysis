@@ -234,9 +234,13 @@ def index(high=1000,low=0):
         totalgoodReadPairs=0
         totalduplicateReadPairs=0
         tableRows = ''
-        for clusterId in barcodeClusterer.getBarcodeClusterIds(shuffle=False,byMixedClusterReadCount=False):
+        #for clusterId in barcodeClusterer.getBarcodeClusterIds(shuffle=False,byMixedClusterReadCount=False):
+        for cluster in app.analysisfolder.database.getAllClustersLoaded(app.analysisfolder):
+            clusterId = cluster.id
+            cluster.minMAPQ = 20
             if int(clusterId) < int(low): continue
-            cluster = indexForeachCluster(clusterId)
+            #cluster = indexForeachCluster(clusterId)
+            
         #for cluster in parallelResults:
             if int(clusterId) > int(high): break
             counter += 1            
@@ -394,7 +398,7 @@ def cluster(cluster_id, makebam=False):
         cluster.updatedb()
 
     if makebam:
-        cluster.analyze()
+        cluster.analyze(createBamIndex=True)
         cluster.updatedb()
 
     outStr += cluster.generateHtmlSummary()

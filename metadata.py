@@ -332,6 +332,48 @@ class Database(object):
         #self.c.execute("ALTER TABLE reads DROP COLUMN bamFilePos")
         self.commitAndClose()
 
+    def getAllClustersLoaded(self, analysisfolder):
+        """ function that loads all cluster info available in the database and returns object will all available info, ie there is no need to run cluster.loadInfo() afterwards"""
+        
+        from seqdata import BarcodeCluster
+        
+        success = False
+        while not success:
+            while self.writeInProgress.value: time.sleep(0.1)
+            
+            try:
+                # get connection to database
+                self.getConnection()
+                
+                # check the table columns
+                columnNames = [col[1] for col in self.c.execute('PRAGMA table_info(barcodeClusters)').fetchall()]
+                if 'constructTypes' not in columnNames:
+                    
+                    # get values set clusterinfo and yield cluster
+                    info = self.c.execute('SELECT clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations FROM barcodeClusters')
+                    for (clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations) in info:
+                        constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,htmlTable,analyzed = 'None',None,None,None,None,None,'None',None,False
+                        if clusterId == None: continue
+                        cluster = BarcodeCluster(clusterId,analysisfolder)
+                        cluster.setValues(clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,htmlTable,analyzed)
+                        yield cluster
+                
+                else: # ie the new columns are present
+                    
+                    # get values set clusterinfo and yield cluster
+                    info = self.c.execute('SELECT clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions, htmlTable, analyzed FROM barcodeClusters')
+                    for (clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,htmlTable,analyzed) in info:
+                        if clusterId == None: continue
+                        cluster = BarcodeCluster(clusterId,analysisfolder)
+                        cluster.setValues(clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,htmlTable,analyzed)
+                        yield cluster
+                
+                self.commitAndClose()
+                
+                success = True
+            except sqlite3.OperationalError: time.sleep(1)
+
+
 class Results(object,):
     
     #

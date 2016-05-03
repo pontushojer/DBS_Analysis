@@ -879,6 +879,33 @@ class BarcodeCluster(object,):
         #
         self.filesCreated = []
 
+    def setValues(self, clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,htmlTable,analyzed):
+        """ set the variable values for all info in the cluster """
+        assert clusterId == self.id
+        self.readPairCount      = int(clusterTotalReadCount)
+        self.readPairIdsList    = eval(readPairsList)
+        self.readPairIdentities = eval(readBarcodeIdentitiesList)
+        self.barcodeSequence    = clusterBarcodeSequence
+        self.barcodeQuality     = clusterBarcodeQuality
+        if contigSequencesList:
+            self.contigIdsList  = eval(contigSequencesList)
+        if annotations:
+            self.annotations    = eval(annotations)
+        else:
+            self.annotations    = {}
+
+        if constructTypes: self.constructTypes = eval(constructTypes)
+        else: self.constructTypes = None
+        self.readPairsInBamFile = readPairsInBamFile
+        self.mappedSEReads = mappedSEReads
+        self.SEreadsPassMappingQualityFilter = SEreadsPassMappingQualityFilter
+        self.goodReadPairs = goodReadPairs
+        self.duplicateReadPairs = duplicateReadPairs
+        if goodReadPairPositions:self.goodReadPairPositions = eval(goodReadPairPositions)
+        else:self.goodReadPairPositions=None
+        self.tableStr = htmlTable
+        self.analyzed = analyzed        
+
     def loadClusterInfo(self, ):
 
         import sqlite3, time
@@ -901,30 +928,7 @@ class BarcodeCluster(object,):
                 self.analysisfolder.database.commitAndClose()
 
                 assert clusterId == self.id
-
-                self.readPairCount      = int(clusterTotalReadCount)
-                self.readPairIdsList    = eval(readPairsList)
-                self.readPairIdentities = eval(readBarcodeIdentitiesList)
-                self.barcodeSequence    = clusterBarcodeSequence
-                self.barcodeQuality     = clusterBarcodeQuality
-                if contigSequencesList:
-                    self.contigIdsList  = eval(contigSequencesList)
-                if annotations:
-                    self.annotations    = eval(annotations)
-                else:
-                    self.annotations    = {}
-
-                if constructTypes: self.constructTypes = eval(constructTypes)
-                else: self.constructTypes = None
-                self.readPairsInBamFile = readPairsInBamFile
-                self.mappedSEReads = mappedSEReads
-                self.SEreadsPassMappingQualityFilter = SEreadsPassMappingQualityFilter
-                self.goodReadPairs = goodReadPairs
-                self.duplicateReadPairs = duplicateReadPairs
-                if goodReadPairPositions:self.goodReadPairPositions = eval(goodReadPairPositions)
-                else:self.goodReadPairPositions=None
-                self.tableStr = htmlTable
-                self.analyzed = analyzed
+                self.setValues(clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,htmlTable,analyzed)
                 success = True
             except sqlite3.OperationalError: time.sleep(1)
 
@@ -1011,7 +1015,7 @@ class BarcodeCluster(object,):
         elif count1 > 1 or count2 > 1: return False
         else: return None
 
-    def createBamFile(self,):
+    def createBamFile(self,createIndex=False):
         """ creates a bamfile with the reads specific for the clusster
         """
 
@@ -1140,15 +1144,20 @@ class BarcodeCluster(object,):
         # lastly print the unmapped (missing refID) reads to the bamfile and close the file
         for read in readsDict['unmapped']: outputBam.write(read)
         outputBam.close()
+        
+        # index the bamfile
+        if createIndex: pysam.index(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bam', self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bai')
+        
+        # keep track of temporary files
         self.filesCreated.append(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bam')
+        if createIndex: self.filesCreated.append(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bai')
         
         # these files will not be created anymore if needed run the picard marking or write a function that creates them
-        # self.filesCreated.append(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bai')
         # self.filesCreated.append(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.metrics.txt')
         
         return 0
 
-    def analyze(self):
+    def analyze(self,createBamIndex=False):
         """ analyze and get statisstics about the cluster and how the reads in the cluster map to the reference
         """
 
@@ -1200,7 +1209,7 @@ class BarcodeCluster(object,):
         try:self.analysisfolder.logfile.write('Creating bamfiles for cluster_'+str(self.id)+' ... '+'\n')
         except ValueError: pass
         createBamTime = time.time()
-        self.createBamFile()
+        self.createBamFile(createIndex=createBamIndex)
         createBamTime = time.time() - createBamTime
         try:self.analysisfolder.logfile.write('Bamfiles ready for cluster_'+str(self.id)+'.'+'\n')
         except ValueError: pass
