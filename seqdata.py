@@ -1439,6 +1439,34 @@ class BarcodeCluster(object,):
         for filename in self.filesCreated:
             if os.path.exists(filename):os.remove(filename)
 
+    def findTargetCoverage(self, ):
+        """ Function for calculating coverage over each target region in a bedfile specified
+        """
+        
+        from seqdata import loadBEDfile
+        import sys
+        
+        bedfile = loadBEDfile('/Users/erikborgstrom/Desktop/HLA_exons/HLABigWindow_ExonsOnly.fixedpositions.bed')
+        self.loadReadPairs()
+        
+        readPairsByMappingCoordinate = {}
+        
+        for entry in bedfile: entry['mappedReadCount'] = 0
+        
+        for readpair in self.readPairs:
+            #print readpair.header, readpair.refPosR1, readpair.refPosR2
+            if readpair.refPosR1 and readpair.refPosR2:
+                #print readpair.header
+                for entry in bedfile:
+                    if readpair.refPosR1 >= entry['start_position'] and readpair.refPosR1 <= entry['end_position']:
+                        entry['mappedReadCount'] += 1
+                    if readpair.refPosR2 >= entry['start_position'] and readpair.refPosR2 <= entry['end_position']:
+                        entry['mappedReadCount'] += 1
+
+        for entry in bedfile:
+            sys.stdout.write(entry['entry_name']+'='+str(entry['mappedReadCount'])+'\t')
+        sys.stdout.write('\n')
+
 def revcomp(string):
     ''' Takes a sequence and reversecomplements it'''
     complementary = comp(string)
@@ -1462,6 +1490,27 @@ def strip3primN(string):
     while string and string[-1] == 'N': string = string[:-1]
     
     return string
+
+def loadBEDfile(filename):
+    """ Function that reads a BED file and returns the entries as list of dictionaries
+    each dictrionary in the list will have the following keys corresponding to the columns in the bedfile:
+        reference_name
+        start_position
+        end_position
+        entry_name
+        value
+        strand
+    """
+    
+    bed_file = open(filename)
+    
+    bedDictionary = []
+    
+    for line in bed_file:
+        reference_name, start_position, end_position, entry_name, value, strand = line.split('\t')
+        bedDictionary.append( {'reference_name':reference_name, 'start_position':int(start_position), 'end_position':int(end_position), 'entry_name':entry_name, 'value':value, 'strand':strand} )
+
+    return bedDictionary 
 
 def uipac(bases, back='uipac'): #U	Uracil NOT SUPPORTED!!!
     if back == 'uipac':
