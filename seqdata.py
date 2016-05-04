@@ -171,7 +171,7 @@ class ReadPair(object):
                 if i+len(matchsequence) <= len(readsequence): dist = matchfunk(matchsequence,readsequence[i:i+len(matchsequence)])
                 else: dist = 10001
                 if breakAtFirstMatch and matchfunk == misc.hamming_distance:
-                    if dist <= maxDistance:
+                    if dist >= maxDistance:
                         return [i,i+len(matchsequence),dist]
                 
                 if dist < mindist[0]: mindist =[dist,i]
