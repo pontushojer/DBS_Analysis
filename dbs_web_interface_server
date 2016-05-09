@@ -453,7 +453,8 @@ def makehandlejson():
                 else: missing_h2 = count
             elif 'h3' in what: missing_h3 = count
             else: print 'unexpected', what
-        total = constructOK +missing_h3 +missing_h2 +missing_h3_h2 +missing_h1_h2_h3 +missing_h1_h2 +missing_h1 +missing_h1_h3 
+        total = constructOK +missing_h3 +missing_h2 +missing_h3_h2 +missing_h1_h2_h3 +missing_h1_h2 +missing_h1 +missing_h1_h3
+    else: total = 0
 
     json  ='     {"name": "Total read pairs", "children": ['
     json +='        {"name": "'+str(percentage(constructOK+missing_h3+missing_h2+missing_h3_h2,total))+'%'+' Has h1", "children": ['
