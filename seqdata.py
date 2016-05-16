@@ -534,7 +534,7 @@ class BarcodeClusterer(object):
                   '-g','1',      # mode
                   '-n','3',      # wrodsize
                   '-M','0',      # memory limit
-                  '-t',str(self.analysisfolder.settings.parallelProcesses),      # threads
+                  '-T',str(self.analysisfolder.settings.parallelProcesses),      # threads
                   '-gap','-100', # disallow gaps
                   '-c',str(1.000-float(self.analysisfolder.settings.barcodeMissmatch)/float(self.analysisfolder.settings.barcodeLength)) # identity cutoff
                   ]
