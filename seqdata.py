@@ -481,13 +481,14 @@ class BarcodeClusterer(object):
         if self.logfile: self.logfile.write('Loading read pairs ...\n')
         progress = misc.Progress(self.analysisfolder.results.totalReadCount, logfile=self.logfile, unit='reads-loaded-from-db', mem=True)
         with progress:
-            for pair in self.analysisfolder.database.getAllReadPairs():
-                if pair.dbsSeq:
+            self.analysisfolder.database.getConnection()
+            for pairid,barcodeSequence,qual in self.analysisfolder.database.c.execute('SELECT id, dbsSeq, dbsQual FROM reads'):
+                pairid = int(pairid)
+                if barcodeSequence:
                     readPairHasBarcodeCounter += 1
-                    barcodeSequence = pair.dbsSeq
-                    qualities[pair.id] = pair.dbsQual
-                    try:            uniqBarcodeSequences[barcodeSequence].append(pair.id)
-                    except KeyError:uniqBarcodeSequences[barcodeSequence] = [pair.id]
+                    qualities[pairid] = qual
+                    try:            uniqBarcodeSequences[barcodeSequence].append(pairid)
+                    except KeyError:uniqBarcodeSequences[barcodeSequence] = [pairid]
                 progress.update()
         if self.logfile: self.logfile.write('Done.\n')
         self.analysisfolder.results.setResult('uniqueBarcodeSequences',len(uniqBarcodeSequences))
