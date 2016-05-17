@@ -60,9 +60,9 @@ def foreachRead(readpair):
     """ checks that are run in parallel using multiprocessing for each read pair
     This functions is used mainly by FastqReader.runParallel but also by the non-supported FastqReader.run"""
     
-    readpair.isIlluminaAdapter()
+    #readpair.isIlluminaAdapter()
     readpair.identifyDirection()
-    readpair.makeColoredOut()
+    #readpair.makeColoredOut()
     readpair.fixInsert()
     readpair.matchdbs()
     
@@ -254,7 +254,7 @@ class FastqReader(object):
         # write to files
         #
         minInsertSize = 25
-        self.analysisfolder.coloredReadMasking.write( pair.outputSeq + '\n')
+        #self.analysisfolder.coloredReadMasking.write( pair.outputSeq + '\n')
         if pair.insert and pair.dbs and pair.dbsmatch:
             if pair.insert[0] and len(pair.insert[0]) >= minInsertSize and pair.insert[1] and len(pair.insert[1]) >= minInsertSize:
                 self.analysisfolder.fastq_outfile1.write( str(pair.header)+' '+str(pair.dbs)+'\n'+str(pair.insert[0])+'\n+\n'+str(pair.insert[2])+'\n')
