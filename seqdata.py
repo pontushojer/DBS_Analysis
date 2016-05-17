@@ -165,7 +165,7 @@ class ReadPair(object):
         elif int(maxDistance):
             mindist = [10000,-1]
             goto = len(readsequence)
-            if startOfRead: goto = 30
+            if startOfRead: goto = 10
             for i in range(goto):
                 
                 if i+len(matchsequence) <= len(readsequence): dist = matchfunk(matchsequence,readsequence[i:i+len(matchsequence)])
