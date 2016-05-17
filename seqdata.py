@@ -353,24 +353,12 @@ class ReadPair(object):
         if startPosition==None: self.h1 = None
         
         # look for H3 in read one
-        if not not self.direction:
+        if not self.direction:
             self.h3 = self.matchSequence(self.r1Seq,sequences.H3,missmatchesAllowed,startOfRead=True,breakAtFirstMatch=True)
             startPosition,endPosition,missmatches = self.h3
             if startPosition!=None and startPosition <= 2: self.direction = '2 -> 1'
             if startPosition==None: self.h3 = None
 
-        # look for H1 in read 2
-        self.h1_in_both_ends = None
-        startPosition,endPosition,missmatches = self.matchSequence(self.r2Seq,sequences.H1,missmatchesAllowed,startOfRead=True,breakAtFirstMatch=True)
-        if startPosition!=None and startPosition <= 2:
-            if self.h1:
-                self.h1_in_both_ends = True
-                self.h1in2ndReadCoordinates = [startPosition,endPosition,missmatches]
-            else:
-                self.direction = '2 -> 1'
-                self.h1 = [startPosition,endPosition,missmatches]
-                self.h1in2ndReadCoordinates = self.h1
-        
         # look for H3 in read two
         self.h3_in_both_ends = None
         startPosition,endPosition,missmatches = self.matchSequence(self.r2Seq,sequences.H3,missmatchesAllowed,startOfRead=True,breakAtFirstMatch=True)
@@ -382,7 +370,20 @@ class ReadPair(object):
                 self.h3_in_both_ends = False
                 self.direction = '1 -> 2'
                 self.h3 = [startPosition,endPosition,missmatches]
-        
+
+        # look for H1 in read 2
+        self.h1_in_both_ends = None
+        if not (self.h3 and self.direction == '1 -> 2'):
+            startPosition,endPosition,missmatches = self.matchSequence(self.r2Seq,sequences.H1,missmatchesAllowed,startOfRead=True,breakAtFirstMatch=True)
+            if startPosition!=None and startPosition <= 2:
+                if self.h1:
+                    self.h1_in_both_ends = True
+                    self.h1in2ndReadCoordinates = [startPosition,endPosition,missmatches]
+                else:
+                    self.direction = '2 -> 1'
+                    self.h1 = [startPosition,endPosition,missmatches]
+                    self.h1in2ndReadCoordinates = self.h1
+                
         # look for readinto h3
         checkSeq = None
         self.readIntoh3 = None
