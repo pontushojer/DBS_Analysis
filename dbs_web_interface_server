@@ -89,7 +89,7 @@ def indexForeachCluster(clusterId):
     cluster = BarcodeCluster(clusterId,app.analysisfolder)
     cluster.loadClusterInfo()
     #cluster.loadReadPairs()
-    cluster.minMAPQ = 20
+    cluster.minMAPQ = app.analysisfolder.settings.mapqCutOff
     return cluster
 
 @app.route("/")
@@ -237,7 +237,7 @@ def index(high=1000,low=0):
         #for clusterId in barcodeClusterer.getBarcodeClusterIds(shuffle=False,byMixedClusterReadCount=False):
         for cluster in app.analysisfolder.database.getAllClustersLoaded(app.analysisfolder):
             clusterId = cluster.id
-            cluster.minMAPQ = 20
+            cluster.minMAPQ = app.analysisfolder.settings.mapqCutOff
             if int(clusterId) < int(low): continue
             #cluster = indexForeachCluster(clusterId)
             
