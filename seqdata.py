@@ -465,6 +465,7 @@ class BarcodeClusterer(object):
         #
         import operator
         import misc
+        from sequences import DBS
 
         if self.logfile: self.logfile.write('Generating barcode fastq ...\n')
 
@@ -477,6 +478,7 @@ class BarcodeClusterer(object):
         totalReadPairCounter = 0
         qualities = {}
         readPairHasBarcodeCounter = 0
+        base_frequencies = [{'A':0,'T':0,'G':0,'C':0} for i in xrange(len(DBS))]
 
         if self.logfile: self.logfile.write('Loading read pairs ...\n')
         progress = misc.Progress(self.analysisfolder.results.totalReadCount, logfile=self.logfile, unit='reads-loaded-from-db', mem=True)
@@ -489,10 +491,16 @@ class BarcodeClusterer(object):
                     qualities[pairid] = qual
                     try:            uniqBarcodeSequences[barcodeSequence].append(pairid)
                     except KeyError:uniqBarcodeSequences[barcodeSequence] = [pairid]
+                    for i in xrange(len(barcodeSequence)): base_frequencies[i][barcodeSequence[i]] += 1
                 progress.update()
         if self.logfile: self.logfile.write('Done.\n')
         self.analysisfolder.results.setResult('uniqueBarcodeSequences',len(uniqBarcodeSequences))
         if self.logfile: self.logfile.write(str(self.analysisfolder.results.uniqueBarcodeSequences)+' uniq barcode sequences found within the read pair population.\n')
+        
+        #
+        # print base frequenzies for raw barcodes to file
+        #
+        with open(self.analysisfolder.dataPath+'/rawBarcodeBaseFreq.dict.txt','w') as outfile: outfile.write(str(base_frequencies))
 
         if self.logfile: self.logfile.write('Sorting the barcodes by number of reads/sequence.\n')
         if self.logfile: self.logfile.write('Building the sorting dictionary ...\n')
