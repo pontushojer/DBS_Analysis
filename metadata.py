@@ -373,7 +373,6 @@ class Database(object):
                 success = True
             except sqlite3.OperationalError: time.sleep(1)
 
-
 class Results(object,):
     
     #
