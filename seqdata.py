@@ -1456,7 +1456,7 @@ class BarcodeCluster(object,):
         from seqdata import loadBEDfile
         import sys
         
-        bedfile = loadBEDfile('/Users/erikborgstrom/Desktop/HLA_exons/HLABigWindow_ExonsOnly.fixedpositions.bed')
+        bedfile = loadBEDfile(self.analysisfolder.settings.targetRegionBed)
         self.loadReadPairs()
         
         readPairsByMappingCoordinate = {}

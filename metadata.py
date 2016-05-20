@@ -556,7 +556,8 @@ class Settings(object,):
             'bowtie2Reference':None,
             'picardPath':None,
             'mapqCutOff':0,
-            'minPairsPerCluster':2
+            'minPairsPerCluster':2,
+            'targetRegionBed':None
 
         }
         
@@ -577,7 +578,8 @@ class Settings(object,):
             'bowtie2Reference':'path to the bowtie 2 reference index',
             'picardPath':'path to the picard installation to use',
             'mapqCutOff':'filter all reads with mapping quality less than this (default='+str(self.defaultValues['mapqCutOff'])+')',
-            'minPairsPerCluster':'minimum number of read pairs supporting a cluster for it to be included in analysis (default 2)'
+            'minPairsPerCluster':'minimum number of read pairs supporting a cluster for it to be included in analysis (default 2)',
+            'targetRegionBed':'A bedfile defining regions on the reference that will be used as a targets during analysis such as coverage stats and variant calling (default = None)'
         }
         
         #
@@ -603,6 +605,7 @@ class Settings(object,):
         self.picardPath = None
         self.mapqCutOff = None
         self.minPairsPerCluster=None
+        self.targetRegionBed = None
         
         # set the default values
         self.setDefaults()
