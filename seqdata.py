@@ -1456,24 +1456,24 @@ class BarcodeCluster(object,):
         from seqdata import loadBEDfile
         import sys
         
-        bedfile = loadBEDfile(self.analysisfolder.settings.targetRegionBed)
+        self.targetInfo = loadBEDfile(self.analysisfolder.settings.targetRegionBed)
         self.loadReadPairs()
         
         readPairsByMappingCoordinate = {}
         
-        for entry in bedfile: entry['mappedReadCount'] = 0
+        for entry in self.targetInfo: entry['mappedReadCount'] = 0
         
         for readpair in self.readPairs:
             #print readpair.header, readpair.refPosR1, readpair.refPosR2
             if readpair.refPosR1 and readpair.refPosR2:
                 #print readpair.header
-                for entry in bedfile:
+                for entry in self.targetInfo:
                     if readpair.refPosR1 >= entry['start_position'] and readpair.refPosR1 <= entry['end_position']:
                         entry['mappedReadCount'] += 1
                     if readpair.refPosR2 >= entry['start_position'] and readpair.refPosR2 <= entry['end_position']:
                         entry['mappedReadCount'] += 1
 
-        for entry in bedfile:
+        for entry in self.targetInfo:
             sys.stdout.write(entry['entry_name']+'='+str(entry['mappedReadCount'])+'\t')
         sys.stdout.write('\n')
 
