@@ -431,7 +431,7 @@ class ReadPair(object):
             if not self.h3: self.construct += ' h3 '
             if not self.h2: self.construct += ' h2'
             if self.h1 and self.h3 and not self.h2 and self.direction == '1 -> 2' and len(self.r1Seq)<60: self.construct = ' h2-SemiOK'
- 
+
     def isIlluminaAdapter(self, ):
         """ function that identifies illumina adapter content within the reads and annotates the reads accordingly"""
 
@@ -893,7 +893,7 @@ class BarcodeCluster(object,):
         #
         self.filesCreated = []
 
-    def setValues(self, clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,htmlTable,analyzed):
+    def setValues(self, clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions, targetInfo, htmlTable,analyzed,):
         """ set the variable values for all info in the cluster """
         assert clusterId == self.id
         self.readPairCount      = int(clusterTotalReadCount)
@@ -917,8 +917,10 @@ class BarcodeCluster(object,):
         self.duplicateReadPairs = duplicateReadPairs
         if goodReadPairPositions:self.goodReadPairPositions = eval(goodReadPairPositions)
         else:self.goodReadPairPositions=None
+        self.targetInfo = eval(str(targetInfo))
         self.tableStr = htmlTable
-        self.analyzed = analyzed        
+        self.analyzed = analyzed
+
 
     def loadClusterInfo(self, ):
 
@@ -933,16 +935,16 @@ class BarcodeCluster(object,):
                     info = self.analysisfolder.database.c.execute('SELECT clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations FROM barcodeClusters WHERE clusterId=?',(self.id,)).fetchall()
                     assert len(info) == 1, 'More than one ('+str(len(info))+') clusters found with id '+str(self.id)
                     (clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations) = info[0]
-                    constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,htmlTable,analyzed = 'None',None,None,None,None,None,'None',None,False
+                    constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions, targetInfo, htmlTable,analyzed = 'None',None,None,None,None,None,'None','None',None,False
                 else:
-                    info = self.analysisfolder.database.c.execute('SELECT clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions, htmlTable, analyzed FROM barcodeClusters WHERE clusterId=?',(self.id,)).fetchall()
+                    info = self.analysisfolder.database.c.execute('SELECT clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions, targetInfo, htmlTable, analyzed FROM barcodeClusters WHERE clusterId=?',(self.id,)).fetchall()
                     assert len(info) == 1, 'More than one ('+str(len(info))+') clusters found with id '+str(self.id)
-                    (clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,htmlTable,analyzed) = info[0]
+                    (clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,targetInfo,htmlTable,analyzed) = info[0]
 
                 self.analysisfolder.database.commitAndClose()
 
                 assert clusterId == self.id
-                self.setValues(clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,htmlTable,analyzed)
+                self.setValues(clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,targetInfo,htmlTable,analyzed)
                 success = True
             except sqlite3.OperationalError: time.sleep(1)
 
@@ -1370,14 +1372,16 @@ class BarcodeCluster(object,):
                             self.analysisfolder.database.c.execute("alter table barcodeClusters add column goodReadPairPositions string")
                             self.analysisfolder.database.c.execute("alter table barcodeClusters add column htmlTable string")
                             self.analysisfolder.database.c.execute("alter table barcodeClusters add column analyzed BOOLEAN")
-                        self.analysisfolder.database.c.execute('UPDATE barcodeClusters SET annotations=?, constructTypes=?,readPairsInBamFile=?, mappedSEReads=?, SEreadsPassMappingQualityFilter=?, goodReadPairs=?, duplicateReadPairs=?, goodReadPairPositions=?, htmlTable=?, analyzed=? WHERE clusterId=?',(str(self.annotations),str(self.constructTypes),self.readPairsInBamFile,self.mappedSEReads,self.SEreadsPassMappingQualityFilter,self.goodReadPairs,self.duplicateReadPairs,str(self.goodReadPairPositions),self.tableStr,self.analyzed,self.id))
+                        if 'targetInfo' not in columnNames:
+                            self.analysisfolder.database.c.execute("alter table barcodeClusters add column targetInfo string")
+                        self.analysisfolder.database.c.execute('UPDATE barcodeClusters SET annotations=?, constructTypes=?,readPairsInBamFile=?, mappedSEReads=?, SEreadsPassMappingQualityFilter=?, goodReadPairs=?, duplicateReadPairs=?, goodReadPairPositions=?, targetInfo=?, htmlTable=?, analyzed=? WHERE clusterId=?',(str(self.annotations),str(self.constructTypes),self.readPairsInBamFile,self.mappedSEReads,self.SEreadsPassMappingQualityFilter,self.goodReadPairs,self.duplicateReadPairs,str(self.goodReadPairPositions),str(self.targetInfo),self.tableStr,self.analyzed,self.id))
                         self.analysisfolder.database.commitAndClose()
                         self.analysisfolder.database.writeInProgress.value = False
                         updated = True
                         print self.id, updated
                     except sqlite3.OperationalError: time.sleep(1)
         if returnTuple:
-            return (str(self.annotations),str(self.constructTypes),self.readPairsInBamFile,self.mappedSEReads,self.SEreadsPassMappingQualityFilter,self.goodReadPairs,self.duplicateReadPairs,str(self.goodReadPairPositions),self.tableStr,self.analyzed,self.id)
+            return (str(self.annotations),str(self.constructTypes),self.readPairsInBamFile,self.mappedSEReads,self.SEreadsPassMappingQualityFilter,self.goodReadPairs,self.duplicateReadPairs,str(self.goodReadPairPositions),str(self.targetInfo),self.tableStr,self.analyzed,self.id)
 
     def generateHtmlSummary(self):
         """ generates a small html style summary to use in later visualization of the cluster
@@ -1521,7 +1525,7 @@ def loadBEDfile(filename):
         bedDictionary.append( {'reference_name':reference_name, 'start_position':int(start_position), 'end_position':int(end_position), 'entry_name':entry_name, 'value':value, 'strand':strand} )
 
     return bedDictionary 
-
+   
 def uipac(bases, back='uipac'): #U	Uracil NOT SUPPORTED!!!
     if back == 'uipac':
         if 'N' in bases: return 'N'

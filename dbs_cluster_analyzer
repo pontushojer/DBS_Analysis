@@ -35,6 +35,13 @@ def main():
     logfile.write('cmd: '+' '.join(sys.argv)+'\n')
     analysisfolder.logfile = logfile
 
+    if not os.path.exists(analysisfolder.settings.targetRegionBed):
+        msg = 'Error: cant find the target defenition bed file!!/n'
+        sys.stderr.write(msg);
+        logfile.write(msg)
+        sys.exit()
+    
+    # just a progeress meter
     progress = Progress(analysisfolder.results.barcodeClusterCount,logfile=analysisfolder.logfile, unit='clusters',printint=1)
     updateChunk = []
 
@@ -104,6 +111,7 @@ def foreachCluster(cluster):
     # if cluster is not analyzed and meet the req. run the analysis
     if not cluster.analyzed and cluster.readPairCount >= cluster.analysisfolder.settings.minPairsPerCluster:
         cluster.analyze()
+        cluster.findTargetCoverage()
         cluster.removeAllFiles()
     
     # if already analyzed move on
@@ -158,9 +166,11 @@ def updateClusterChunk(analysisfolder,chunk):
                     analysisfolder.database.c.execute("alter table barcodeClusters add column goodReadPairPositions string")
                     analysisfolder.database.c.execute("alter table barcodeClusters add column htmlTable string")
                     analysisfolder.database.c.execute("alter table barcodeClusters add column analyzed BOOLEAN")
+                if 'targetInfo' not in columnNames:
+                    analysisfolder.database.c.execute("alter table barcodeClusters add column targetInfo string")
                 
                 # update the values for all the clusters in the chunk
-                analysisfolder.database.c.executemany('UPDATE barcodeClusters SET annotations=?, constructTypes=?,readPairsInBamFile=?, mappedSEReads=?, SEreadsPassMappingQualityFilter=?, goodReadPairs=?, duplicateReadPairs=?, goodReadPairPositions=?, htmlTable=?, analyzed=? WHERE clusterId=?', chunk)
+                analysisfolder.database.c.executemany('UPDATE barcodeClusters SET annotations=?, constructTypes=?,readPairsInBamFile=?, mappedSEReads=?, SEreadsPassMappingQualityFilter=?, goodReadPairs=?, duplicateReadPairs=?, goodReadPairPositions=?, targetInfo=?, htmlTable=?, analyzed=? WHERE clusterId=?', chunk)
                 
                 # commit the data and close the connection
                 analysisfolder.database.commitAndClose()
@@ -168,9 +178,14 @@ def updateClusterChunk(analysisfolder,chunk):
                 
                 # set flag to true
                 updated = True
-
+        
                 print 'updated ',len(chunk),'clusters', updated,'(',','.join([str(x[-1]) for x in chunk]),')'
                 
-            except sqlite3.OperationalError: time.sleep(1) # will be executed if database is blocked
+            except sqlite3.OperationalError:
+                import sys
+                msg = 'WARNING: Waiting for database connection! (retry in 1s).\n'
+                sys.stderr.write(msg)
+                analysisfolder.logfile.write(msg)
+                time.sleep(1) # will be executed if database is blocked
 
 if __name__ == "__main__": main()
