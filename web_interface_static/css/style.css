@@ -55,7 +55,7 @@
     #statistics {
         line-height:20px;
         background-color:#eeeeee;
-        width:500px;
+        width:400px;
         padding:20px;
         float:left;
     }
@@ -69,6 +69,7 @@
         padding:0px;
         float:left;
         font: 10px sans-serif;
+        width:800;
     }
     #slider {
         padding:0px;

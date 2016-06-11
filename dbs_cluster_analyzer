@@ -35,8 +35,8 @@ def main():
     logfile.write('cmd: '+' '.join(sys.argv)+'\n')
     analysisfolder.logfile = logfile
 
-    if not os.path.exists(analysisfolder.settings.targetRegionBed):
-        msg = 'Error: cant find the target defenition bed file!!/n'
+    if not analysisfolder.settings.targetRegionBed or not os.path.exists(analysisfolder.settings.targetRegionBed):
+        msg = 'Error: cant find the target defenition bed file!!\n'
         sys.stderr.write(msg);
         logfile.write(msg)
         sys.exit()
@@ -47,6 +47,7 @@ def main():
 
     # flag for multiprocessing or not
     runInParallel = True
+    if analysisfolder.settings.debug: runInParallel = False
     
     #
     # run the analysis functions for all the clusters aither using multiprocessing or not depending on the flag setting above
@@ -168,9 +169,11 @@ def updateClusterChunk(analysisfolder,chunk):
                     analysisfolder.database.c.execute("alter table barcodeClusters add column analyzed BOOLEAN")
                 if 'targetInfo' not in columnNames:
                     analysisfolder.database.c.execute("alter table barcodeClusters add column targetInfo string")
+                if 'individual_ID_dictionary' not in columnNames:
+                    analysisfolder.database.c.execute("alter table barcodeClusters add column individual_ID_dictionary string")
                 
                 # update the values for all the clusters in the chunk
-                analysisfolder.database.c.executemany('UPDATE barcodeClusters SET annotations=?, constructTypes=?,readPairsInBamFile=?, mappedSEReads=?, SEreadsPassMappingQualityFilter=?, goodReadPairs=?, duplicateReadPairs=?, goodReadPairPositions=?, targetInfo=?, htmlTable=?, analyzed=? WHERE clusterId=?', chunk)
+                analysisfolder.database.c.executemany('UPDATE barcodeClusters SET annotations=?, constructTypes=?,readPairsInBamFile=?, mappedSEReads=?, SEreadsPassMappingQualityFilter=?, goodReadPairs=?, duplicateReadPairs=?, goodReadPairPositions=?, targetInfo=?,individual_ID_dictionary=?, htmlTable=?, analyzed=? WHERE clusterId=?', chunk)
                 
                 # commit the data and close the connection
                 analysisfolder.database.commitAndClose()

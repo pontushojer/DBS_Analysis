@@ -189,6 +189,7 @@ class FastqReader(object):
                         insertSize = None
                         clusterId = None
                         annotations = {}
+                        individual_id = None
                         
                         #
                         # set fastq origin
@@ -212,7 +213,7 @@ class FastqReader(object):
                             dbsMatch, dbsSeq, dbsQual,
                             mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1,
                             mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,
-                            insertSize, clusterId, annotations, fromFastqId,r1PositionInFile,r2PositionInFile,bamFilePos
+                            insertSize, clusterId, annotations, fromFastqId,r1PositionInFile,r2PositionInFile,bamFilePos,individual_id
                             )
                         pair.analysisfolder = self.analysisfolder
                         
@@ -360,7 +361,7 @@ class FastqReader(object):
         if self.logfile: self.logfile.write('Create reads table (and drop old one if needed) ...\n')
         self.analysisfolder.database.getConnection()
         self.analysisfolder.database.c.execute("DROP TABLE IF EXISTS reads")
-        self.analysisfolder.database.c.execute('''CREATE TABLE reads (id, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos, PRIMARY KEY (id))''')
+        self.analysisfolder.database.c.execute('''CREATE TABLE reads (id, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos, individual_id, PRIMARY KEY (id))''')
         if self.logfile: self.logfile.write('commiting changes to database.\n')
         self.analysisfolder.database.commitAndClose()
         

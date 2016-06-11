@@ -4,7 +4,7 @@ class ReadPair(object):
     
     import misc
     
-    def __init__(self, currentRead, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId, r1PositionInFile,r2PositionInFile,bamFilePos):
+    def __init__(self, currentRead, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId, r1PositionInFile,r2PositionInFile,bamFilePos,individual_id):
 
         # original read info
         self.id = currentRead
@@ -22,6 +22,7 @@ class ReadPair(object):
         self.h1 = h1
         self.h2 = h2
         self.h3 = h3
+        self.individual_id = individual_id
         self.construct = constructType
 
         # dbs flags and coordinates
@@ -67,7 +68,7 @@ class ReadPair(object):
         # Dumping the quality and sequence values
         #return  (self.id,     self.r1Header,self.r1Seq,self.r2Seq,self.r1Qual,self.r2Qual,   str(self.handleCoordinates),self.dbs,     str(self.annotations),self.fileOrigin)
         #return  (self.id,     self.r1Header,None,None,None,None,   str(self.handleCoordinates),self.dbs,     str(self.annotations),self.fileOrigin)
-        return (self.id, self.header, None,None,None,None,self.direction,str(self.h1),str(self.h2),str(self.h3),self.construct,self.dbsmatch,self.dbsSeq,self.dbsQual,self.mappingFlagR1.flag,self.refNameR1,self.refPosR1,self.mapQR1,self.cigarR1,self.mappingFlagR2.flag,self.refNameR2,self.refPosR2,self.mapQR2,self.cigarR2,self.insertSize,self.clusterId,str(self.annotations),self.fileOrigin, self.r1PositionInFile,self.r2PositionInFile,self.bamFilePos)
+        return (self.id, self.header, None,None,None,None,self.direction,str(self.h1),str(self.h2),str(self.h3),self.construct,self.dbsmatch,self.dbsSeq,self.dbsQual,self.mappingFlagR1.flag,self.refNameR1,self.refPosR1,self.mapQR1,self.cigarR1,self.mappingFlagR2.flag,self.refNameR2,self.refPosR2,self.mapQR2,self.cigarR2,self.insertSize,self.clusterId,str(self.annotations),self.fileOrigin, self.r1PositionInFile,self.r2PositionInFile,self.bamFilePos, self.individual_id)
 
     def fixInsert(self,):
         """ This functions gets the insert sequence depending on what handles where found earlier"""
@@ -91,6 +92,9 @@ class ReadPair(object):
             if self.h3 and self.h3 != True:
                 self.insert[1] = self.r2Seq[self.h3[1]:]
                 self.insert[3] = self.r2Qual[self.h3[1]:]
+            if self.individual_id and self.fwd_primer:
+                self.insert[0] = self.r1Seq[self.fwd_primer[0]:]
+                self.insert[2] = self.r1Qual[self.fwd_primer[0]:]
         
         elif self.direction == '2 -> 1':
             if self.h2:
@@ -398,6 +402,7 @@ class ReadPair(object):
                 if not self.h3: self.h3 = True
 
 
+        self.individual_id = None
         if self.direction and not self.h3_in_both_ends:
             
             # find the h2 handle and DBS sequence
@@ -407,6 +412,12 @@ class ReadPair(object):
                 
                 if self.h1 and self.h2:
                     self.dbsPrimaryCoordinates = [self.r1Seq,self.h1[1],self.h2[0],self.r1Qual]
+                    
+                    # look for individual id
+                    self.individual_id_primer = self.matchSequence(self.r1Seq,sequences.IND_HANDLE_1,missmatchesAllowed,breakAtFirstMatch=True)
+                    self.fwd_primer           = self.matchSequence(self.r1Seq,sequences.IND_HANDLE_2,missmatchesAllowed,breakAtFirstMatch=True)
+                    if self.individual_id_primer[0] and self.fwd_primer[0]: self.individual_id = self.r1Seq[self.individual_id_primer[1]:self.fwd_primer[0]]
+                    else: self.individual_id = None
                 
                 if self.h1_in_both_ends: # find secondary h2
                     self.annotations['h2_r2_coordinates'] = self.matchSequence(self.r2Seq,revcomp(sequences.H2),missmatchesAllowed,breakAtFirstMatch=True)
@@ -893,7 +904,7 @@ class BarcodeCluster(object,):
         #
         self.filesCreated = []
 
-    def setValues(self, clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions, targetInfo, htmlTable,analyzed,):
+    def setValues(self, clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions, targetInfo, individual_ID_dictionary, htmlTable,analyzed,):
         """ set the variable values for all info in the cluster """
         assert clusterId == self.id
         self.readPairCount      = int(clusterTotalReadCount)
@@ -918,9 +929,9 @@ class BarcodeCluster(object,):
         if goodReadPairPositions:self.goodReadPairPositions = eval(goodReadPairPositions)
         else:self.goodReadPairPositions=None
         self.targetInfo = eval(str(targetInfo))
+        self.individual_ID_dictionary = eval(str(individual_ID_dictionary))
         self.tableStr = htmlTable
         self.analyzed = analyzed
-
 
     def loadClusterInfo(self, ):
 
@@ -935,16 +946,16 @@ class BarcodeCluster(object,):
                     info = self.analysisfolder.database.c.execute('SELECT clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations FROM barcodeClusters WHERE clusterId=?',(self.id,)).fetchall()
                     assert len(info) == 1, 'More than one ('+str(len(info))+') clusters found with id '+str(self.id)
                     (clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations) = info[0]
-                    constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions, targetInfo, htmlTable,analyzed = 'None',None,None,None,None,None,'None','None',None,False
+                    constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions, targetInfo,individual_ID_dictionary, htmlTable,analyzed = 'None',None,None,None,None,None,'None','None',None,None,False
                 else:
-                    info = self.analysisfolder.database.c.execute('SELECT clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions, targetInfo, htmlTable, analyzed FROM barcodeClusters WHERE clusterId=?',(self.id,)).fetchall()
+                    info = self.analysisfolder.database.c.execute('SELECT clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions, targetInfo,individual_ID_dictionary, htmlTable, analyzed FROM barcodeClusters WHERE clusterId=?',(self.id,)).fetchall()
                     assert len(info) == 1, 'More than one ('+str(len(info))+') clusters found with id '+str(self.id)
-                    (clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,targetInfo,htmlTable,analyzed) = info[0]
+                    (clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,targetInfo,individual_ID_dictionary,htmlTable,analyzed) = info[0]
 
                 self.analysisfolder.database.commitAndClose()
 
                 assert clusterId == self.id
-                self.setValues(clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,targetInfo,htmlTable,analyzed)
+                self.setValues(clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,targetInfo,individual_ID_dictionary,htmlTable,analyzed)
                 success = True
             except sqlite3.OperationalError: time.sleep(1)
 
@@ -1252,6 +1263,8 @@ class BarcodeCluster(object,):
         #
         # Parse the bamfile
         #
+        self.individual_ID_dictionary = {}
+        self.readPairsByHeader = {pair.header:pair for pair in self.readPairs}
         parseBamTime = time.time()
         try:self.analysisfolder.logfile.write('Making reads table forcluster '+str(self.id)+'.\n')
         except ValueError: pass
@@ -1296,6 +1309,7 @@ class BarcodeCluster(object,):
                 if alignedReadRead.pnext: row += '<td>'+thousandString(alignedReadRead.pnext)+'</td>'
                 else:row += '<td>'+str(alignedReadRead.pnext)+'</td>'
                 row += '<td>'+str(abs(alignedReadRead.isize))+'</td><td>'+str(alignedReadRead.mapq)+'</td><td>'+str(alignedReadRead.cigar)+'</td><td>'+str(alignedReadRead.is_proper_pair)+'</td>'
+                row += '<td>'+str(self.readPairsByHeader['@'+alignedReadRead.qname].individual_id)+'</td>'
                 row += '</tr>'
                 if nicePair and passMappingQuality and not alignedReadRead.is_duplicate:
                     goodReadPairsRows += row
@@ -1303,6 +1317,8 @@ class BarcodeCluster(object,):
                     duplicateReadPairsRows += row
                 else:
                     unmappedReadPairsRows += row
+                try: self.individual_ID_dictionary[self.readPairsByHeader['@'+alignedReadRead.qname].individual_id] += 1
+                except KeyError: self.individual_ID_dictionary[self.readPairsByHeader['@'+alignedReadRead.qname].individual_id] = 1
 
                 #
                 # Save coordinate of reads that mapp in nice pairs
@@ -1325,7 +1341,10 @@ class BarcodeCluster(object,):
         #
         # Make the full html table in one string
         #
-        headerRow = '<tr>'+'<th>header</th>'+'<th>flags</th>'+'<th>refchrom R1</th>'+'<th>refchrom R2</th>'+'<th>pos R1</th>'+'<th>pos R2</th>'+'<th>insertsize</th>'+'<th>mapQ</th>'+'<th>CIGAR</th>'+'<th>ProperPair</th>'+'</tr>'
+        headerRow = 'Individual Id sequenes found:<br>'
+        for seq, count in self.individual_ID_dictionary.iteritems():
+            headerRow += '    '+str(seq)+' '+str(count)+'<br>'
+        headerRow += '<br><br><tr>'+'<th>header</th>'+'<th>flags</th>'+'<th>refchrom R1</th>'+'<th>refchrom R2</th>'+'<th>pos R1</th>'+'<th>pos R2</th>'+'<th>insertsize</th>'+'<th>mapQ</th>'+'<th>CIGAR</th>'+'<th>ProperPair</th>'+'<th>ind id</th>'+'</tr>'
         self.tableStr = '<table>' +headerRow+ goodReadPairsRows + duplicateReadPairsRows + unmappedReadPairsRows + '</table>'
 
         #
@@ -1374,14 +1393,19 @@ class BarcodeCluster(object,):
                             self.analysisfolder.database.c.execute("alter table barcodeClusters add column analyzed BOOLEAN")
                         if 'targetInfo' not in columnNames:
                             self.analysisfolder.database.c.execute("alter table barcodeClusters add column targetInfo string")
-                        self.analysisfolder.database.c.execute('UPDATE barcodeClusters SET annotations=?, constructTypes=?,readPairsInBamFile=?, mappedSEReads=?, SEreadsPassMappingQualityFilter=?, goodReadPairs=?, duplicateReadPairs=?, goodReadPairPositions=?, targetInfo=?, htmlTable=?, analyzed=? WHERE clusterId=?',(str(self.annotations),str(self.constructTypes),self.readPairsInBamFile,self.mappedSEReads,self.SEreadsPassMappingQualityFilter,self.goodReadPairs,self.duplicateReadPairs,str(self.goodReadPairPositions),str(self.targetInfo),self.tableStr,self.analyzed,self.id))
+                        if 'individual_ID_dictionary' not in columnNames:
+                            self.analysisfolder.database.c.execute("alter table barcodeClusters add column individual_ID_dictionary string")
+                        self.analysisfolder.database.c.execute(
+                                'UPDATE barcodeClusters SET annotations=?, constructTypes=?,readPairsInBamFile=?, mappedSEReads=?, SEreadsPassMappingQualityFilter=?, goodReadPairs=?, duplicateReadPairs=?, goodReadPairPositions=?, targetInfo=?,individual_ID_dictionary=?, htmlTable=?, analyzed=? WHERE clusterId=?',
+                                (str(self.annotations),str(self.constructTypes),self.readPairsInBamFile,self.mappedSEReads,self.SEreadsPassMappingQualityFilter,self.goodReadPairs,self.duplicateReadPairs,str(self.goodReadPairPositions),str(self.targetInfo),str(self.individual_ID_dictionary),self.tableStr,self.analyzed,self.id)
+                            )
                         self.analysisfolder.database.commitAndClose()
                         self.analysisfolder.database.writeInProgress.value = False
                         updated = True
                         print self.id, updated
                     except sqlite3.OperationalError: time.sleep(1)
         if returnTuple:
-            return (str(self.annotations),str(self.constructTypes),self.readPairsInBamFile,self.mappedSEReads,self.SEreadsPassMappingQualityFilter,self.goodReadPairs,self.duplicateReadPairs,str(self.goodReadPairPositions),str(self.targetInfo),self.tableStr,self.analyzed,self.id)
+            return (str(self.annotations),str(self.constructTypes),self.readPairsInBamFile,self.mappedSEReads,self.SEreadsPassMappingQualityFilter,self.goodReadPairs,self.duplicateReadPairs,str(self.goodReadPairPositions),str(self.targetInfo),str(self.individual_ID_dictionary),self.tableStr,self.analyzed,self.id)
 
     def generateHtmlSummary(self):
         """ generates a small html style summary to use in later visualization of the cluster
@@ -1477,9 +1501,10 @@ class BarcodeCluster(object,):
                     if readpair.refPosR2 >= entry['start_position'] and readpair.refPosR2 <= entry['end_position']:
                         entry['mappedReadCount'] += 1
 
-        for entry in self.targetInfo:
-            sys.stdout.write(entry['entry_name']+'='+str(entry['mappedReadCount'])+'\t')
-        sys.stdout.write('\n')
+        if self.analysisfolder.settings.debug:
+            for entry in self.targetInfo:
+                sys.stdout.write(entry['entry_name']+'='+str(entry['mappedReadCount'])+'\t')
+            sys.stdout.write('\n')
 
 def revcomp(string):
     ''' Takes a sequence and reversecomplements it'''

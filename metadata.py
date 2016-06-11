@@ -145,7 +145,7 @@ class Database(object):
         # add the data in readsToAdd to the reads table
         #
 
-        self.c.executemany('INSERT INTO reads VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', readsToAdd)
+        self.c.executemany('INSERT INTO reads VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', readsToAdd)
         
         self.commitAndClose()
         
@@ -187,7 +187,7 @@ class Database(object):
         #
         # get att data in fastqs table
         #
-        readPairs = self.c.execute('SELECT id, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos FROM reads')
+        readPairs = self.c.execute('SELECT id, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos, individual_id FROM reads')
         
         while True:
 
@@ -196,8 +196,8 @@ class Database(object):
             if not rows: break
 
             for row in rows:
-                currentRead, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos = row
-                yield seqdata.ReadPair(currentRead, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, eval(h1), eval(h2), eval(h3), constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, eval(annotations), fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos)
+                currentRead, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos, individual_id = row
+                yield seqdata.ReadPair(currentRead, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, eval(h1), eval(h2), eval(h3), constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, eval(annotations), fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos, individual_id)
                 #yield seqdata.ReadPair(pairId, header, header, sequence1, sequence2, qual1, qual2,eval(handleCoordinates),clusterId,eval(annotations), fromFastq)
 
         self.commitAndClose()
@@ -223,11 +223,11 @@ class Database(object):
                 #
                 # faster getting reads from db
                 #
-                rows = self.c.execute('SELECT id, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos FROM reads WHERE id IN ('+', '.join(listOfIds)+')').fetchall()
+                rows = self.c.execute('SELECT id, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos, individual_id FROM reads WHERE id IN ('+', '.join(listOfIds)+')').fetchall()
                 for row in rows:
                 
-                    currentRead, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos = row
-                    yield seqdata.ReadPair(currentRead, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, eval(h1), eval(h2), eval(h3), constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, eval(annotations), fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos)
+                    currentRead, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos, individual_id = row
+                    yield seqdata.ReadPair(currentRead, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, eval(h1), eval(h2), eval(h3), constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, eval(annotations), fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos, individual_id)
                 
                 #
                 # alternatively this
@@ -280,7 +280,7 @@ class Database(object):
         #    result.append(tmp)
         #pprint.pprint(result)
 
-        return bool( len([col[0] for col in columns]) != 31 )
+        return bool( len([col[0] for col in columns]) != 32 )
 
     def dropReadColumns(self,):
 
@@ -352,20 +352,20 @@ class Database(object):
                     # get values set clusterinfo and yield cluster
                     info = self.c.execute('SELECT clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations FROM barcodeClusters')
                     for (clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations) in info:
-                        constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,targetInfo,htmlTable,analyzed = 'None',None,None,None,None,None,'None','None',None,False,
+                        constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,targetInfo,individual_ID_dictionary,htmlTable,analyzed = 'None',None,None,None,None,None,'None','None',None,None,False,
                         if clusterId == None: continue
                         cluster = BarcodeCluster(clusterId,analysisfolder)
-                        cluster.setValues(clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,targetInfo,htmlTable,analyzed)
+                        cluster.setValues(clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,targetInfo,individual_ID_dictionary,htmlTable,analyzed)
                         yield cluster
                 
                 else: # ie the new columns are present
                     
                     # get values set clusterinfo and yield cluster
-                    info = self.c.execute('SELECT clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions, targetInfo, htmlTable, analyzed FROM barcodeClusters')
-                    for (clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,targetInfo,htmlTable,analyzed) in info:
+                    info = self.c.execute('SELECT clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions, targetInfo,individual_ID_dictionary, htmlTable, analyzed FROM barcodeClusters')
+                    for (clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,targetInfo,individual_ID_dictionary,htmlTable,analyzed) in info:
                         if clusterId == None: continue
                         cluster = BarcodeCluster(clusterId,analysisfolder)
-                        cluster.setValues(clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,targetInfo,htmlTable,analyzed)
+                        cluster.setValues(clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,targetInfo,individual_ID_dictionary,htmlTable,analyzed)
                         yield cluster
                 
                 self.commitAndClose()
