@@ -35,8 +35,11 @@ def main():
     logfile.write('cmd: '+' '.join(sys.argv)+'\n')
     analysisfolder.logfile = logfile
 
+    #
+    # check if the target region bedfile is defined
+    #
     if not analysisfolder.settings.targetRegionBed or not os.path.exists(analysisfolder.settings.targetRegionBed):
-        msg = 'Error: cant find the target defenition bed file!!\n'
+        msg = 'Error: cant find the target definition bed file!!\n'
         sys.stderr.write(msg);
         logfile.write(msg)
         sys.exit()
@@ -118,13 +121,13 @@ def foreachCluster(cluster):
     # if already analyzed move on
     elif cluster.analyzed:
         cluster.analyzed = False;
-        print cluster.id,'already analyzed'
+        if cluster.analysisfolder.settings.debug: print cluster.id,'already analyzed'
     
     # flag cluster if below readcount cutof
     elif cluster.readPairCount < cluster.analysisfolder.settings.minPairsPerCluster:
         cluster.analyzed = True;
         cluster.annotations['LowReadCount']=True;
-        print cluster.id,' low read count'
+        if cluster.analysisfolder.settings.debug: print cluster.id,' low read count'
     
     return cluster
 
