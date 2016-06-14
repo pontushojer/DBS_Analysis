@@ -788,7 +788,12 @@ class BarcodeClusterer(object):
         import random
 
         self.analysisfolder.database.getConnection()
-        clusterIds = list(self.analysisfolder.database.c.execute('SELECT clusterId FROM barcodeClusters').fetchall())
+        tmp = list(self.analysisfolder.database.c.execute('SELECT clusterId,clusterTotalReadCount FROM barcodeClusters').fetchall())
+        clusterIds = []
+        readCountbyID = {}
+        for clusterId,clusterTotalReadCount in tmp:
+            clusterIds.append(clusterId)
+            readCountbyID[clusterId] = clusterTotalReadCount
         if shuffle: random.shuffle(clusterIds)
         self.analysisfolder.database.commitAndClose()
 
@@ -804,10 +809,11 @@ class BarcodeClusterer(object):
             
             self.analysisfolder.logfile.write('Sorting cluster ids to groups of varying read pair counts ...\n')
             for clusterId in clusterIds:
-                if clusterId[0] == None: continue
-                clusterId = int(clusterId[0])
+                if clusterId == None: continue
+                clusterId = int(clusterId)
                 cluster = BarcodeCluster(clusterId,self.analysisfolder)
-                cluster.loadClusterInfo()
+                #cluster.loadClusterInfo()
+                cluster.readPairCount = readCountbyID[cluster.id]
                 id2ReadCountDist[cluster.id] = cluster.readPairCount
                 yielded[cluster.id] = False
                 if   cluster.readPairCount <  1000 and cluster.readPairCount >= 0: normal.append(cluster.id)
@@ -1212,7 +1218,7 @@ class BarcodeCluster(object,):
         #
         # Load cluster data and initiate values for counters etc
         #
-        print 'Analyzing data in cluster '+str(self.id)
+        if self.analysisfolder.settings.debug: print 'Analyzing data in cluster '+str(self.id)
         try: self.analysisfolder.logfile.write('Analyzing data in cluster '+str(self.id)+' ... '+'\n')
         except ValueError:
             #self.analysisfolder.logfile = open(self.analysisfolder.logfile.name,'a')
@@ -1361,7 +1367,7 @@ class BarcodeCluster(object,):
         try:self.analysisfolder.logfile.write('Cluster '+str(self.id)+' analyzed in '+str(round(time.time()-starttime,2))+' seconds '+'\n')
         except ValueError: pass
         self.analyzed = True
-        sys.stdout.write(str(self.id)+'\t'+str(self.readPairCount)+'\t'+str(time.time()-starttime)+'\t'+str(loadPairsTime)+'\t'+str(createBamTime)+'\t'+str(parseBamTime)+'\n')
+        if self.analysisfolder.settings.debug: sys.stdout.write(str(self.id)+'\t'+str(self.readPairCount)+'\t'+str(time.time()-starttime)+'\t'+str(loadPairsTime)+'\t'+str(createBamTime)+'\t'+str(parseBamTime)+'\n')
 
     def updatedb(self,doUpdate=True,returnTuple=False):
         """ function for updating the daatabase with information about the cluster
@@ -1496,10 +1502,8 @@ class BarcodeCluster(object,):
             if readpair.refPosR1 and readpair.refPosR2:
                 #print readpair.header
                 for entry in self.targetInfo:
-                    if readpair.refPosR1 >= entry['start_position'] and readpair.refPosR1 <= entry['end_position']:
-                        entry['mappedReadCount'] += 1
-                    if readpair.refPosR2 >= entry['start_position'] and readpair.refPosR2 <= entry['end_position']:
-                        entry['mappedReadCount'] += 1
+                    if readpair.refPosR1 >= entry['start_position'] and readpair.refPosR1 <= entry['end_position']: entry['mappedReadCount'] += 1
+                    if readpair.refPosR2 >= entry['start_position'] and readpair.refPosR2 <= entry['end_position']: entry['mappedReadCount'] += 1
 
         if self.analysisfolder.settings.debug:
             for entry in self.targetInfo:
