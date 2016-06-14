@@ -27,7 +27,7 @@ def main():
     #
     # create a logfile
     #
-    logfile = open(analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'_wfaChangeSettings','w',1)
+    logfile = open(analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'_dbs_change_settings','w',1)
     logfile.write('cmd: '+' '.join(sys.argv)+'\n')
     analysisfolder.logfile = logfile
     
@@ -62,6 +62,6 @@ def main():
         for variableName, description in analysisfolder.settings.explenations.iteritems():
             sys.stderr.write(variableName+''.join(' ' for i in range(longestName-len(variableName)))+'\t'+description+' (currentValue='+str(analysisfolder.settings.__dict__[variableName])+')\n')
  
-    logfile.write('wfaChangeSettings FINISHED\n')
+    logfile.write('dbs_change_settings FINISHED\n')
 
 if __name__ == "__main__": main()
