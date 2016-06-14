@@ -732,7 +732,9 @@ class Settings(object,):
         return 0
 
 class AnalysisFolder(object):
-    """This class represent the analysis outpt folder, hold the structure for it and track the files within it is also the container that enables other info such as settings to be sent around among functions in a controlled way"""
+    """This class represent the analysis output folder,
+    it hold the structure for it and track the files within
+    it is also the container that enables other info such as settings to be sent around among functions in a controlled way"""
     
     def __init__(self, path, logfile=None):
         """ initiates the object and sets the paths to all files relative to commandline input

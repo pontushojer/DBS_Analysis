@@ -62,7 +62,7 @@ def foreachRead(readpair):
     
     #readpair.isIlluminaAdapter()
     readpair.identifyDirection()
-    #readpair.makeColoredOut()
+    #readpair.makeColoredOut() # removed this to speed things up should be able to run if comment is removed
     readpair.fixInsert()
     readpair.matchdbs()
     
@@ -310,7 +310,7 @@ class FastqReader(object):
         return 0
 
     def run(self,):
-        """ old function for running the analysis in a seraial mode not supported but might work
+        """ old function for running the analysis in a seraial mode  --- NOTE: not supported but might work!!! ----
         """
         
         #
@@ -411,8 +411,12 @@ class FastqReader(object):
         return 0
 
 class Summary():
+    """collection of counters too keep track of some runtime stats
+    """
     
     def __init__(self, analysisfolder, logfile=None):
+        """ sets counter intial values etc to zero
+        """
         
         #
         # Set initial values of counters etc
