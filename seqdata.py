@@ -1004,6 +1004,11 @@ class BarcodeCluster(object,):
         while self.analysisfolder.database.writeInProgress.value: time.sleep(0.1)
         
         #
+        # reset if already loaded
+        #
+        self.readPairs = []
+        
+        #
         # get the reads from the database and add the readobjects to the appropriate containers
         #
         p = Progress(self.readPairCount, logfile=self.analysisfolder.logfile,unit='cluster_'+str(self.id)+'_reads', mem=True)
