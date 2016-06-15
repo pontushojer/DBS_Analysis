@@ -1528,16 +1528,30 @@ class BarcodeCluster(object,):
         """ Function for calculating coverage over each target region in a bedfile specified
         """
         
+        #
+        # imports
+        #
         from seqdata import loadBEDfile
         import sys
         
+        #
+        # load the target region definition
+        #
         self.targetInfo = loadBEDfile(self.analysisfolder.settings.targetRegionBed)
-        self.loadReadPairs()
         
-        readPairsByMappingCoordinate = {}
+        #
+        # if readpairs are not loaded load them
+        #
+        if not self.readPairs: self.loadReadPairs()
         
+        #
+        # set counter to zero at start
+        #
         for entry in self.targetInfo: entry['mappedReadCount'] = 0
         
+        #
+        # count number of reads with mapping start coordinate in each region
+        #
         for readpair in self.readPairs:
             #print readpair.header, readpair.refPosR1, readpair.refPosR2
             if readpair.refPosR1 and readpair.refPosR2:
@@ -1546,6 +1560,9 @@ class BarcodeCluster(object,):
                     if readpair.refPosR1 >= entry['start_position'] and readpair.refPosR1 <= entry['end_position']: entry['mappedReadCount'] += 1
                     if readpair.refPosR2 >= entry['start_position'] and readpair.refPosR2 <= entry['end_position']: entry['mappedReadCount'] += 1
 
+        #
+        # print a debug message
+        #
         if self.analysisfolder.settings.debug:
             for entry in self.targetInfo:
                 sys.stdout.write(entry['entry_name']+'='+str(entry['mappedReadCount'])+'\t')
