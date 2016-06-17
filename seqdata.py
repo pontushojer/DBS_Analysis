@@ -1524,8 +1524,9 @@ class BarcodeCluster(object,):
         for filename in self.filesCreated:
             if os.path.exists(filename):os.remove(filename)
 
-    def findTargetCoverage(self, ):
+    def findTargetCoverage(self, output='read_count'):
         """ Function for calculating coverage over each target region in a bedfile specified
+        keyword output can be either "read_count" or "average_readdepth"
         """
         
         #
@@ -1544,28 +1545,55 @@ class BarcodeCluster(object,):
         #
         if not self.readPairs: self.loadReadPairs()
         
-        #
-        # set counter to zero at start
-        #
-        for entry in self.targetInfo: entry['mappedReadCount'] = 0
+        if output == 'read_count':
+
+            #
+            # set counter to zero at start
+            #
+            for entry in self.targetInfo: entry['mappedReadCount'] = 0
+
+            #
+            # count number of reads with mapping start coordinate in each region
+            #
+            for readpair in self.readPairs:
+                #print readpair.header, readpair.refPosR1, readpair.refPosR2
+                if readpair.refPosR1 and readpair.refPosR2:
+                    #print readpair.header
+                    for entry in self.targetInfo:
+                        if readpair.refPosR1 >= entry['start_position'] and readpair.refPosR1 <= entry['end_position']: entry['mappedReadCount'] += 1
+                        if readpair.refPosR2 >= entry['start_position'] and readpair.refPosR2 <= entry['end_position']: entry['mappedReadCount'] += 1
         
-        #
-        # count number of reads with mapping start coordinate in each region
-        #
-        for readpair in self.readPairs:
-            #print readpair.header, readpair.refPosR1, readpair.refPosR2
-            if readpair.refPosR1 and readpair.refPosR2:
-                #print readpair.header
-                for entry in self.targetInfo:
-                    if readpair.refPosR1 >= entry['start_position'] and readpair.refPosR1 <= entry['end_position']: entry['mappedReadCount'] += 1
-                    if readpair.refPosR2 >= entry['start_position'] and readpair.refPosR2 <= entry['end_position']: entry['mappedReadCount'] += 1
+        elif output == 'average_readdepth':
+
+            #
+            # set counter to zero at start
+            #
+            for entry in self.targetInfo: entry['averageReadDepth'] = 0
+            
+            #
+            # imports
+            #
+            import pysam
+            import os
+            
+            #
+            # get connection to bamile
+            #
+            if not os.path.exists(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bam'): self.createBamFile(createIndex=True)
+            bamfile = pysam.Samfile(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bam')
+            
+            for entry in self.targetInfo:
+                read_depths = [column.nsegments for column in bamfile.pileup(stepper='nofilter', reference=entry['reference_name'], start=entry['start_position'], end=entry['end_position'])]
+                try: entry['averageReadDepth'] = round(float(sum(read_depths))/float(len(read_depths)),2)
+                except ZeroDivisionError: entry['averageReadDepth'] = 0
 
         #
         # print a debug message
         #
         if self.analysisfolder.settings.debug:
             for entry in self.targetInfo:
-                sys.stdout.write(entry['entry_name']+'='+str(entry['mappedReadCount'])+'\t')
+                if 'mappedReadCount' in  entry: sys.stdout.write(entry['entry_name']+'(rc)='+str(entry['mappedReadCount'])+'\t')
+                if 'averageReadDepth' in entry: sys.stdout.write(entry['entry_name']+'(rd)='+str(entry['averageReadDepth'])+'\t')
             sys.stdout.write('\n')
 
 def revcomp(string):
