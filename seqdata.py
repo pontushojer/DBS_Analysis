@@ -1587,10 +1587,10 @@ class BarcodeCluster(object,):
             
             for entry in self.targetInfo:
 
-                read_depths = [column.nsegments for column in bamfile.pileup(stepper='nofilter', reference=entry['reference_name'], start=entry['start_position'], end=entry['end_position']) if column.pos >= entry['start_position'] and column.pos >= entry['end_position']]
+                read_depths = [column.nsegments for column in bamfile.pileup(stepper='nofilter', reference=entry['reference_name'], start=entry['start_position'], end=entry['end_position']) if (column.pos >= entry['start_position'] and column.pos <= entry['end_position']) ]
 
                 try:
-                    if output == 'average_readdepth_with_zeros': entry['averageReadDepth'] = round(float(sum(read_depths))/float(entry['end_position']-entry['start_position']),2)
+                    if output == 'average_readdepth_with_zeros': entry['averageReadDepth'] = round(float(sum(read_depths))/float(entry['end_position']-entry['start_position']+1),2)
                     elif output == 'average_readdepth':          entry['averageReadDepth'] = round(float(sum(read_depths))/float(len(read_depths)),2)
                 except ZeroDivisionError: entry['averageReadDepth'] = 0
 
