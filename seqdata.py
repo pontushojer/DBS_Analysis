@@ -1524,7 +1524,7 @@ class BarcodeCluster(object,):
         for filename in self.filesCreated:
             if os.path.exists(filename):os.remove(filename)
 
-    def findTargetCoverage(self, output='read_count', reload_targetInfo=True):
+    def findTargetCoverage(self, output='average_readdepth', reload_targetInfo=True):
         """ Function for calculating coverage over each target region in a bedfile specified
         keyword output can be either "read_count" or "average_readdepth"
         "read_count" sets the BarcodeCluster.targetInfo[ list_index ]['mappedReadCount'] to the count of reads that has it's leftmost mapping position within the targeted region
