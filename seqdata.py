@@ -1527,6 +1527,9 @@ class BarcodeCluster(object,):
     def findTargetCoverage(self, output='read_count'):
         """ Function for calculating coverage over each target region in a bedfile specified
         keyword output can be either "read_count" or "average_readdepth"
+        "read_count" sets the BarcodeCluster.targetInfo[ list_index ]['mappedReadCount'] to the count of reads that has it's leftmost mapping position within the targeted region
+        "average_readdepth" sets the BarcodeCluster.targetInfo[ list_index ]['averageReadDepth'] to the average read depth of non-zero bases in the targeted region
+        "average_readdepth_with_zeros" sets the BarcodeCluster.targetInfo[ list_index ]['averageReadDepth'] to the average read depth of all bases in the targeted region
         """
         
         #
@@ -1563,7 +1566,7 @@ class BarcodeCluster(object,):
                         if readpair.refPosR1 >= entry['start_position'] and readpair.refPosR1 <= entry['end_position']: entry['mappedReadCount'] += 1
                         if readpair.refPosR2 >= entry['start_position'] and readpair.refPosR2 <= entry['end_position']: entry['mappedReadCount'] += 1
         
-        elif output == 'average_readdepth':
+        elif output == 'average_readdepth' or output == 'average_readdepth_with_zeros':
 
             #
             # set counter to zero at start
@@ -1583,8 +1586,12 @@ class BarcodeCluster(object,):
             bamfile = pysam.Samfile(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bam')
             
             for entry in self.targetInfo:
-                read_depths = [column.nsegments for column in bamfile.pileup(stepper='nofilter', reference=entry['reference_name'], start=entry['start_position'], end=entry['end_position'])]
-                try: entry['averageReadDepth'] = round(float(sum(read_depths))/float(len(read_depths)),2)
+
+                read_depths = [column.nsegments for column in bamfile.pileup(stepper='nofilter', reference=entry['reference_name'], start=entry['start_position'], end=entry['end_position']) if column.pos >= entry['start_position'] and column.pos >= entry['end_position']]
+
+                try:
+                    if output == 'average_readdepth_with_zeros': entry['averageReadDepth'] = round(float(sum(read_depths))/float(entry['end_position']-entry['start_position']),2)
+                    elif output == 'average_readdepth':          entry['averageReadDepth'] = round(float(sum(read_depths))/float(len(read_depths)),2)
                 except ZeroDivisionError: entry['averageReadDepth'] = 0
 
         #
