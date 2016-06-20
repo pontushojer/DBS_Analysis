@@ -902,6 +902,7 @@ class BarcodeCluster(object,):
         self.targetInfo = None # list of dictionaries with bedstyle layout keeping info about targeted regions for this specific cluster of read pairs
         self.individual_ID_dictionary = None # dictrionary with the sequences (keys) and counts (values) of the indiivdual id sequences/barcodes found within the read pais in this cluster
         self.tableStr = None # htm string that are used in the web interface
+        self.hetrozygous_positions = None # count of heterozygous positions identified in the target region definded in self.targetInfo
 
         #
         # connections to the reads
@@ -1603,6 +1604,123 @@ class BarcodeCluster(object,):
                 if 'averageReadDepth' in entry: sys.stdout.write(entry['entry_name']+'(rd)='+str(entry['averageReadDepth'])+'\t')
             sys.stdout.write('\n')
 
+    def findHetroZygousBasesInTarget(self, ):
+        
+        #
+        # imports
+        #
+        import pysam
+        import os
+        import misc
+        
+        if not self.targetInfo: self.findTargetCoverage()
+
+        #
+        # get connection to bamile
+        #
+        if not os.path.exists(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bam'): self.createBamFile(createIndex=True)
+        bamfile = pysam.Samfile(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bam')
+        reference = pysam.FastaFile(self.analysisfolder.settings.bowtie2Reference)
+        
+        # go through each targeted region
+        for entry in self.targetInfo:
+            
+            entry['hetrozygous_positions'] = {}
+            
+            # make a pilup of aligned bases for each base in targeted region
+            for pileup_column in bamfile.pileup(stepper='nofilter', reference=entry['reference_name'], start=entry['start_position'], end=entry['end_position']):
+                
+                # "assert" that the base are within target
+                if pileup_column.pos >= entry['start_position'] and pileup_column.pos <= entry['end_position']:
+                    
+                    # check readcount above defined cutoff
+                    if pileup_column.nsegments >= self.analysisfolder.settings.minReadDepthForHetrozygousVariant:
+                        
+                        # init counters
+                        bases_in_this_position = {}
+                        inserted_bases_in_next_position = {}
+                    
+                        #check all reads that align to this position
+                        for pileup_read in pileup_column.pileups:
+                            
+                            # if next position is an insertion save the inserted bases to be able too look for hetrozygosity 
+                            if pileup_read.indel >= 0:
+                                
+                                if pileup_read.indel == 0: insertion = '-' # no insertion present in read ie read is same as reference
+                                else:                     insertion = pileup_read.alignment.seq[ pileup_read.query_position+1: pileup_read.query_position+pileup_read.indel+1] # insetion present
+                                
+                                try:             inserted_bases_in_next_position[ insertion ] += 1
+                                except KeyError: inserted_bases_in_next_position[ insertion ]  = 1
+                            
+                            # if the current reference position is deleted in read set the base to "-"
+                            if pileup_read.query_position == None: 
+                                assert pileup_read.is_del
+                                try: bases_in_this_position[ '-' ] += 1
+                                except KeyError:bases_in_this_position[ '-' ] = 1
+                            
+                            # if a base has in the read has aligned to the reference, get the base to be able too look for hetrozygosity 
+                            else:
+                                try: bases_in_this_position[pileup_read.alignment.seq[ pileup_read.query_position ]] += 1
+                                except KeyError: bases_in_this_position[pileup_read.alignment.seq[ pileup_read.query_position ]] = 1
+                            
+                        # set flags
+                        this_pos_hetro = None
+                        insertion_hetro = None
+                        
+                        # check the distribution of bases at this position
+                        for base, count in bases_in_this_position.iteritems():
+    
+                            # caluclate the allele frequency of the base
+                            allele_frequenzy = misc.percentage(count, pileup_column.nsegments)
+                            
+                            if allele_frequenzy >= 100*self.analysisfolder.settings.minAlleleFreqForHetrozygousVariant and allele_frequenzy <= 100*(1 - self.analysisfolder.settings.minAlleleFreqForHetrozygousVariant): this_pos_hetro = True
+                        
+                        # check the distribution of insertions at the next position
+                        for insertion, count in inserted_bases_in_next_position.iteritems():
+    
+                            # caluclate the allele frequency of the base
+                            allele_frequenzy = misc.percentage(count, sum(inserted_bases_in_next_position.values()))
+                            
+                            if allele_frequenzy >= 100*self.analysisfolder.settings.minAlleleFreqForHetrozygousVariant and allele_frequenzy <= 100*(1 - self.analysisfolder.settings.minAlleleFreqForHetrozygousVariant): insertion_hetro = True
+                        
+                        # if hetozygousity was detected add position to entry['hetrozygous_positions']
+                        if this_pos_hetro or insertion_hetro:
+                            entry['hetrozygous_positions'][pileup_column.pos] = {'position_readdepth':pileup_column.nsegments, 'reference_base':reference.fetch(reference=pileup_column.reference_name,start=pileup_column.reference_pos,end=pileup_column.reference_pos+1)}
+                        
+                            # if the actual position was hetrozygous
+                            if this_pos_hetro:
+                                entry['hetrozygous_positions'][pileup_column.pos]['bases'] = bases_in_this_position
+                            
+                            # if next position was a hetrozygous insertion
+                            if insertion_hetro:
+                                entry['hetrozygous_positions'][pileup_column.pos]['insertion_in_next_position'] = True
+                                entry['hetrozygous_positions'][pileup_column.pos]['insertions'] = inserted_bases_in_next_position
+                            else:
+                                entry['hetrozygous_positions'][pileup_column.pos]['insertion_in_next_position'] = False
+        # debugging message
+        if self.analysisfolder.settings.debug:
+            for entry in self.targetInfo:
+                
+                print entry['entry_name']
+                
+                for position, info_dictionary in entry['hetrozygous_positions'].iteritems():
+                    
+                    if 'bases' in info_dictionary: print position,'\t',info_dictionary['reference_base'],'\t',info_dictionary['position_readdepth'],'\t'.join([base+'='+str(count) for base,count in info_dictionary['bases'].iteritems() ])
+                    
+                    if 'insertions' in info_dictionary: print str(position)+'.i','\t',info_dictionary['reference_base'],'\t',info_dictionary['position_readdepth'],'\t'.join([base+'='+str(count) for base,count in info_dictionary['insertions'].iteritems() ])
+        
+        # write to tablestr to use at clusterspecific web interface page
+        tmp = ''
+        for entry in self.targetInfo:
+            tmp += '<br>'+entry['entry_name']+'<br>'
+            for position, info_dictionary in entry['hetrozygous_positions'].iteritems():
+                if 'bases' in info_dictionary:      tmp += str(position)+'\t'+str(info_dictionary['reference_base'])+'\t'+str(info_dictionary['position_readdepth'])+'\t'+'\t'.join([base+'='+str(count) for base,count in info_dictionary['bases'].iteritems() ])+'<br>'
+                if 'insertions' in info_dictionary: tmp += str(position)+'.i'+'\t'+str(info_dictionary['reference_base'])+'\t'+str(info_dictionary['position_readdepth'])+'\t'+'\t'.join([base+'='+str(count) for base,count in info_dictionary['insertions'].iteritems() ])+'<br>'
+        self.tableStr = tmp +'<br><br><br>'+ self.tableStr
+        
+        # set number of hetrozygous positions
+        self.hetrozygous_positions = sum([ len(entry['hetrozygous_positions']) for entry in self.targetInfo ])
+
 def revcomp(string):
     ''' Takes a sequence and reversecomplements it'''
     complementary = comp(string)
@@ -1643,7 +1761,7 @@ def loadBEDfile(filename):
     bedDictionary = []
     
     for line in bed_file:
-        reference_name, start_position, end_position, entry_name, value, strand = line.split('\t')
+        reference_name, start_position, end_position, entry_name, value, strand = line.rstrip().split('\t')
         bedDictionary.append( {'reference_name':reference_name, 'start_position':int(start_position), 'end_position':int(end_position), 'entry_name':entry_name, 'value':value, 'strand':strand} )
 
     return bedDictionary 

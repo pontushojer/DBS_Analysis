@@ -556,6 +556,8 @@ class Settings(object,):
             'bowtie2Reference':None,
             'picardPath':None,
             'mapqCutOff':0,
+            'minReadDepthForHetrozygousVariant':10,
+            'minAlleleFreqForHetrozygousVariant':0.2,
             'minPairsPerCluster':2,
             'targetRegionBed':None
 
@@ -578,6 +580,8 @@ class Settings(object,):
             'bowtie2Reference':'path to the bowtie 2 reference index',
             'picardPath':'path to the picard installation to use',
             'mapqCutOff':'filter all reads with mapping quality less than this (default='+str(self.defaultValues['mapqCutOff'])+')',
+            'minReadDepthForHetrozygousVariant':'the minimum read depth to call a position as a hetroxygous variant',
+            'minAlleleFreqForHetrozygousVariant':'the minimum allele frequency of the minor allele at a position to call the position as a hetroxygous variant (0-1, default = 0.2)',
             'minPairsPerCluster':'minimum number of read pairs supporting a cluster for it to be included in analysis (default 2)',
             'targetRegionBed':'A bedfile defining regions on the reference that will be used as a targets during analysis such as coverage stats and variant calling (default = None)'
         }
@@ -604,6 +608,8 @@ class Settings(object,):
         self.bowtie2Reference = None
         self.picardPath = None
         self.mapqCutOff = None
+        self.minReadDepthForHetrozygousVariant = None
+        self.minAlleleFreqForHetrozygousVariant = None
         self.minPairsPerCluster=None
         self.targetRegionBed = None
         

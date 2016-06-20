@@ -115,8 +115,9 @@ def foreachCluster(cluster):
     
     # if cluster is not analyzed and meet the req. run the analysis
     if not cluster.analyzed and cluster.readPairCount >= cluster.analysisfolder.settings.minPairsPerCluster:
-        cluster.analyze()
+        cluster.analyze(createBamIndex=True)
         cluster.findTargetCoverage()
+        cluster.findHetroZygousBasesInTarget()
         cluster.removeAllFiles()
     
     # if already analyzed move on
