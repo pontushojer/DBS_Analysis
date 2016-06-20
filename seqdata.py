@@ -401,7 +401,7 @@ class ReadPair(object):
                 self.readIntoh3Coordinates = [startPosition,endPosition,missmatches]
                 if not self.h3: self.h3 = True
 
-
+        # look for individual index in read 1 //HA
         self.individual_id = None
         if self.direction and not self.h3_in_both_ends:
             
@@ -1202,6 +1202,7 @@ class BarcodeCluster(object,):
         # imports
         #
         import time
+        from misc import hamming_distance
         from misc import thousandString
         from misc import percentage
         import pysam
@@ -1337,13 +1338,48 @@ class BarcodeCluster(object,):
         # assert that the database and bamfile counts match
         #
         assert readPairsInBamFile == readPairsInBamFileCheck, '## ERROR ## : The number of reads in the bamfile is not correct!\n'
+        
+        #
+        # match the index references sequnces with the individual index 
+        #
+        temporary_indIDdict = {}
+        for individual_id_sequence, count in self.individual_ID_dictionary.iteritems():
+            
+            this_is_a_known_id_sequence = None # set flag to None
+            
+            individual_index_missmatches_allowed = self.analysisfolder.settings.maxIndividualIndexMissMatches
+            
+            if individual_id_sequence == None:
+                try: temporary_indIDdict['other_exon'] += count
+                except KeyError: temporary_indIDdict['other_exon'] = count
+                continue
+            
+            # check against known sequences!!!
+            for index_name,index_sequence in self.analysisfolder.individual_id_fasta_sequences_by_id.iteritems():
+                if len(index_sequence) != len(individual_id_sequence): continue
+                mismatch_count = hamming_distance(individual_id_sequence, index_sequence)
+                
+                if mismatch_count <= individual_index_missmatches_allowed:
+                    # we have a match this is a known sequence
+                    this_is_a_known_id_sequence = True
+                    break
+            
+            if this_is_a_known_id_sequence:
+                try: temporary_indIDdict[index_name] += count
+                except KeyError: temporary_indIDdict[index_name] = count
+            else:
+               try: temporary_indIDdict['unknown'] += count
+               except KeyError: temporary_indIDdict['unknown'] = count
+        
+        self.individual_ID_dictionary = temporary_indIDdict
+        #print self.individual_ID_dictionary
 
         #
         # Make the full html table in one string
         #
         headerRow = 'Individual Id sequenes found:<br>'
         for seq, count in self.individual_ID_dictionary.iteritems():
-            headerRow += '    '+str(seq)+' '+str(count)+'<br>'
+                headerRow += '    '+str(seq)+' '+str(count)+'<br>'
         headerRow += '<br><br><tr>'+'<th>header</th>'+'<th>flags</th>'+'<th>refchrom R1</th>'+'<th>refchrom R2</th>'+'<th>pos R1</th>'+'<th>pos R2</th>'+'<th>insertsize</th>'+'<th>mapQ</th>'+'<th>CIGAR</th>'+'<th>ProperPair</th>'+'<th>ind id</th>'+'</tr>'
         self.tableStr = '<table>' +headerRow+ goodReadPairsRows + duplicateReadPairsRows + unmappedReadPairsRows + '</table>'
 
