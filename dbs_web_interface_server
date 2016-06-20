@@ -308,12 +308,12 @@ def index(high=1000,low=0):
             if targetInfo:
                 for entry in targetInfo:
     
-                    if      entry['mappedReadCount']== 0: tableRows += '<font color="red">'
-                    elif    entry['mappedReadCount'] < 15 and entry['mappedReadCount'] > 0 :tableRows += '<font color="orange">'
-                    elif    entry['mappedReadCount'] < 30 and entry['mappedReadCount'] > 15 :tableRows += '<font color="blue">'
+                    if      entry['averageReadDepth']== 0: tableRows += '<font color="red">'
+                    elif    entry['averageReadDepth'] < 15 and entry['averageReadDepth'] > 0 :tableRows += '<font color="orange">'
+                    elif    entry['averageReadDepth'] < 30 and entry['averageReadDepth'] > 15 :tableRows += '<font color="blue">'
                     else:  tableRows += '<font color="green">'
                     
-                    tableRows += str(entry['entry_name'])+'='+str(entry['mappedReadCount'])+'<br>'
+                    tableRows += str(entry['entry_name'])+'='+str(entry['averageReadDepth'])+'<br>'
             tableRows +='</font></a></td>\n'
             
             tableRows += '</tr>'

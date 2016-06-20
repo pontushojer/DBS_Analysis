@@ -7,45 +7,53 @@ class ReadPair(object):
     def __init__(self, currentRead, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId, r1PositionInFile,r2PositionInFile,bamFilePos,individual_id):
 
         # original read info
+        # comming from the raw fastq files, except id that is a increasing int for each entry in fastq
+        # the sequences (r1Seq & r2Seq) and qualities (r1Qual & r2Qual) are never saved to the database (except as None values) and are thus not usable after the handle identification step, they could theoretically be added to database though will take a lot of exttra space
         self.id = currentRead
         self.header   = header
         self.r1Seq      = sequenceR1 	#self.r1Seq      = strip3primN(sequence1)
         self.r2Seq      = sequenceR2 	#self.r2Seq      = strip3primN(sequence2)
         self.r1Qual     = qualR1
         self.r2Qual     = qualR2
-        self.fileOrigin = fromFastqId
-        self.r1PositionInFile = r1PositionInFile
+        self.fileOrigin = fromFastqId # this is the id in the database of the fastq file that the read pair comes from
+        self.r1PositionInFile = r1PositionInFile # this is the positions in the original files where the read is found
         self.r2PositionInFile = r2PositionInFile
 
         # handle flags and coordinates
+        # theese varibles stores handle coordinates for the three main handles
         self.direction = direction
         self.h1 = h1
         self.h2 = h2
         self.h3 = h3
+        self.construct = constructType # the contsructtype dict stores information about which handles were found dunring handle identification
+
+        # these variables are used to find the handles connected to the individual id and the id sequence/barcode
+        # the handles are only used during the dbs_handle_identifier step and are never saved to the database and are therefore defined as None here
+        self.fwd_primer = None
+        self.individual_id_primer = None
         self.individual_id = individual_id
-        self.construct = constructType
 
         # dbs flags and coordinates
         self.dbs = None
-        self.dbsSeq = dbsSeq
+        self.dbsSeq = dbsSeq # this is the actual dbs sequence part of the read pair
         self.dbsQual = dbsQual
-        self.dbsmatch = dbsMatch
+        self.dbsmatch = dbsMatch # flag true or false depensing on if the dbs sequence math the expected pattern
         self.dbsPrimaryCoordinates = None
 
         # other flags and information
-        self.analysisfolder = None
-        self.annotations = annotations
+        self.analysisfolder = None # this is a holder for defining an analysis folder link
+        self.annotations = annotations # a dict with other info that does not really fit anywhere else
         self.overlap = None
         self.brokenSequence = ''
         #self.construct = None
-        self.insert= None
-        self.clusterId = clusterId
+        self.insert= None # this is a list with the part of the sequence that are between the handles only used in dbs_handle_identifier then saved to various fastq files and used for mapping
+        self.clusterId = clusterId # the cluster id that the read pair belong to after clustering inititally None
 
-        #graphical representation
+        # graphical representation, not really used anymore, still kept here if needed in the future
         self.outstring = str(self.id)+''.join([' ' for i in range(10-len(str(self.id)))]),
         self.__str__ = self.outstring
 
-        #mapping info
+        # mapping info from the bamfile look at pysam and sam/bam file defenition to get info about each field/variable
         self.bamFilePos = bamFilePos
         self.mappingFlagR1 = SamFlag(mappingFlagR1)
         self.refNameR1 = refNameR1
@@ -142,7 +150,7 @@ class ReadPair(object):
             else:pass#print 'BADSEQUENCE!',dbsSeq
             
     def matchSequence(self, readsequence, matchsequence, maxDistance, matchfunk=misc.hamming_distance, startOfRead=False,breakAtFirstMatch=False):
-        """" function for finding sequenc motifs in the read sequence """
+        """" function for finding sequenc motifs in the read sequence returns a list with [startcoordinate, endcoordinate, number of missmatches]"""
         
         import re
         import misc
@@ -340,7 +348,7 @@ class ReadPair(object):
         self.outputSeq = outputSeq
 
     def identifyDirection(self,):
-        """ function that uses the matchSequence function to find the handles deined in sequences
+        """ function that uses the matchSequence function to find the handles defined in sequences
         """
         
         import sequences
@@ -782,13 +790,18 @@ class BarcodeClusterer(object):
 
     def getBarcodeClusterIds(self, shuffle=True,byMixedClusterReadCount=True):
         """ function for fetching barcode cluster info from the database
-        this function should maybe not be under this object but rather be moved to the database object in the future(?)
+        NOTE: this function should maybe not be under this object but rather be moved to the database object in the future(?)
         """
 
         import random
 
         self.analysisfolder.database.getConnection()
-        clusterIds = list(self.analysisfolder.database.c.execute('SELECT clusterId FROM barcodeClusters').fetchall())
+        tmp = list(self.analysisfolder.database.c.execute('SELECT clusterId,clusterTotalReadCount FROM barcodeClusters').fetchall())
+        clusterIds = []
+        readCountbyID = {}
+        for clusterId,clusterTotalReadCount in tmp:
+            clusterIds.append(clusterId)
+            readCountbyID[clusterId] = clusterTotalReadCount
         if shuffle: random.shuffle(clusterIds)
         self.analysisfolder.database.commitAndClose()
 
@@ -804,10 +817,11 @@ class BarcodeClusterer(object):
             
             self.analysisfolder.logfile.write('Sorting cluster ids to groups of varying read pair counts ...\n')
             for clusterId in clusterIds:
-                if clusterId[0] == None: continue
-                clusterId = int(clusterId[0])
+                if clusterId == None: continue
+                clusterId = int(clusterId)
                 cluster = BarcodeCluster(clusterId,self.analysisfolder)
-                cluster.loadClusterInfo()
+                #cluster.loadClusterInfo()
+                cluster.readPairCount = readCountbyID[cluster.id]
                 id2ReadCountDist[cluster.id] = cluster.readPairCount
                 yielded[cluster.id] = False
                 if   cluster.readPairCount <  1000 and cluster.readPairCount >= 0: normal.append(cluster.id)
@@ -871,29 +885,39 @@ class BarcodeCluster(object,):
         # information about the cluster
         #
         self.id = clusterId
-        self.analysisfolder = analysisfolder
-        self.readPairCount = None
-        self.contigCount = None
-        self.barcodeSequence = None
+        self.analysisfolder = analysisfolder # link to the analysis folder for easy access
+        self.readPairCount = None # total readpairs in cluster
+        self.barcodeSequence = None # the DBS consensus sequence
         self.barcodeQuality = None
-        self.readPairIdsList = []
-        self.contigIdsList = []
-        self.annotations = {}
-        self.analyzed = False
-        self.minMAPQ = 0
+        self.annotations = {} # other information
+        self.analyzed = False # flad for knowing if the cluster is already analyzed or if analysis need to be done
+        self.minMAPQ = 0 # minimum mapping quality allowed for cluster NOTE THAT THIS ONE SHOULD BE AND WE SHOULD USE ONLY "analysisfolder.settings.minmapq"-or-whatever-thing
+        self.constructTypes = None # a dictionary keeping track of all construct types observed in the read pairs of the cluster, see readppair definition for more info
+        self.readPairsInBamFile = None # the number of read pairs from this cluster that are present in the bam file
+        self.mappedSEReads = None # number of mapped Single End (SE) reads (ie not pairs)
+        self.SEreadsPassMappingQualityFilter = None # number of SE reads that map with mapq above cutoff
+        self.goodReadPairs = None # number of or list??? need to check code and fix this comment ----- CHANGE NEEDED HERE!
+        self.duplicateReadPairs = None # count of readpairs marked as duplicates
+        self.goodReadPairPositions = None # number of or list??? need to check code and fix this comment ----- CHANGE NEEDED HERE!
+        self.targetInfo = None # list of dictionaries with bedstyle layout keeping info about targeted regions for this specific cluster of read pairs
+        self.individual_ID_dictionary = None # dictrionary with the sequences (keys) and counts (values) of the indiivdual id sequences/barcodes found within the read pais in this cluster
+        self.tableStr = None # htm string that are used in the web interface
 
         #
         # connections to the reads
         #
-        self.readPairs = []
-        self.readPairsById = {}
-        self.readPairIdentities = []
-        self.readPairsPassFilter = []
-        self.readPairsNotPassingFilter = []
+        self.readPairIdsList = [] # list of read pair ids that are in the cluster
+        self.readPairs = [] # list of actual read pair objects
+        self.readPairsById = {} # sorted by idnumber
+        self.readPairIdentities = [] # identities of readpair DBS to the cluster DBS seed
+        self.readPairsPassFilter = [] # list of pair objects passing filter
+        self.readPairsNotPassingFilter = [] # oposite of above
 
         #
         # for future usage if we do assebly of reads, only relavant for certain types of experimental data
         #
+        self.contigIdsList = []
+        self.contigCount = None
         self.contigSequences = []
         self.contigSequencesPassFilter = []
         self.contigSequencesNotPassingFilter = []
@@ -903,9 +927,9 @@ class BarcodeCluster(object,):
         # list to keep track of temporary files
         #
         self.filesCreated = []
-
+        
     def setValues(self, clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions, targetInfo, individual_ID_dictionary, htmlTable,analyzed,):
-        """ set the variable values for all info in the cluster """
+        """ set the variable values for all info in the cluster, ususally used in conjunction with a database load in one way or another """
         assert clusterId == self.id
         self.readPairCount      = int(clusterTotalReadCount)
         self.readPairIdsList    = eval(readPairsList)
@@ -934,6 +958,8 @@ class BarcodeCluster(object,):
         self.analyzed = analyzed
 
     def loadClusterInfo(self, ):
+        """ (re)load the info from the database of this cluster
+        """
 
         import sqlite3, time
         success = False
@@ -976,6 +1002,11 @@ class BarcodeCluster(object,):
         
         # wait for acces to the database
         while self.analysisfolder.database.writeInProgress.value: time.sleep(0.1)
+        
+        #
+        # reset if already loaded
+        #
+        self.readPairs = []
         
         #
         # get the reads from the database and add the readobjects to the appropriate containers
@@ -1195,7 +1226,7 @@ class BarcodeCluster(object,):
         return 0
 
     def analyze(self,createBamIndex=False):
-        """ analyze and get statisstics about the cluster and how the reads in the cluster map to the reference
+        """ analyze and get statisstics about the cluster and how the reads in the cluster map to the reference etc
         """
 
         #
@@ -1213,7 +1244,7 @@ class BarcodeCluster(object,):
         #
         # Load cluster data and initiate values for counters etc
         #
-        print 'Analyzing data in cluster '+str(self.id)
+        if self.analysisfolder.settings.debug: print 'Analyzing data in cluster '+str(self.id)
         try: self.analysisfolder.logfile.write('Analyzing data in cluster '+str(self.id)+' ... '+'\n')
         except ValueError:
             #self.analysisfolder.logfile = open(self.analysisfolder.logfile.name,'a')
@@ -1318,6 +1349,10 @@ class BarcodeCluster(object,):
                     duplicateReadPairsRows += row
                 else:
                     unmappedReadPairsRows += row
+                
+                #
+                # add info about the id id found in the read pair to the "cluster-wide" dictionary
+                #
                 try: self.individual_ID_dictionary[self.readPairsByHeader['@'+alignedReadRead.qname].individual_id] += 1
                 except KeyError: self.individual_ID_dictionary[self.readPairsByHeader['@'+alignedReadRead.qname].individual_id] = 1
 
@@ -1375,7 +1410,7 @@ class BarcodeCluster(object,):
         #print self.individual_ID_dictionary
 
         #
-        # Make the full html table in one string
+        # Make the full html table in one string together with the info about potential u=individual ids/barcodes found
         #
         headerRow = 'Individual Id sequenes found:<br>'
         for seq, count in self.individual_ID_dictionary.iteritems():
@@ -1397,7 +1432,7 @@ class BarcodeCluster(object,):
         try:self.analysisfolder.logfile.write('Cluster '+str(self.id)+' analyzed in '+str(round(time.time()-starttime,2))+' seconds '+'\n')
         except ValueError: pass
         self.analyzed = True
-        sys.stdout.write(str(self.id)+'\t'+str(self.readPairCount)+'\t'+str(time.time()-starttime)+'\t'+str(loadPairsTime)+'\t'+str(createBamTime)+'\t'+str(parseBamTime)+'\n')
+        if self.analysisfolder.settings.debug: sys.stdout.write(str(self.id)+'\t'+str(self.readPairCount)+'\t'+str(time.time()-starttime)+'\t'+str(loadPairsTime)+'\t'+str(createBamTime)+'\t'+str(parseBamTime)+'\n')
 
     def updatedb(self,doUpdate=True,returnTuple=False):
         """ function for updating the daatabase with information about the cluster
@@ -1412,6 +1447,10 @@ class BarcodeCluster(object,):
                 while not updated:
                     try: 
                         self.analysisfolder.database.getConnection()
+                        
+                        #
+                        # check the column headers and add missing information
+                        #
                         self.analysisfolder.database.c.execute('PRAGMA table_info(barcodeClusters)')
                         columnNames = [col[1] for col in self.analysisfolder.database.c.fetchall()]
                         if 'constructTypes' not in columnNames:
@@ -1431,6 +1470,10 @@ class BarcodeCluster(object,):
                             self.analysisfolder.database.c.execute("alter table barcodeClusters add column targetInfo string")
                         if 'individual_ID_dictionary' not in columnNames:
                             self.analysisfolder.database.c.execute("alter table barcodeClusters add column individual_ID_dictionary string")
+                        
+                        #
+                        # do the actual update
+                        #
                         self.analysisfolder.database.c.execute(
                                 'UPDATE barcodeClusters SET annotations=?, constructTypes=?,readPairsInBamFile=?, mappedSEReads=?, SEreadsPassMappingQualityFilter=?, goodReadPairs=?, duplicateReadPairs=?, goodReadPairPositions=?, targetInfo=?,individual_ID_dictionary=?, htmlTable=?, analyzed=? WHERE clusterId=?',
                                 (str(self.annotations),str(self.constructTypes),self.readPairsInBamFile,self.mappedSEReads,self.SEreadsPassMappingQualityFilter,self.goodReadPairs,self.duplicateReadPairs,str(self.goodReadPairPositions),str(self.targetInfo),str(self.individual_ID_dictionary),self.tableStr,self.analyzed,self.id)
@@ -1440,6 +1483,10 @@ class BarcodeCluster(object,):
                         updated = True
                         print self.id, updated
                     except sqlite3.OperationalError: time.sleep(1)
+        
+        #
+        # return a tuple formated for update of db
+        #
         if returnTuple:
             return (str(self.annotations),str(self.constructTypes),self.readPairsInBamFile,self.mappedSEReads,self.SEreadsPassMappingQualityFilter,self.goodReadPairs,self.duplicateReadPairs,str(self.goodReadPairPositions),str(self.targetInfo),str(self.individual_ID_dictionary),self.tableStr,self.analyzed,self.id)
 
@@ -1513,33 +1560,83 @@ class BarcodeCluster(object,):
         for filename in self.filesCreated:
             if os.path.exists(filename):os.remove(filename)
 
-    def findTargetCoverage(self, ):
+    def findTargetCoverage(self, output='average_readdepth', reload_targetInfo=True):
         """ Function for calculating coverage over each target region in a bedfile specified
+        keyword output can be either "read_count" or "average_readdepth"
+        "read_count" sets the BarcodeCluster.targetInfo[ list_index ]['mappedReadCount'] to the count of reads that has it's leftmost mapping position within the targeted region
+        "average_readdepth" sets the BarcodeCluster.targetInfo[ list_index ]['averageReadDepth'] to the average read depth of non-zero bases in the targeted region
+        "average_readdepth_with_zeros" sets the BarcodeCluster.targetInfo[ list_index ]['averageReadDepth'] to the average read depth of all bases in the targeted region
         """
         
+        #
+        # imports
+        #
         from seqdata import loadBEDfile
         import sys
         
-        self.targetInfo = loadBEDfile(self.analysisfolder.settings.targetRegionBed)
-        self.loadReadPairs()
+        #
+        # load the target region definition
+        #
+        if reload_targetInfo or not self.targetInfo: self.targetInfo = loadBEDfile(self.analysisfolder.settings.targetRegionBed)
         
-        readPairsByMappingCoordinate = {}
+        #
+        # if readpairs are not loaded load them
+        #
+        if not self.readPairs: self.loadReadPairs()
         
-        for entry in self.targetInfo: entry['mappedReadCount'] = 0
-        
-        for readpair in self.readPairs:
-            #print readpair.header, readpair.refPosR1, readpair.refPosR2
-            if readpair.refPosR1 and readpair.refPosR2:
-                #print readpair.header
-                for entry in self.targetInfo:
-                    if readpair.refPosR1 >= entry['start_position'] and readpair.refPosR1 <= entry['end_position']:
-                        entry['mappedReadCount'] += 1
-                    if readpair.refPosR2 >= entry['start_position'] and readpair.refPosR2 <= entry['end_position']:
-                        entry['mappedReadCount'] += 1
+        if output == 'read_count':
 
+            #
+            # set counter to zero at start
+            #
+            for entry in self.targetInfo: entry['mappedReadCount'] = 0
+
+            #
+            # count number of reads with mapping start coordinate in each region
+            #
+            for readpair in self.readPairs:
+                #print readpair.header, readpair.refPosR1, readpair.refPosR2
+                if readpair.refPosR1 and readpair.refPosR2:
+                    #print readpair.header
+                    for entry in self.targetInfo:
+                        if readpair.refPosR1 >= entry['start_position'] and readpair.refPosR1 <= entry['end_position']: entry['mappedReadCount'] += 1
+                        if readpair.refPosR2 >= entry['start_position'] and readpair.refPosR2 <= entry['end_position']: entry['mappedReadCount'] += 1
+        
+        elif output == 'average_readdepth' or output == 'average_readdepth_with_zeros':
+
+            #
+            # set counter to zero at start
+            #
+            for entry in self.targetInfo: entry['averageReadDepth'] = 0
+            
+            #
+            # imports
+            #
+            import pysam
+            import os
+            
+            #
+            # get connection to bamile
+            #
+            if not os.path.exists(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bam'): self.createBamFile(createIndex=True)
+            bamfile = pysam.Samfile(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bam')
+            
+            for entry in self.targetInfo:
+
+                read_depths = [column.nsegments for column in bamfile.pileup(stepper='nofilter', reference=entry['reference_name'], start=entry['start_position'], end=entry['end_position']) if column.pos >= entry['start_position'] and column.pos >= entry['end_position']]
+
+                try:
+                    if output == 'average_readdepth_with_zeros': entry['averageReadDepth'] = round(float(sum(read_depths))/float(entry['end_position']-entry['start_position']),2)
+                    elif output == 'average_readdepth':          entry['averageReadDepth'] = round(float(sum(read_depths))/float(len(read_depths)),2)
+                except ZeroDivisionError: entry['averageReadDepth'] = 0
+
+        #
+        # print a debug message
+        #
         if self.analysisfolder.settings.debug:
             for entry in self.targetInfo:
-                sys.stdout.write(entry['entry_name']+'='+str(entry['mappedReadCount'])+'\t')
+                if 'mappedReadCount' in  entry: sys.stdout.write(entry['entry_name']+'(rc)='+str(entry['mappedReadCount'])+'\t')
+                if 'averageReadDepth' in entry: sys.stdout.write(entry['entry_name']+'(rd)='+str(entry['averageReadDepth'])+'\t')
             sys.stdout.write('\n')
 
 def revcomp(string):
