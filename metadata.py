@@ -547,6 +547,7 @@ class Settings(object,):
             'uppmaxProject':'b2014005',
             'parallelProcesses':multiprocessing.cpu_count(),
             'maxHandleMissMatches':0,
+            'maxIndividualIndexMissMatches':0,
             'barcodeLength':len(sequences.DBS),
             #'analysisParts':None,
             'barcodeMissmatch':0,
@@ -557,7 +558,8 @@ class Settings(object,):
             'picardPath':None,
             'mapqCutOff':0,
             'minPairsPerCluster':2,
-            'targetRegionBed':None
+            'targetRegionBed':None,
+            'IndexReferenceTsv':None
 
         }
         
@@ -572,6 +574,7 @@ class Settings(object,):
             #'analysisParts':'Parts of the analysis to run specific for each run.',
             'barcodeMissmatch':'Number of missmatches allowed in the barcode sequence',
             'maxHandleMissMatches':'Number of missmatches allowed in the handle sequence',
+            'maxIndividualIndexMissMatches':'Number of missmatches allowed in the individual index sequence',
             #'readsPerUmiCutOff':'Number of reads supporting one UMI for it to passs filters',
             #'umiMaxMisMatch':'Number of missmatches allowed in the UMI sequence',
             'readsPerClusterCutOff':'Number of reads supporting a barcode sequence cluster for it to passs filters',
@@ -579,7 +582,8 @@ class Settings(object,):
             'picardPath':'path to the picard installation to use',
             'mapqCutOff':'filter all reads with mapping quality less than this (default='+str(self.defaultValues['mapqCutOff'])+')',
             'minPairsPerCluster':'minimum number of read pairs supporting a cluster for it to be included in analysis (default 2)',
-            'targetRegionBed':'A bedfile defining regions on the reference that will be used as a targets during analysis such as coverage stats and variant calling (default = None)'
+            'targetRegionBed':'A bedfile defining regions on the reference that will be used as a targets during analysis such as coverage stats and variant calling (default = None)',
+            'IndexReferenceTsv':'A tsv-file of individual index sequnces that will be used as a reference target during analysis of individual index, column 1 should be the name or id and column two should be the sequence (default = None)'
         }
         
         #
@@ -598,6 +602,7 @@ class Settings(object,):
         self.barcodeLength = None
         #self.analysisParts = None
         self.barcodeMissmatch = None
+        self.maxIndividualIndexMissMatches = None
         #self.readsPerUmiCutOff = None
         #self.umiMaxMisMatch = None
         self.readsPerClusterCutOff = None
@@ -606,6 +611,7 @@ class Settings(object,):
         self.mapqCutOff = None
         self.minPairsPerCluster=None
         self.targetRegionBed = None
+        self.IndexReferenceTsv = None
         
         # set the default values
         self.setDefaults()
@@ -801,3 +807,51 @@ class AnalysisFolder(object):
             if not os.path.isdir(folder): return 'FAIL: The folder structure is broken.'
         
         return 'PASS'
+    
+    def readindexTsv(self, ):
+        """ Function that reads a TSV file and returns the entries as list of dictionaries
+        each dictrionary in the list will have the following keys corresponding to the columns in the tsv_file:
+        indexReference_name
+        index_sequences
+        """
+        # read tsv file save in dictionary
+        
+        import sys
+        import os
+        
+        if not self.settings.IndexReferenceTsv:
+            msg = 'ERROR: no indexreference file is supplied in the settings please run dbs_change_settings and set the appropriate variable.\n'
+            sys.stderr.write(msg)
+            sys.exit()
+        
+        if not os.path.exists(self.settings.IndexReferenceTsv):
+            msg = 'ERROR: cannot find the specified indexreference file, please run dbs_change_settings and change the setting.\n'
+            sys.stderr.write(msg)
+            sys.exit()
+    
+        #
+        # get index tsv file name from settings object and open the file
+        #
+        index_file = open(self.settings.IndexReferenceTsv)
+        
+        #
+        # create the dictionaries where we are going to add the data
+        #
+        self.individual_id_fasta_sequences_by_id = {}
+        self.individual_id_fasta_sequences_by_sequence = {}
+        
+        #
+        # read each line in the file
+        #
+        for line in index_file:
+            
+            # split the columns to two variables
+            index_name, index_sequences = line.rstrip().split('\t')
+            
+            # save in dictionaries
+            self.individual_id_fasta_sequences_by_id[index_name] = index_sequences 
+            self.individual_id_fasta_sequences_by_sequence[index_sequences] = index_name
+        
+        # end by closing the input file
+        index_file.close()
+        

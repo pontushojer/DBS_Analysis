@@ -270,10 +270,10 @@ def index(high=1000,low=0):
             tableRows += '<td><a href="/cluster'+str(cluster.id)+'">'
             if cluster.individual_ID_dictionary:
                 for seq, count in cluster.individual_ID_dictionary.iteritems():
-                    if len(str(seq))  > 6:
+                    if len(str(seq))  > 1000:
                         tableRows += str(seq)[:3]+'...'+str(seq)[-3:]+'='+str(count)+'<br>'
                     else:
-                        tableRows += str(seq)+'='+str(count)+'<br>'
+                        tableRows += 'id='+str(seq)+', count='+str(count)+'<br>'
             tableRows += '</a></td>'
             tableRows += '<td><a href="cluster'+str(cluster.id)+'"><font face="Courier">'+str(cluster.barcodeSequence)+'</font></a></td>\n'
             tableRows += '<td><a href="cluster'+str(cluster.id)+'">'+str(cluster.readPairCount)+'</a></td>\n'
