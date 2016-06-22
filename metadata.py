@@ -790,7 +790,8 @@ class AnalysisFolder(object):
                 self.settings.loadFromDb()
                 self.results.loadFromDb()
             except sqlite3.OperationalError: pass
-        self.settings.debug = eval(self.settings.debug)
+        
+        if type(self.settings.debug) != bool and type(self.settings.debug) != int: self.settings.debug = eval(self.settings.debug)
 
     def create(self, ):
         """ This functions creates the folder-structure and the database """
