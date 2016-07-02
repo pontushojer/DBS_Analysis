@@ -798,8 +798,6 @@ class AnalysisFolder(object):
             except sqlite3.OperationalError: pass
         
         if type(self.settings.debug) != bool and type(self.settings.debug) != int: self.settings.debug = eval(self.settings.debug)
-        
-        if self.settings.temp: self.copy_to_temp()
 
     def copy_to_temp(self):
         

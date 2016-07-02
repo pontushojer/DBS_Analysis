@@ -20,6 +20,7 @@ def main():
     try:
         analysisfolder = metadata.AnalysisFolder(sys.argv[1])
         analysisfolder.readindexTsv()
+        if analysisfolder.settings.temp: analysisfolder.copy_to_temp()
 
     except IndexError: sys.stderr.write('please supply a commandline on format:\n'+os.path.basename(__file__)+' <analysis-output-folder> [reanalyze=bool]\n');sys.exit()
     try:
