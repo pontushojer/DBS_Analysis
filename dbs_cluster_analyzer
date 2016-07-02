@@ -71,6 +71,8 @@ def main():
 
     updateClusterChunk(cluster.analysisfolder,updateChunk) # last update to not lose end values
     
+    if analysisfolder.database_in_temp: analysisfolder.copy_from_temp()
+    
     logfile.write('analyseClusters FINISHED\n')
 
 def reAnalyze(analysisfolder):

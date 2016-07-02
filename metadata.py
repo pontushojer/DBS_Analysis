@@ -561,7 +561,9 @@ class Settings(object,):
             'minAlleleFreqForHetrozygousVariant':0.2,
             'minPairsPerCluster':2,
             'targetRegionBed':None,
-            'IndexReferenceTsv':None
+            'IndexReferenceTsv':None,
+            'temp':None,
+            'port':'random'
 
         }
         
@@ -587,7 +589,9 @@ class Settings(object,):
             'minAlleleFreqForHetrozygousVariant':'the minimum allele frequency of the minor allele at a position to call the position as a hetroxygous variant (0-1, default = 0.2)',
             'minPairsPerCluster':'minimum number of read pairs supporting a cluster for it to be included in analysis (default 2)',
             'targetRegionBed':'A bedfile defining regions on the reference that will be used as a targets during analysis such as coverage stats and variant calling (default = None)',
-            'IndexReferenceTsv':'A tsv-file of individual index sequnces that will be used as a reference target during analysis of individual index, column 1 should be the name or id and column two should be the sequence (default = None)'
+            'IndexReferenceTsv':'A tsv-file of individual index sequnces that will be used as a reference target during analysis of individual index, column 1 should be the name or id and column two should be the sequence (default = None)',
+            'temp':'path to temporary folder (used for copying database etc on eg uppmax to increase speed of IO)',
+            'port':'web server port for the web interface eg. 5000 (default value = random)'
         }
         
         #
@@ -618,6 +622,8 @@ class Settings(object,):
         self.minPairsPerCluster=None
         self.targetRegionBed = None
         self.IndexReferenceTsv = None
+        self.temp = None
+        self.port=None
         
         # set the default values
         self.setDefaults()
@@ -792,6 +798,37 @@ class AnalysisFolder(object):
             except sqlite3.OperationalError: pass
         
         if type(self.settings.debug) != bool and type(self.settings.debug) != int: self.settings.debug = eval(self.settings.debug)
+        
+        if self.settings.temp: self.copy_to_temp()
+
+    def copy_to_temp(self):
+        
+        import os
+        import shutil
+        import sys
+        
+        if not os.path.exists(self.settings.temp): sys.stderr.write( '# ERROR: the folder '+self.settings.temp+' does not exist...\n' )
+        else:
+            
+            if not self.settings.temp[-1] == '/': self.settings.temp+='/'
+            self.database_original_name = self.databaseFileName.replace('//','/')
+            sys.stderr.write('copying database ('+self.database_original_name+')  to temp location '+self.settings.temp+'\n')
+            shutil.copy2(self.database_original_name,self.settings.temp+'database.db')
+            sys.stderr.write('done.\n')
+            self.databaseFileName = self.settings.temp+'database.db'
+            self.database  = Database(self.databaseFileName)
+            self.database_in_temp = True
+
+    def copy_from_temp(self):
+
+        import os
+        import shutil
+        import sys
+        
+        if self.database_in_temp:
+            sys.stderr.write('copying database ('+self.database.path+')  back to original location ('+self.database_original_name+')...\n')
+            shutil.copy2(self.database.path,self.database_original_name)
+            sys.stderr.write('done.\n')
 
     def create(self, ):
         """ This functions creates the folder-structure and the database """
