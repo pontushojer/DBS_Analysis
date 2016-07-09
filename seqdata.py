@@ -1383,7 +1383,7 @@ class BarcodeCluster(object,):
             
             this_is_a_known_id_sequence = None # set flag to None
             
-            individual_index_missmatches_allowed = self.analysisfolder.settings.maxIndividualIndexMissMatches
+            individual_index_missmatches_allowed = int(self.analysisfolder.settings.maxIndividualIndexMissMatches)
             
             if individual_id_sequence == None:
                 try: temporary_indIDdict['other_exon'] += count
