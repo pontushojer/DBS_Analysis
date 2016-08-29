@@ -1656,7 +1656,10 @@ class BarcodeCluster(object,):
         #
         if not os.path.exists(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bam'): self.createBamFile(createIndex=True)
         bamfile = pysam.Samfile(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bam')
-        reference = pysam.FastaFile(self.analysisfolder.settings.bowtie2Reference)
+        try:
+            reference = pysam.FastaFile(self.analysisfolder.settings.bowtie2Reference)
+        except IOError:
+            reference = pysam.FastaFile(self.analysisfolder.settings.bowtie2Reference+'.fa')
         
         # go through each targeted region
         for entry in self.targetInfo:
@@ -1791,14 +1794,18 @@ def loadBEDfile(filename):
         value
         strand
     """
+
+    bedDictionary = []    
     
-    bed_file = open(filename)
+    try:
+        bed_file = open(filename)
     
-    bedDictionary = []
+        for line in bed_file:
+            reference_name, start_position, end_position, entry_name, value, strand = line.rstrip().split('\t')
+            bedDictionary.append( {'reference_name':reference_name, 'start_position':int(start_position), 'end_position':int(end_position), 'entry_name':entry_name, 'value':value, 'strand':strand} )
     
-    for line in bed_file:
-        reference_name, start_position, end_position, entry_name, value, strand = line.rstrip().split('\t')
-        bedDictionary.append( {'reference_name':reference_name, 'start_position':int(start_position), 'end_position':int(end_position), 'entry_name':entry_name, 'value':value, 'strand':strand} )
+    except TypeError as error: # this is if bedfile is None, this should be changed later on so that bedfile list is a clusterwide template copy pasted to each cluster by eg shutil deepcopy
+        pass
 
     return bedDictionary 
    

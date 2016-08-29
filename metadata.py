@@ -785,6 +785,9 @@ class AnalysisFolder(object):
         
         self.filenames = [self.databaseFileName,self.report]
         
+        # flags
+        self.database_in_temp = False
+        
         # objects
         self.database  = Database(self.databaseFileName)
         self.settings = Settings(self)
@@ -862,9 +865,10 @@ class AnalysisFolder(object):
         import os
         
         if not self.settings.IndexReferenceTsv:
-            msg = 'ERROR: no indexreference file is supplied in the settings please run dbs_change_settings and set the appropriate variable.\n'
+            msg = 'WARNING: no indexreference file is supplied in the settings please run dbs_change_settings and set the appropriate variable.\n'
+            msg+= '         (If run is not indexed you can safely ignore this message).\n'
             sys.stderr.write(msg)
-            sys.exit()
+            return
         
         if not os.path.exists(self.settings.IndexReferenceTsv):
             msg = 'ERROR: cannot find the specified indexreference file, please run dbs_change_settings and change the setting.\n'
