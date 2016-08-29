@@ -178,7 +178,10 @@ def index(high=1000,low=0):
     if app.analysisfolder.results.readsWithDbsPatternMatch:
         tmp = eval(app.analysisfolder.results.readsWithDbsPatternMatch)
         outStr += '&nbsp&nbsp&nbsp&nbsp'+'barcode does not exist => '+str(percentage(tmp[None],app.analysisfolder.results.totalReadCount))+'%, ('+thousandString(tmp[None])+')<br>\n'
-        outStr += '&nbsp&nbsp&nbsp&nbsp'+'barcode does not match => '+str(percentage(tmp[False],app.analysisfolder.results.totalReadCount))+'%, ('+thousandString(tmp[False])+')<br>\n'
+        try:
+            outStr += '&nbsp&nbsp&nbsp&nbsp'+'barcode does not match => '+str(percentage(tmp[False],app.analysisfolder.results.totalReadCount))+'%, ('+thousandString(tmp[False])+')<br>\n'
+        except KeyError:
+            outStr += '&nbsp&nbsp&nbsp&nbsp'+'barcode does not match => '+str(percentage(0,app.analysisfolder.results.totalReadCount))+'%, ('+thousandString(0)+')<br>\n'
         outStr += '&nbsp&nbsp&nbsp&nbsp'+'barcode match DBS pattern=> '+str(percentage(tmp[True],app.analysisfolder.results.totalReadCount))+'%, ('+str(percentage(tmp[True],int(app.analysisfolder.results.totalReadCount)-int(tmp[None])))+'% of has barcode,'+thousandString(tmp[True])+')<br>\n'
     outStr += '<br>\n'
     outStr += 'Read pairs has a barcode: '+thousandString(app.analysisfolder.results.readPairsHasBarcode)+'<br>\n'
