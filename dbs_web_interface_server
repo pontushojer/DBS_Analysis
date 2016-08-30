@@ -431,8 +431,9 @@ def cluster(cluster_id, makebam=False, reanalyze=False):
     outStr += '<body><a href=index.html>Back</a> | <a href=cluster'+str(cluster_id)+'&makebam=True >Make Bamfile</a> | <a href=cluster'+str(cluster_id)+'&reanalyze=True >Re-analyze cluster</a><br><br>'
 
     cluster = BarcodeCluster(int(cluster_id),app.analysisfolder)
-    app.analysisfolder.logfile.write('Loading reads for cluster '+str(cluster_id)+' ... '+'\n')
+    app.analysisfolder.logfile.write('Loading info for cluster '+str(cluster_id)+' ... '+'\n')
     cluster.loadClusterInfo()
+    app.analysisfolder.logfile.write('Info for cluster '+str(cluster_id)+' loaded. '+'\n')
     if not cluster.tableStr or reanalyze:
         cluster.analyze()
         cluster.removeAllFiles()
