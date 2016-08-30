@@ -22,10 +22,7 @@ def main():
         analysisfolder.readindexTsv()
         if analysisfolder.settings.temp: analysisfolder.copy_to_temp()
 
-    except IndexError: sys.stderr.write('please supply a commandline on format:\n'+os.path.basename(__file__)+' <analysis-output-folder> [reanalyze=bool]\n');sys.exit()
-    try:
-        if eval(sys.argv[2].split('=')[1])==True:reAnalyze(analysisfolder)
-    except IndexError: pass
+    except IndexError: sys.stderr.write('please supply a commandline on format:\n'+os.path.basename(__file__)+' <analysis-output-folder> [reanalyze=bool] [clusterid=bool]\n');sys.exit()
 
     #
     # check analysis folder
@@ -39,6 +36,15 @@ def main():
     logfile.write('cmd: '+' '.join(sys.argv)+'\n')
     analysisfolder.logfile = logfile
 
+    #
+    # check if reanalysis flag is set and do update db if req
+    #
+    try:
+        for arg in sys.argv:
+            if arg.split('=')[0] in ['reanalyze','reAnalyze'] and eval(arg.split('=')[1])==True:
+                sys.stderr.write('Reanalyzing! ie setting all clusters to be updated!\n')
+                reAnalyze(analysisfolder)
+    except IndexError: pass
     #
     # check if the target region bedfile is defined
     #
@@ -78,6 +84,7 @@ def main():
 
 def reAnalyze(analysisfolder):
     """ this function resets the analyzed flag for all clusters in the database so that they are analyzed again """
+    analysisfolder.logfile.write('reanalyzing!\n')
     analysisfolder.database.getConnection()
     analysisfolder.database.c.execute('UPDATE barcodeClusters SET analyzed=?',(False,))
     analysisfolder.database.commitAndClose()
