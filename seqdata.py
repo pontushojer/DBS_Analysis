@@ -1301,6 +1301,10 @@ class BarcodeCluster(object,):
         parseBamTime = time.time()
         try:self.analysisfolder.logfile.write('Making reads table forcluster '+str(self.id)+'.\n')
         except ValueError: pass
+        last_pair_chrom = None
+        position_of_last_pair = None
+        self.annotations['percentage_of_pairs_close_to_other'] = 0
+        close_total = 0
         for alignedReadRead in bamfile:
 
             #
@@ -1325,6 +1329,22 @@ class BarcodeCluster(object,):
             if alignedReadRead.is_read1: 
 
                 readPairsInBamFileCheck += 1
+                
+                #
+                # checking how many of the nice pairs that map within 1e5 bases ie 100kb of any other nice pair
+                #
+                this_read_is_close_to_other = False
+                if nicePair and passMappingQuality and not alignedReadRead.is_duplicate:
+                    if position_of_last_pair:
+                        close_total += 1
+                        if r1ReferenceName != 'NA' and last_pair_chrom == r1ReferenceName and alignedReadRead.pos-position_of_last_pair < 1e4:
+                            self.annotations['percentage_of_pairs_close_to_other'] += 1
+                            this_read_is_close_to_other = True
+                            #print 'CLOSE #### ',last_pair_chrom,' ==', r1ReferenceName,' and ',alignedReadRead.pos-position_of_last_pair,' < 1e4'
+                        else:
+                            pass#print last_pair_chrom,' ==', r1ReferenceName,' and ',alignedReadRead.pos-position_of_last_pair,' > 1e4'
+                    position_of_last_pair = alignedReadRead.pos
+                    last_pair_chrom = r1ReferenceName
 
                 #
                 # Create a HTM table row for quick vizualisation later - THIS COULD BE CHANGED TO CSV TO ANEABLE SOME NICER D3JS STUFF
@@ -1341,7 +1361,9 @@ class BarcodeCluster(object,):
                 else:row += '<td>'+str(alignedReadRead.pos)+'</td>'
                 if alignedReadRead.pnext: row += '<td>'+thousandString(alignedReadRead.pnext)+'</td>'
                 else:row += '<td>'+str(alignedReadRead.pnext)+'</td>'
-                row += '<td>'+str(abs(alignedReadRead.isize))+'</td><td>'+str(alignedReadRead.mapq)+'</td><td>'+str(alignedReadRead.cigar)+'</td><td>'+str(alignedReadRead.is_proper_pair)+'</td>'
+                row += '<td>'+str(abs(alignedReadRead.isize))+'</td><td>'+str(alignedReadRead.mapq)+'</td><td>'+str(alignedReadRead.cigar)+'</td><td>'+str(alignedReadRead.is_proper_pair)
+                if this_read_is_close_to_other: row+=' +'
+                row+='</td>'
                 row += '<td>'+str(self.readPairsByHeader['@'+alignedReadRead.qname].individual_id)+'</td>'
                 row += '</tr>'
                 if nicePair and passMappingQuality and not alignedReadRead.is_duplicate:
@@ -1369,6 +1391,12 @@ class BarcodeCluster(object,):
                         except KeyError:
                             goodReadPairPositions[r1ReferenceName]   =   [min(alignedReadRead.pos,alignedReadRead.pnext)]
         parseBamTime = time.time() - parseBamTime
+        
+        #
+        # convert counts to percentage
+        #
+        self.annotations['percentage_of_pairs_close_to_other'] = percentage(self.annotations['percentage_of_pairs_close_to_other'],close_total)
+        #print self.annotations
 
         #
         # assert that the database and bamfile counts match
