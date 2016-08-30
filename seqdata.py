@@ -1350,12 +1350,15 @@ class BarcodeCluster(object,):
                 # Create a HTM table row for quick vizualisation later - THIS COULD BE CHANGED TO CSV TO ANEABLE SOME NICER D3JS STUFF
                 #
                 row = '<tr><td>'
+                row += '<a href="read'+str(self.readPairsByHeader['@'+alignedReadRead.qname].id)+'">'
                 # set header color and print header
                 if nicePair and passMappingQuality and not alignedReadRead.is_duplicate: row += '<font color="green">'
                 elif nicePair and passMappingQuality: row += '<font color="blue">'
                 else: row += '<font color="red">'
+                
                 #row += alignedReadRead.qname+ '</td>'
                 row += str(self.readPairsByHeader['@'+alignedReadRead.qname].id)+ '</td>' # save read pair id instead of header to save space in database
+                row += '</a>'
                 row +='<td>'+str(alignedReadRead.flag)+'</td>' # the samflag
                 
                 #chromosome

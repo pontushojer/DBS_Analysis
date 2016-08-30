@@ -449,6 +449,56 @@ def cluster(cluster_id, makebam=False, reanalyze=False):
     app.analysisfolder.logfile.write('Page for cluster '+str(cluster_id)+' generated in '+str(round(time.time()-starttime,2))+'seconds '+'\n')
     return outStr
 
+@app.route('/read<read_id>')
+def read(read_id):
+    """ per read pair info page function """
+
+    import time
+    starttime = time.time()
+    print 'Creating per read page for read '+str(read_id)
+    app.analysisfolder.logfile.write('Creating per read page for cluster '+str(read_id)+' ... '+'\n')
+    from misc import thousandString
+    from misc import percentage
+    import pysam
+
+    outStr = ''
+    outStr += '<html>'
+    outStr += """<head><style>
+        body {
+            background-color:white
+            font-family : Arial,"Myriad Web",Verdana,Helvetica,sans-serif;
+        }
+        h1   {color:black}
+        p    {color:green}
+        
+        table, th, td {
+            border: 1px solid black;
+            border-collapse: collapse;
+            
+            font-size : 12;
+        }
+        th {
+            text-align: center;
+            background-color:darkgray;
+            color:white;
+            border: 1px solid black;
+        }
+        table {border-spacing: 1px;}
+        th,td {padding: 5px;}
+        td {text-align: center;}
+    </style></head>"""
+    #outStr += '<body><a href=index.html>Back</a> | <a href=cluster'+str(cluster_id)+'&makebam=True >Make Bamfile</a> | <a href=cluster'+str(cluster_id)+'&reanalyze=True >Re-analyze cluster</a><br><br>'
+
+    app.analysisfolder.logfile.write('Loading read pair '+str(read_id)+' ... '+'\n')
+    pairs = app.analysisfolder.database.getReadPairs([read_id])
+    for pair in pairs:
+        for item_name,item_value in pair.__dict__.iteritems():
+            outStr += str(item_name) +' = '+ str(item_value)+'<br>'
+        outStr += '<br><br>'
+        outStr += '</body></html>\n'
+    app.analysisfolder.logfile.write('Page for read '+str(read_id)+' generated in '+str(round(time.time()-starttime,2))+'seconds '+'\n')
+    return outStr
+
 @app.route("/readspercluster.csv")
 def readspercluster():
     """ creates a csv from the info in database and dumps to string """
