@@ -123,7 +123,14 @@ class Progress():
                 ', left: '+str(self.stf/60/60)+'h '+str(self.stf/60%60)+'min '+str(self.stf%60)+'s')
             if self.mem:
                 import resource
-                self.logfile.write(', using '+str((resource.getrusage(resource.RUSAGE_SELF).ru_maxrss+resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss)/1024)+' ('+str(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024)+') MB.\n')
+                total_memory_used = (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss + resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss)
+                this_process_memory_used = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+                if total_memory_used/1024/1024 > 1024:
+                    self.logfile.write(', using '+str(round(float(total_memory_used)/1024/1024/1024,2))+' ('+str(round(float(this_process_memory_used)/1024/1024/1024,2))+') GB.\n')
+                elif total_memory_used/1024 > 1024:
+                    self.logfile.write(', using '+str(round(float(total_memory_used)/1024/1024,2))+' ('+str(round(float(this_process_memory_used)/1024/1024,2))+') MB.\n')
+                else:
+                    self.logfile.write(', using '+str(round(float(total_memory_used)/1024,2))+' ('+str(round(float(this_process_memory_used)/1024,2))+') KB.\n')
             else:    self.logfile.write('\n')
             if self.type == 'minimal': self.logfile.write('..')
             self.ltime = time.time()
