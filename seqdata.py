@@ -1350,22 +1350,34 @@ class BarcodeCluster(object,):
                 # Create a HTM table row for quick vizualisation later - THIS COULD BE CHANGED TO CSV TO ANEABLE SOME NICER D3JS STUFF
                 #
                 row = '<tr><td>'
-                if nicePair and passMappingQuality and not alignedReadRead.is_duplicate:
-                    row += '<font color="green">'
-                elif nicePair and passMappingQuality:
-                    row += '<font color="blue">'
-                else:
-                    row += '<font color="red">'
-                row += alignedReadRead.qname+ '</td><td>'+str(alignedReadRead.flag)+'</td><td>'+str(r1ReferenceName)+'</td><td>'+str(r2ReferenceName)+'</td>'
+                # set header color and print header
+                if nicePair and passMappingQuality and not alignedReadRead.is_duplicate: row += '<font color="green">'
+                elif nicePair and passMappingQuality: row += '<font color="blue">'
+                else: row += '<font color="red">'
+                #row += alignedReadRead.qname+ '</td>'
+                row += str(self.readPairsByHeader['@'+alignedReadRead.qname].id)+ '</td>' # save read pair id instead of header to save space in database
+                row +='<td>'+str(alignedReadRead.flag)+'</td>' # the samflag
+                
+                #chromosome
+                if r1ReferenceName == r2ReferenceName: row += '<td>'+str(r1ReferenceName)+'</td>'
+                else:  row += '<td>r1='+str(r1ReferenceName)+' r2='+str(r2ReferenceName)+'</td>'
+                
+                #positions
                 if alignedReadRead.pos: row += '<td>'+thousandString(alignedReadRead.pos)+'</td>'
                 else:row += '<td>'+str(alignedReadRead.pos)+'</td>'
                 if alignedReadRead.pnext: row += '<td>'+thousandString(alignedReadRead.pnext)+'</td>'
                 else:row += '<td>'+str(alignedReadRead.pnext)+'</td>'
-                row += '<td>'+str(abs(alignedReadRead.isize))+'</td><td>'+str(alignedReadRead.mapq)+'</td><td>'+str(alignedReadRead.cigar)+'</td><td>'+str(alignedReadRead.is_proper_pair)
-                if this_read_is_close_to_other: row+=' +'
+                
+                row += '<td>'+str(abs(alignedReadRead.isize))+'</td>' # insert size
+                row += '<td>'+str(alignedReadRead.mapq)+'</td>' # mapping quality
+                #row += '<td>'+str(alignedReadRead.cigar)+'</td>' # cigar string
+                row += '<td>'+str(alignedReadRead.is_proper_pair) #properpair flag
+                if this_read_is_close_to_other: row+=' +' # add plus to the flag above if close to another read
                 row+='</td>'
-                row += '<td>'+str(self.readPairsByHeader['@'+alignedReadRead.qname].individual_id)+'</td>'
+                row += '<td>'+str(self.readPairsByHeader['@'+alignedReadRead.qname].individual_id)+'</td>' # the individual id of the read
                 row += '</tr>'
+                
+                # add row to the correct group
                 if nicePair and passMappingQuality and not alignedReadRead.is_duplicate:
                     goodReadPairsRows += row
                 elif nicePair and passMappingQuality:
@@ -1444,7 +1456,18 @@ class BarcodeCluster(object,):
         headerRow = 'Individual Id sequenes found:<br>'
         for seq, count in self.individual_ID_dictionary.iteritems():
                 headerRow += '    '+str(seq)+' '+str(count)+'<br>'
-        headerRow += '<br><br><tr>'+'<th>header</th>'+'<th>flags</th>'+'<th>refchrom R1</th>'+'<th>refchrom R2</th>'+'<th>pos R1</th>'+'<th>pos R2</th>'+'<th>insertsize</th>'+'<th>mapQ</th>'+'<th>CIGAR</th>'+'<th>ProperPair</th>'+'<th>ind id</th>'+'</tr>'
+        headerRow += '<br><br><tr>'
+        headerRow += '<th>header</th>'
+        headerRow += '<th>flags</th>'
+        headerRow += '<th>chromosome</th>'
+        headerRow += '<th>pos R1</th>'
+        headerRow += '<th>pos R2</th>'
+        headerRow += '<th>insertsize</th>'
+        headerRow += '<th>mapQ</th>'
+#        headerRow += '<th>CIGAR</th>'
+        headerRow += '<th>ProperPair</th>'
+        headerRow += '<th>ind id</th>'
+        headerRow += '</tr>'
         self.tableStr = '<table>' +headerRow+ goodReadPairsRows + duplicateReadPairsRows + unmappedReadPairsRows + '</table>'
 
         #
