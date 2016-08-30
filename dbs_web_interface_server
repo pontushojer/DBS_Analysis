@@ -389,7 +389,8 @@ def index(high=1000,low=0):
 
 @app.route('/cluster<cluster_id>')
 @app.route('/cluster<cluster_id>&makebam=<makebam>')
-def cluster(cluster_id, makebam=False):
+@app.route('/cluster<cluster_id>&reanalyze=<reanalyze>')
+def cluster(cluster_id, makebam=False, reanalyze=False):
     """ per cluster info page function """
 
     import time
@@ -427,12 +428,12 @@ def cluster(cluster_id, makebam=False):
         th,td {padding: 5px;}
         td {text-align: center;}
     </style></head>"""
-    outStr += '<body><a href=index.html>Back</a> | <a href=cluster'+str(cluster_id)+'&makebam=True >Make Bamfile</a><br><br>'
+    outStr += '<body><a href=index.html>Back</a> | <a href=cluster'+str(cluster_id)+'&makebam=True >Make Bamfile</a> | <a href=cluster'+str(cluster_id)+'&reanalyze=True >Re-analyze cluster</a><br><br>'
 
     cluster = BarcodeCluster(int(cluster_id),app.analysisfolder)
     app.analysisfolder.logfile.write('Loading reads for cluster '+str(cluster_id)+' ... '+'\n')
     cluster.loadClusterInfo()
-    if not cluster.tableStr:
+    if not cluster.tableStr or reanalyze:
         cluster.analyze()
         cluster.removeAllFiles()
         cluster.updatedb()
