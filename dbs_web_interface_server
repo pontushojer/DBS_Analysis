@@ -10,6 +10,7 @@ import metadata
 import sys
 import time
 import os
+from flask import request
 
 #
 # initiate the flask application
@@ -102,25 +103,26 @@ def start():
             <meta charset="UTF-8">
             <meta http-equiv="refresh" content="1;url=index.html">
             <script type="text/javascript">
-              window.location.href = "index.html"
+              window.location.href = "index.html&low30&high500"
             </script>
             <title>Page Redirection</title>
         </head>
         <body>
-            If you are not redirected automatically, follow <a href='index.html'>this link</a>
+            If you are not redirected automatically, follow <a href='index.html&low30&high500'>this link</a>
         </body>
       </html>"""
     
     return page
 
 @app.route("/index.html")
-@app.route('/index.html&low<low>')
-@app.route('/index.html&high<high>')
-@app.route('/index.html&low<low>&high<high>')
-@app.route('/index.html&high<high>&low<low>')
 def index(high=1000,low=0):
     """ function that builds the index page of the webinterface """
 
+    from flask import request
+    low = request.args.get('low')
+    high = request.args.get('high')
+    if not high: high = 110
+    if not low: low = 100
     #
     # Imports
     #
@@ -128,6 +130,8 @@ def index(high=1000,low=0):
     from misc import thousandString, percentage
     import os
     import operator
+    import time
+    starttime = time.time()
 
     # convert high and low values for the cluster to show to integers
     high = max(int(high),int(low)+10)
@@ -161,7 +165,7 @@ def index(high=1000,low=0):
     #
     # The stats sidebar on the left
     #
-    outStr += '<div id="statistics"><br><br><br><br><br>'
+    outStr += '<div id="statistics">'
     outStr += '<h2>Stats:</h2>'
     outStr += 'Total read pairs: '+thousandString(app.analysisfolder.results.totalReadCount)+'<br>\n'
     outStr += 'Minimum R1 length: '+str(app.analysisfolder.results.minR1readLength)+'<br>\n'
@@ -196,22 +200,22 @@ def index(high=1000,low=0):
     #
     # The cluster detail panel on the right
     #
-    outStr += '<div id="details"><br><br><br><br><br>'
-    outStr += """<br><br>
+    outStr += '<div id="details">'
+    outStr += """
     <script src="http://labratrevenge.com/d3-tip/javascripts/d3.tip.v0.6.3.js"></script>
     <script src="/static/js/readsPerClusterHistogram.js"></script>
+    <br>
     <div id="slider">
         <span style="font: 12px sans-serif;color:black">Minimum Read Count Per Barcode Cluster</span><br>
         <label for="nReadsMin" style="display: inline-block; width: 55px; text-align: right">
         <span id="nReadsMin-value" style="font: 12px sans-serif;color:black">...</span>
         </label>
-        <input type="range" step="1" min="0" max="5000" id="nRPCcutoff" value="0"><br>
-        <div id="image"></div>
-    </div>
+        <input type="range" step="1" min="0" max="5000" id="nRPCcutoff" value="0"><br> 
+    </div><br><div id="image"></div><br>
     
     """
 
-    outStr += '<h2>List of clusters:</h2>'
+    outStr += '<br><h2>List of clusters:</h2>'
     if app.analysisfolder.results.barcodeClusterCount:
         barcodeClusterer = BarcodeClusterer(app.analysisfolder)
         import multiprocessing
@@ -240,7 +244,7 @@ def index(high=1000,low=0):
         totalduplicateReadPairs=0
         tableRows = ''
         #for clusterId in barcodeClusterer.getBarcodeClusterIds(shuffle=False,byMixedClusterReadCount=False):
-        for cluster in app.analysisfolder.database.getAllClustersLoaded(app.analysisfolder):
+        for cluster in app.analysisfolder.database.getAllClustersLoaded(app.analysisfolder, cluster_id_max=high, cluster_id_min=low):
             clusterId = cluster.id
             cluster.minMAPQ = app.analysisfolder.settings.mapqCutOff
             if int(clusterId) < int(low): continue
@@ -336,7 +340,6 @@ def index(high=1000,low=0):
         outStr += '<table>'
         outStr += '<tr>'
 
-
         #
         # summary row for the clusters table
         #
@@ -345,9 +348,7 @@ def index(high=1000,low=0):
         goodReads = percentage(totalgoodReadPairs,totalreadPairsInBamFile)
         dupPerc = percentage(totalduplicateReadPairs,totalgoodReadPairs)
 
-        outStr += '<td colspan=3><font face="Courier">Summary for the first '+str(counter)
-
-        outStr += ' clusters</font></td>\n'
+        outStr += '<td colspan=3><font face="Courier">Summary for clusters <form action="index.html" method="get"><input type="text" name="low" size="5" value="'+str(low)+'">-<input type="text" name="high" size="5" value="'+str(high)+'"> <input type="submit" value="update"><form></font></td>\n'
 
         outStr += '<td>'+str(thousandString(totalReadPairCount))+'</td>\n'
 
@@ -384,7 +385,7 @@ def index(high=1000,low=0):
         outStr += '</table><br>'
     outStr += '</div>'
     outStr += '</div>'
-    app.analysisfolder.logfile.write('index.html generated.\n')
+    app.analysisfolder.logfile.write('index.html generated in '+str(round(time.time()-starttime,2))+' seconds '+'.\n')
     return outStr
 
 @app.route('/cluster<cluster_id>')
@@ -428,7 +429,7 @@ def cluster(cluster_id, makebam=False, reanalyze=False):
         th,td {padding: 5px;}
         td {text-align: center;}
     </style></head>"""
-    outStr += '<body><a href=index.html>Back</a> | <a href=cluster'+str(cluster_id)+'&makebam=True >Make Bamfile</a> | <a href=cluster'+str(cluster_id)+'&reanalyze=True >Re-analyze cluster</a><br><br>'
+    outStr += '<body><a href=index.html>To start page</a> | <a href=cluster'+str(cluster_id)+'&makebam=True >Make Bamfile</a> | <a href=cluster'+str(cluster_id)+'&reanalyze=True >Re-analyze cluster</a><br><br>'
 
     cluster = BarcodeCluster(int(cluster_id),app.analysisfolder)
     app.analysisfolder.logfile.write('Loading info for cluster '+str(cluster_id)+' ... '+'\n')
@@ -451,7 +452,8 @@ def cluster(cluster_id, makebam=False, reanalyze=False):
     return outStr
 
 @app.route('/read<read_id>')
-def read(read_id):
+@app.route('/read<read_id>&getfastq=<getfastq>')
+def read(read_id, getfastq = False):
     """ per read pair info page function """
 
     import time
@@ -470,8 +472,14 @@ def read(read_id):
             font-family : Arial,"Myriad Web",Verdana,Helvetica,sans-serif;
         }
         h1   {color:black}
-        p    {color:green}
-        
+        p    {
+            font-family : courier;
+            font-size : 15;
+            max-width: 5000px;
+            max-height: 400px;
+            white-space: nowrap;
+            overflow-x: scroll;
+            }        }
         table, th, td {
             border: 1px solid black;
             border-collapse: collapse;
@@ -488,14 +496,38 @@ def read(read_id):
         th,td {padding: 5px;}
         td {text-align: center;}
     </style></head>"""
-    #outStr += '<body><a href=index.html>Back</a> | <a href=cluster'+str(cluster_id)+'&makebam=True >Make Bamfile</a> | <a href=cluster'+str(cluster_id)+'&reanalyze=True >Re-analyze cluster</a><br><br>'
+    outStr += '<body><a href=index.html>To start page</a> | <br><br>'
 
     app.analysisfolder.logfile.write('Loading read pair '+str(read_id)+' ... '+'\n')
     pairs = app.analysisfolder.database.getReadPairs([read_id])
     for pair in pairs:
+        if getfastq:
+            pair.getFromFiles()
+            pair.identifyDirection()
+            pair.makeColoredOut(terminalcolor=False, htmlcolor=True)
+            print pair.outputSeq
+        outStr += 'Read pair: '+str(pair.id)+'<br>'
+        outStr += 'Fastq header: '+str(pair.header)+'<br>'
+        outStr += 'From: <a href=cluster'+str(pair.clusterId)+'> cluster '+str(pair.clusterId)+'</a><br>'
+        outStr += 'Handle 1: '+{True:'found',False:'not found'}[bool(pair.h1)]+'<br>'
+        outStr += 'Handle 2: '+{True:'found',False:'not found'}[bool(pair.h2)]+'<br>'
+        outStr += 'Handle 3: '+{True:'found',False:'not found'}[bool(pair.h3)]+'<br>'
+        outStr += 'Read one mapped: '+{True:'yes',False:'no'}[bool(pair.mappingFlagR1.mapped)]
+        if pair.mappingFlagR1.mapped: outStr += ', position='+str(pair.refNameR1)+':'+str(pair.refPosR1)+', mapq='+str(pair.mapQR1)+', cigar='+str(pair.cigarR1)
+        outStr += '<br>'
+        outStr += 'Read two mapped: '+{True:'yes',False:'no'}[bool(pair.mappingFlagR2.mapped)]
+        if pair.mappingFlagR1.mapped: outStr += ', position='+str(pair.refNameR2)+':'+str(pair.refPosR2)+', mapq='+str(pair.mapQR2)+', cigar='+str(pair.cigarR2)
+        outStr += '<br>'
+        if pair.mappingFlagR1.mapped and pair.mappingFlagR2.mapped:
+            outStr += 'Insertsize: '+thousandString(pair.insertSize)+'bp<br><br>'
+        outStr += '<a href=read'+str(read_id)+'&getfastq=True >Get info from fastq file</a><br><br>'
+        if getfastq:
+            outStr += 'Colored representation:<br><p style="background:black; color:white; padding:10; font-size:10"><br>'+pair.outputSeq.split('<br>')[1].split(pair.direction)[1]+'<br>&nbsp</p><br>'
+        outStr += '<br><br><div id="rawdata">'
+        outStr += '<b>rawData:</b><br><p style="font-size:9">'
         for item_name,item_value in pair.__dict__.iteritems():
             outStr += str(item_name) +' = '+ str(item_value)+'<br>'
-        outStr += '<br><br>'
+        outStr += '</p></div>'+'<br><br>'
         outStr += '</body></html>\n'
     app.analysisfolder.logfile.write('Page for read '+str(read_id)+' generated in '+str(round(time.time()-starttime,2))+'seconds '+'\n')
     return outStr
