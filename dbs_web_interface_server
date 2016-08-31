@@ -211,11 +211,11 @@ def index(high=1000,low=0):
         <span id="nReadsMin-value" style="font: 12px sans-serif;color:black">...</span>
         </label>
         <input type="range" step="1" min="0" max="5000" id="nRPCcutoff" value="0"><br> 
-    </div><br><div id="image"></div><br>
+    </div><br><div id="image"></div>
     
     """
 
-    outStr += '<br><h2>List of clusters:</h2>'
+    outStr += '<h2>List of clusters:</h2>'
     if app.analysisfolder.results.barcodeClusterCount:
         barcodeClusterer = BarcodeClusterer(app.analysisfolder)
         import multiprocessing
