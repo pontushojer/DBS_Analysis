@@ -4,7 +4,7 @@ class ReadPair(object):
     
     import misc
     
-    def __init__(self, currentRead, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId, r1PositionInFile,r2PositionInFile,bamFilePos,individual_id):
+    def __init__(self, currentRead, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId, r1PositionInFile,r2PositionInFile,bamFilePos,individual_id,analysisfolder):
 
         # original read info
         # comming from the raw fastq files, except id that is a increasing int for each entry in fastq
@@ -66,6 +66,9 @@ class ReadPair(object):
         self.mapQR2 = mapQR2
         self.cigarR2 = cigarR2
         self.insertSize = insertSize
+        
+        # connection to analysisfolder object
+        self.analysisfolder = analysisfolder
 
     @property
     def databaseTuple(self, ):
@@ -474,6 +477,44 @@ class ReadPair(object):
             if handleStartPosition:
                 self.annotations['Read2IsIlluminaAdapter'] = str(handleMissMatches)+':'+ str(handleStartPosition)
                 break
+
+    def getFromFiles(self,):
+        
+        """ function for retreaving data from files on disc not the database
+        currently only the fastqs maybe bam aswell later on"""
+        
+        import metadata
+        
+        tmp = self.analysisfolder.database.c.execute('SELECT filePairId,fastq1,fastq2,readCount,addedToReadsTable,minReadLength FROM fastqs WHERE filePairId == '+str(self.fileOrigin)).fetchone()
+        filePairId,fastq1,fastq2,readCount,addedToReadsTable,minReadLength = tmp
+        
+        #
+        # get r1 from fastq
+        #
+        if fastq1.split('.')[-1] in ['gz','gzip']: #
+            import gzip                            # open thr fastq file
+            fastq1 = gzip.open(fastq1)             # 
+        else: fastq1 = open(fastq1)                #
+        fastq1.seek(self.r1PositionInFile) # go to the read position
+        tmp = fastq1.readline().rstrip().split(' ')[0] # get the header
+        assert self.header == tmp, 'ERROR: '+str(self.header)+' != '+str(tmp) # assert that it is the correct read
+        self.r1Seq = fastq1.readline().rstrip() # get the sequence
+        fastq1.readline().rstrip() # trash the "+"
+        self.r1Qual = fastq1.readline().rstrip() # get the quality
+
+        #
+        # get r2 from fastq
+        #
+        if fastq2.split('.')[-1] in ['gz','gzip']: #
+            import gzip                            # open thr fastq file
+            fastq2 = gzip.open(fastq2)             # 
+        else: fastq2 = open(fastq2)                #
+        fastq2.seek(self.r2PositionInFile) # go to the read position
+        tmp = fastq2.readline().rstrip().split(' ')[0] # get the header
+        assert self.header == tmp, 'ERROR: '+str(self.header)+' != '+str(tmp) # assert that it is the correct read
+        self.r2Seq = fastq2.readline().rstrip() # get the sequence
+        fastq2.readline().rstrip() # trash the "+"
+        self.r2Qual = fastq2.readline().rstrip() # get the quality
 
 class BarcodeClusterer(object):
     
