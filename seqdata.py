@@ -199,12 +199,19 @@ class ReadPair(object):
         
         return [startPosition,endPosition,missmatches]
 
-    def makeColoredOut(self,):
+    def makeColoredOut(self, terminalcolor=True, htmlcolor=False):
         """ creates the string with colors for each of the reads """
         
         #
         # THIS function needs commenting and revision!!! //EB
         #
+        import misc
+        if terminalcolor:
+            color = misc.TerminalColors()
+            newline = '\n'
+        elif htmlcolor:
+            color = misc.HtmlColors()
+            newline = '<br>'
         
         outputSeq = ''
         if True:
@@ -214,23 +221,23 @@ class ReadPair(object):
             for i in quals[0]:
                 qNum = ord(i)-33
                 if qNum >= 28:
-                    outputSeq += '\033[92m'
+                    outputSeq += color.GreenIntense
                 elif qNum >= 20:
-                    outputSeq += '\033[93m'
+                    outputSeq += color.YellowIntense
                 elif qNum >= 0:
-                    outputSeq += '\033[91m'
-                outputSeq += '_' + '\033[0m'
+                    outputSeq += color.RedIntense
+                outputSeq += '_' + color.Color_Off
             outputSeq += ' '
             for i in quals[1]:
                 qNum = ord(i)-33
                 if qNum >= 28:
-                    outputSeq += '\033[92m'
+                    outputSeq += color.GreenIntense
                 elif qNum >= 20:
-                    outputSeq += '\033[93m'
+                    outputSeq += color.YellowIntense
                 elif qNum >= 0:
-                    outputSeq += '\033[91m'
-                outputSeq += '_' + '\033[0m'
-        outputSeq += '\n'
+                    outputSeq += color.RedIntense
+                outputSeq += '_' + color.Color_Off
+        outputSeq += newline
         
         if   self.direction == '1 -> 2':outputSeq += self.direction+' '
         elif self.direction == '2 -> 1':outputSeq += self.direction+' '
@@ -246,11 +253,11 @@ class ReadPair(object):
             if self.direction == '1 -> 2':
                 
                 if self.h1:
-                    outputSeq += self.r1Seq[lastWritten:self.h1[0]]+'\033[34m'+self.r1Seq[self.h1[0]:self.h1[1]]+'\033[0m'
+                    outputSeq += self.r1Seq[lastWritten:self.h1[0]]+color.BlueIntense+self.r1Seq[self.h1[0]:self.h1[1]]+color.Color_Off
                     lastWritten = self.h1[1]
                 
                 if self.h2:
-                    outputSeq += self.r1Seq[lastWritten:self.h2[0]]+'\033[95m'+self.r1Seq[self.h2[0]:self.h2[1]]+'\033[0m'
+                    outputSeq += self.r1Seq[lastWritten:self.h2[0]]+color.PurpleIntense+self.r1Seq[self.h2[0]:self.h2[1]]+color.Color_Off
                     lastWritten = self.h2[1]
                     
                 outputSeq += self.r1Seq[lastWritten:]
@@ -260,7 +267,7 @@ class ReadPair(object):
                 if self.h3:
                     if  self.h3 == True and self.readIntoh3 == True: outputSeq += '###### SOMETHING HERE #####'
                     else:
-                        outputSeq += revcomp(self.r2Seq)[lastWritten:len(self.r2Seq)-self.h3[1]]+'\033[93m'+revcomp(self.r2Seq)[len(self.r2Seq)-self.h3[1]:len(self.r2Seq)-self.h3[0]]+'\033[0m'
+                        outputSeq += revcomp(self.r2Seq)[lastWritten:len(self.r2Seq)-self.h3[1]]+color.YellowIntense+revcomp(self.r2Seq)[len(self.r2Seq)-self.h3[1]:len(self.r2Seq)-self.h3[0]]+color.Color_Off
                         lastWritten = len(self.r2Seq)-self.h3[0]
                     if self.h1_in_both_ends and self.readIntoh3 == None:
                         import sys
@@ -271,11 +278,11 @@ class ReadPair(object):
                 if self.h1_in_both_ends:
                     
                     if self.annotations['h2_r2_coordinates'][0]:
-                        outputSeq += revcomp(self.r2Seq)[lastWritten:len(self.r2Seq)-self.annotations['h2_r2_coordinates'][1]]+'\033[95m'+revcomp(self.r2Seq)[len(self.r2Seq)-self.annotations['h2_r2_coordinates'][1]:len(self.r2Seq)-self.annotations['h2_r2_coordinates'][0]]+'\033[0m'
+                        outputSeq += revcomp(self.r2Seq)[lastWritten:len(self.r2Seq)-self.annotations['h2_r2_coordinates'][1]]+color.PurpleIntense+revcomp(self.r2Seq)[len(self.r2Seq)-self.annotations['h2_r2_coordinates'][1]:len(self.r2Seq)-self.annotations['h2_r2_coordinates'][0]]+color.Color_Off
                         lastWritten = len(self.r2Seq)-self.annotations['h2_r2_coordinates'][0]
                     
                     if self.h1in2ndReadCoordinates[0] == 0 or (self.h1in2ndReadCoordinates[0] != None and self.h1in2ndReadCoordinates[0] != False):
-                        outputSeq += revcomp(self.r2Seq)[lastWritten:len(self.r2Seq)-self.h1in2ndReadCoordinates[1]]+'\033[34m'+revcomp(self.r2Seq)[len(self.r2Seq)-self.h1in2ndReadCoordinates[1]:len(self.r2Seq)-self.h1in2ndReadCoordinates[0]]+'\033[0m'
+                        outputSeq += revcomp(self.r2Seq)[lastWritten:len(self.r2Seq)-self.h1in2ndReadCoordinates[1]]+color.BlueIntense+revcomp(self.r2Seq)[len(self.r2Seq)-self.h1in2ndReadCoordinates[1]:len(self.r2Seq)-self.h1in2ndReadCoordinates[0]]+color.Color_Off
                         lastWritten = len(self.r2Seq)-self.h1in2ndReadCoordinates[0]
                 outputSeq += revcomp(self.r2Seq)[lastWritten:]
                     
@@ -283,15 +290,15 @@ class ReadPair(object):
                 
                 if self.h1:
                     #outputSeq += 'HERE --'+self.r2Seq+' --\n'
-                    outputSeq += self.r2Seq[lastWritten:self.h1[0]]+'\033[34m'+self.r2Seq[self.h1[0]:self.h1[1]]+'\033[0m'
+                    outputSeq += self.r2Seq[lastWritten:self.h1[0]]+color.BlueIntense+self.r2Seq[self.h1[0]:self.h1[1]]+color.Color_Off
                     lastWritten = self.h1[1]
                 
                 if self.h2:
-                    outputSeq += self.r2Seq[lastWritten:self.h2[0]]+'\033[95m'+self.r2Seq[self.h2[0]:self.h2[1]]+'\033[0m'
+                    outputSeq += self.r2Seq[lastWritten:self.h2[0]]+color.PurpleIntense+self.r2Seq[self.h2[0]:self.h2[1]]+color.Color_Off
                     lastWritten = self.h2[1]
                     
                 if self.annotations and self.readIntoh3Coordinates != None:
-                    outputSeq += self.r2Seq[lastWritten:self.readIntoh3Coordinates[0]]+'\033[93m'+self.r2Seq[self.readIntoh3Coordinates[0]:self.readIntoh3Coordinates[1]]+'\033[0m'
+                    outputSeq += self.r2Seq[lastWritten:self.readIntoh3Coordinates[0]]+color.YellowIntense+self.r2Seq[self.readIntoh3Coordinates[0]:self.readIntoh3Coordinates[1]]+color.Color_Off
                     lastWritten = self.readIntoh3Coordinates[1]
                     #self.readIntoh3Coordinates = [startPosition,endPosition,missmatches]
                 
@@ -301,7 +308,7 @@ class ReadPair(object):
                 outputSeq += ' '
                 lastWritten = 0
                 if self.h3 and self.h3 != True:
-                    outputSeq += revcomp(self.r1Seq)[lastWritten:len(self.r1Seq)-self.h3[1]]+'\033[93m'+revcomp(self.r1Seq)[len(self.r1Seq)-self.h3[1]:len(self.r1Seq)-self.h3[0]]+'\033[0m'
+                    outputSeq += revcomp(self.r1Seq)[lastWritten:len(self.r1Seq)-self.h3[1]]+color.YellowIntense+revcomp(self.r1Seq)[len(self.r1Seq)-self.h3[1]:len(self.r1Seq)-self.h3[0]]+color.Color_Off
                     lastWritten = len(self.r1Seq)-self.h3[0]
                     #if self.h1_in_both_ends:
                     #    import sys
@@ -311,11 +318,11 @@ class ReadPair(object):
                 #if self.h1_in_both_ends:
                 #    
                 #    if self.annotations['h2_r2_coordinates'][0]:
-                #        outputSeq += revcomp(self.r2Seq)[lastWritten:len(self.r2Seq)-self.annotations['h2_r2_coordinates'][1]]+'\033[95m'+revcomp(self.r2Seq)[len(self.r2Seq)-self.annotations['h2_r2_coordinates'][1]:len(self.r2Seq)-self.annotations['h2_r2_coordinates'][0]]+'\033[0m'
+                #        outputSeq += revcomp(self.r2Seq)[lastWritten:len(self.r2Seq)-self.annotations['h2_r2_coordinates'][1]]+color.PurpleIntense+revcomp(self.r2Seq)[len(self.r2Seq)-self.annotations['h2_r2_coordinates'][1]:len(self.r2Seq)-self.annotations['h2_r2_coordinates'][0]]+color.Color_Off
                 #        lastWritten = len(self.r2Seq)-self.annotations['h2_r2_coordinates'][0]
                 #    
                 #    if self.h1in2ndReadCoordinates[0] == 0 or (self.h1in2ndReadCoordinates[0] != None and self.h1in2ndReadCoordinates[0] != False):
-                #        outputSeq += revcomp(self.r2Seq)[lastWritten:len(self.r2Seq)-self.h1in2ndReadCoordinates[1]]+'\033[34m'+revcomp(self.r2Seq)[len(self.r2Seq)-self.h1in2ndReadCoordinates[1]:len(self.r2Seq)-self.h1in2ndReadCoordinates[0]]+'\033[0m'
+                #        outputSeq += revcomp(self.r2Seq)[lastWritten:len(self.r2Seq)-self.h1in2ndReadCoordinates[1]]+color.BlueIntense+revcomp(self.r2Seq)[len(self.r2Seq)-self.h1in2ndReadCoordinates[1]:len(self.r2Seq)-self.h1in2ndReadCoordinates[0]]+color.Color_Off
                 #        lastWritten = len(self.r2Seq)-self.h1in2ndReadCoordinates[0]
                 outputSeq += revcomp(self.r1Seq)[lastWritten:]
                 
