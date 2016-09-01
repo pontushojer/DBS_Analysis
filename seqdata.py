@@ -1056,6 +1056,7 @@ class BarcodeCluster(object,):
         # reset if already loaded
         #
         self.readPairs = []
+        self.readPairsByHeader = {}
         
         #
         # get the reads from the database and add the readobjects to the appropriate containers
@@ -1065,6 +1066,7 @@ class BarcodeCluster(object,):
             for readPair in self.analysisfolder.database.getReadPairs(self.readPairIdsList):
                 self.readPairs.append(readPair)
                 self.readPairsById[readPair.id] = readPair
+                self.readPairsByHeader[readPair.header] = readPair
                 try : p.update()
                 except ValueError: pass
 #	  except sqlite3.OperationalError: print 'ERROR: BarcodeCluster.loadReadPairs() is giving a sqlite3.OperationalError!!'
@@ -1076,6 +1078,8 @@ class BarcodeCluster(object,):
         #         except ValueError: pass
         #print str(self.id)+'\t'+str(time.time()-starttime)+'\t'+str(len(self.readPairIdsList))
 
+        #self.readPairsByHeader = {pair.header:pair for pair in self.readPairs}
+        
         return 0
 
     @property
@@ -1345,7 +1349,6 @@ class BarcodeCluster(object,):
         # Parse the bamfile
         #
         self.individual_ID_dictionary = {}
-        self.readPairsByHeader = {pair.header:pair for pair in self.readPairs}
         parseBamTime = time.time()
         try:self.analysisfolder.logfile.write('Making reads table forcluster '+str(self.id)+'.\n')
         except ValueError: pass

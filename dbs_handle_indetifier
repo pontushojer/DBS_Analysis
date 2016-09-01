@@ -213,9 +213,9 @@ class FastqReader(object):
                             dbsMatch, dbsSeq, dbsQual,
                             mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1,
                             mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,
-                            insertSize, clusterId, annotations, fromFastqId,r1PositionInFile,r2PositionInFile,bamFilePos,individual_id
+                            insertSize, clusterId, annotations, fromFastqId,r1PositionInFile,r2PositionInFile,bamFilePos,individual_id,self.analysisfolder
                             )
-                        pair.analysisfolder = self.analysisfolder
+                        #pair.analysisfolder = self.analysisfolder
                         
                         #
                         # update read progress and yield
