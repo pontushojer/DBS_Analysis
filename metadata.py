@@ -821,7 +821,7 @@ class AnalysisFolder(object):
             shutil.copy2(self.database_original_name,self.settings.temp+'database.db')
             sys.stderr.write('done.\n')
             self.databaseFileName = self.settings.temp+'database.db'
-            self.database  = Database(self.databaseFileName)
+            self.database  = Database(self.databaseFileName, self)
             self.database_in_temp = True
 
     def copy_from_temp(self):
