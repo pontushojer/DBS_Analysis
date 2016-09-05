@@ -16,6 +16,7 @@ def main():
     #
     try:
         analysisfolder = metadata.AnalysisFolder(sys.argv[1])
+        if analysisfolder.settings.temp: analysisfolder.copy_to_temp()
     except IndexError: sys.stderr.write('please supply a commandline on format:\n'+os.path.basename(__file__)+' <analysis-output-folder>\n');sys.exit()
     
     #
@@ -35,6 +36,8 @@ def main():
     #
     barcodeClusterer = BarcodeClusterer(analysisfolder)
     barcodeClusterer.clusterBarcodeSequences()
+
+    if analysisfolder.database_in_temp: analysisfolder.copy_from_temp()
     
     logfile.write('barcodeClusterer FINISHED\n')
 

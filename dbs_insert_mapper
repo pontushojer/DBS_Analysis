@@ -13,7 +13,9 @@ def main():
     #
     # check input and get commandline args
     #
-    try: analysisfolder = metadata.AnalysisFolder(sys.argv[1])
+    try:
+        analysisfolder = metadata.AnalysisFolder(sys.argv[1])
+        if analysisfolder.settings.temp: analysisfolder.copy_to_temp()
     except IndexError: sys.stderr.write('please supply a commandline on format:\n'+os.path.basename(__file__)+' <analysis-output-folder>\n');sys.exit()
     
     #
@@ -34,6 +36,8 @@ def main():
     aligner = ReadPairAligner(analysisfolder)
     returncode = aligner.run_bowtie2()
     aligner.mappedPairToDb()
+
+    if analysisfolder.database_in_temp: analysisfolder.copy_from_temp()
  
     logfile.write(''+os.path.basename(__file__)+' FINISHED\n')
 

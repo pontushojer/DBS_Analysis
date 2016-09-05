@@ -22,6 +22,7 @@ def main():
         r1filename = sys.argv[1]
         r2filename = sys.argv[2]
         analysisfolder = metadata.AnalysisFolder(sys.argv[3])
+        if analysisfolder.settings.temp: analysisfolder.copy_to_temp()
     except IndexError: sys.stderr.write('please supply an outfile and infiles on format:\n'+os.path.basename(__file__)+' <r1> <r2> <analysis-output-folder>\n');sys.exit()
     
     #
@@ -53,6 +54,8 @@ def main():
     #
     reader = FastqReader(analysisfolder,logfile=logfile)
     reader.runParallel() # run it in parallel processing mode
+
+    if analysisfolder.database_in_temp: analysisfolder.copy_from_temp()
     
     logfile.write('wfaChecker FINISHED\n')
 
