@@ -89,6 +89,7 @@ class Database(object):
         #
         import sys
         import misc
+        import os
         
         #
         # open connection to database
@@ -107,7 +108,7 @@ class Database(object):
                 filePairId = int(filePair[0])
                 filePairIds.append(filePairId)
                 for fastq in [fastq1, fastq2]:
-                    if fastq in filePair:
+                    if os.path.basename(fastq) in [os.path.basename(filePair[1]),os.path.basename(filePair[2])]:
                         message = 'ERROR: '+fastq+' already in the database.\nExiting after error.'
                         print message
                         if logfile: logfile.write(message+'\n')
@@ -115,7 +116,10 @@ class Database(object):
         #
         # if not in the database add a new row
         #
-        if logfile: logfile.write('Getting readcount for file'+fastq1+' ... \n')
+        if logfile: logfile.write('Linking files to analysis path ... \n')
+        os.symlink(fastq1, self.analysisfolder.rawdataPath+'/'+os.path.basename(fastq1))
+        os.symlink(fastq2, self.analysisfolder.rawdataPath+'/'+os.path.basename(fastq2))
+        if logfile: logfile.write('Getting readcount for file'+os.path.basename(fastq1)+' ... \n')
         readCount = misc.bufcount(fastq1)/4 #one read is four lines
         if logfile: logfile.write('...done. The file has '+str(readCount)+' reads.\n')
         addedToReadsTable = False#SEAseqPipeLine.startTimeStr
@@ -123,7 +127,7 @@ class Database(object):
 
         if filePairIds: filePairId = max(filePairIds)+1
         else: filePairId = 0
-        values = (filePairId,fastq1,fastq2,readCount,addedToReadsTable,minReadLength)
+        values = (filePairId,self.analysisfolder.rawdataPath+'/'+os.path.basename(fastq1),self.analysisfolder.rawdataPath+'/'+os.path.basename(fastq2),readCount,addedToReadsTable,minReadLength)
         self.c.execute('INSERT INTO fastqs VALUES (?,?,?,?,?,?)', values)
         
         self.commitAndClose()
