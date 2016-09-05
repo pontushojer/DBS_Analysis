@@ -816,15 +816,17 @@ class AnalysisFolder(object):
         import shutil
         import sys
         
+        pid = os.getpid()
+        
         if not os.path.exists(self.settings.temp): sys.stderr.write( '# ERROR: the folder '+self.settings.temp+' does not exist...\n' )
         else:
             
             if not self.settings.temp[-1] == '/': self.settings.temp+='/'
             self.database_original_name = self.databaseFileName.replace('//','/')
             sys.stderr.write('copying database ('+self.database_original_name+')  to temp location '+self.settings.temp+'\n')
-            shutil.copy2(self.database_original_name,self.settings.temp+'database.db')
+            shutil.copy2(self.database_original_name,self.settings.temp+'/database.'+str(pid)+'.db'.replace('//','/'))
             sys.stderr.write('done.\n')
-            self.databaseFileName = self.settings.temp+'database.db'
+            self.databaseFileName = self.settings.temp+'/database.'+str(pid)+'.db'.replace('//','/')
             self.database  = Database(self.databaseFileName, self)
             self.database_in_temp = True
 
