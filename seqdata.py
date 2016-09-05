@@ -1013,7 +1013,7 @@ class BarcodeCluster(object,):
         import sqlite3, time
         success = False
         while not success:
-            while self.analysisfolder.database.writeInProgress.value: time.sleep(0.1)
+#            while self.analysisfolder.database.writeInProgress.value: time.sleep(0.1) # seems to cause a IOError: [Errno 9] Bad file descriptor at some point
             try:
                 self.analysisfolder.database.getConnection()
                 columnNames = [col[1] for col in self.analysisfolder.database.c.execute('PRAGMA table_info(barcodeClusters)').fetchall()]
