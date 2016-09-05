@@ -1126,7 +1126,7 @@ class BarcodeCluster(object,):
         elif count1 > 1 or count2 > 1: return False
         else: return None
 
-    def createBamFile(self,createIndex=False):
+    def createBamFile(self,createIndex=False,cigarDummyForDupCheck = True):
         """ creates a bamfile with the reads specific for the clusster
         """
 
@@ -1188,17 +1188,18 @@ class BarcodeCluster(object,):
             # check that read pair is mapped to a reference
             if read1.reference_id >= 0:
                 # define the most 3 prime read on the reference strand as being "first in pair" (only for this check comparison)
-                if read1.reference_start > read2.reference_start:
-                    read1 = pair[1]
-                    read2 = pair[0]
-                    pair = pair[::-1]
+                # REMOVED this as the pairs will be different if you change r1 and r2 ie != PCR duplicate
+                #if read1.reference_start > read2.reference_start:
+                #    read1 = pair[1]
+                #    read2 = pair[0]
+                #    pair = pair[::-1]
                 
                 # add to dictionary sorted by r1 and r2 positions to find groups of potential duplicates
-                try:             dupMarkingDict[read1.reference_name][read1.reference_start][read2.reference_start].append(pair)
+                try:             dupMarkingDict[read1.reference_name][int(read1.reference_start)][int(read2.reference_start)].append(pair)
                 except KeyError:
-                    try:             dupMarkingDict[read1.reference_name][read1.reference_start][read2.reference_start] = [pair]
-                    except KeyError: dupMarkingDict[read1.reference_name][read1.reference_start] = {read2.reference_start:[pair]}
-        
+                    try:             dupMarkingDict[read1.reference_name][int(read1.reference_start)][int(read2.reference_start)] = [pair]
+                    except KeyError: dupMarkingDict[read1.reference_name][int(read1.reference_start)] = {int(read2.reference_start):[pair]}
+                
         #
         # go through potential duplicates and check cigar + directions if duplicated score by basequalities and mark (set flag in bamfile)
         # (note that r1 are here defined as the read most towards the 3prim end not the first read in the pair)
@@ -1223,9 +1224,19 @@ class BarcodeCluster(object,):
                     for pair in reads_with_same_pos:
                         read1 = pair[0]
                         read2 = pair[1]
-                        try:             direction_and_cigar[{True:'rev',False:'fwd'}[read1.is_reverse]][{True:'rev',False:'fwd'}[read2.is_reverse]][str(read1.cigar)][str(read2.cigar)].append(pair)
-                        except KeyError: direction_and_cigar[{True:'rev',False:'fwd'}[read1.is_reverse]][{True:'rev',False:'fwd'}[read2.is_reverse]][str(read1.cigar)] = {str(read2.cigar):[pair]}
-                    
+                        
+                        if not cigarDummyForDupCheck:
+                            try:                 direction_and_cigar[{True:'rev',False:'fwd'}[read1.is_reverse]][{True:'rev',False:'fwd'}[read2.is_reverse]][str(read1.cigar)][str(read2.cigar)].append(pair)
+                            except KeyError:
+                                try:             direction_and_cigar[{True:'rev',False:'fwd'}[read1.is_reverse]][{True:'rev',False:'fwd'}[read2.is_reverse]][str(read1.cigar)][str(read2.cigar)] = [pair]
+                                except KeyError: direction_and_cigar[{True:'rev',False:'fwd'}[read1.is_reverse]][{True:'rev',False:'fwd'}[read2.is_reverse]][str(read1.cigar)] = {str(read2.cigar):[pair]}
+                        else:
+                            # use a dummy string for a stricter duplication check, resullting in that reads that mapp with same coordinates but different cigar strings will be marked as duplicates
+                            try:                 direction_and_cigar[{True:'rev',False:'fwd'}[read1.is_reverse]][{True:'rev',False:'fwd'}[read2.is_reverse]][str('dummy')][str('dummy')].append(pair)
+                            except KeyError:
+                                try:             direction_and_cigar[{True:'rev',False:'fwd'}[read1.is_reverse]][{True:'rev',False:'fwd'}[read2.is_reverse]][str('dummy')][str('dummy')] = [pair]
+                                except KeyError: direction_and_cigar[{True:'rev',False:'fwd'}[read1.is_reverse]][{True:'rev',False:'fwd'}[read2.is_reverse]][str('dummy')] = {str('dummy'):[pair]}                    
+
                     # for all groups of identically mapped reads
                     for r1_direction, r2_directions in direction_and_cigar.iteritems():
                         for r2_direction, r1_cigars in r2_directions.iteritems():
@@ -1253,8 +1264,8 @@ class BarcodeCluster(object,):
                                     pairBaseQualitySum,pairList = pairsSortedbyqSum[-1]
                                     for r1,r2 in pairList[:-1]:
                                         r1.is_duplicate = True
-                                        r2.is_duplicate  = True
-
+                                        r2.is_duplicate = True
+            
         #
         # print the reads to the bamfile in the order specified in bamfile header and coordinate sorted
         #
