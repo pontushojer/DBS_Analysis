@@ -2026,11 +2026,11 @@ class SamFlag():
             else:			pass#self.read1 = False
             if int(binary[-8]):	self.readnum = 2
             else:			pass#self.read2 = False
-            if int(binary[-9]):	self.primaryalignment = False;self.output += 'not primary alignment\t'
+            if int(binary[-9]):	self.primaryalignment = False;#self.output += 'not primary alignment\t'
             else:			self.primaryalignment = True
-            if int(binary[-10]):	self.passfilter=False;self.output += 'QC failed\t'
+            if int(binary[-10]):	self.passfilter=False;#self.output += 'QC failed\t'
             else:			self.passfilter=True
-            if int(binary[-11]):	self.pcrduplicate=True;self.output += 'is PCR duplicate'
+            if int(binary[-11]):	self.pcrduplicate=True;#self.output += 'is PCR duplicate'
             else:			self.pcrduplicate=False;
         except ValueError:
             output += '.'
