@@ -1287,6 +1287,13 @@ class BarcodeCluster(object,):
         # these files will not be created anymore if needed run the picard marking or write a function that creates them
         # self.filesCreated.append(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.metrics.txt')
         
+        # update the flags in the database
+        if self.analysisfolder.settings.debug:
+            updateValues = [ (int(pair[0].flag), int(pair[1].flag),self.readPairsByHeader[str('@'+pair[0].query_name)].id) for pair in pairs]
+            self.analysisfolder.database.getConnection()
+            self.analysisfolder.database.c.executemany('UPDATE reads SET mappingFlagR1=?, mappingFlagR2=? WHERE id=?', updateValues)
+            self.analysisfolder.database.commitAndClose()
+        
         return 0
 
     def analyze(self,createBamIndex=False):
