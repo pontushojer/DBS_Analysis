@@ -139,7 +139,7 @@ def foreachCluster(cluster):
     if not cluster.analyzed and cluster.readPairCount >= cluster.analysisfolder.settings.minPairsPerCluster:
         cluster.analyze(createBamIndex=True)
         cluster.findTargetCoverage()
-        if cluster.targetInfo != []: cluster.findHetroZygousBasesInTarget()
+        if cluster.targetInfo != []: cluster.findHetroZygousBasesInTarget(include_hetro=True,include_homo_reference=True,include_homo_non_reference=True)
         cluster.removeAllFiles()
     
     # if already analyzed move on

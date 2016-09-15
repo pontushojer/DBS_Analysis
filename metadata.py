@@ -563,7 +563,9 @@ class Settings(object,):
             'mapqCutOff':0,
             'minReadDepthForHetrozygousVariant':10,
             'minAlleleFreqForHetrozygousVariant':0.2,
+            'minFreqForSeqPosition':80,
             'minPairsPerCluster':2,
+            'minBasePhredQuality':20,
             'targetRegionBed':None,
             'IndexReferenceTsv':None,
             'temp':None,
@@ -591,7 +593,9 @@ class Settings(object,):
             'mapqCutOff':'filter all reads with mapping quality less than this (default='+str(self.defaultValues['mapqCutOff'])+')',
             'minReadDepthForHetrozygousVariant':'the minimum read depth to call a position as a hetroxygous variant',
             'minAlleleFreqForHetrozygousVariant':'the minimum allele frequency of the minor allele at a position to call the position as a hetroxygous variant (0-1, default = 0.2)',
+            'minFreqForSeqPosition': 'the minimum frequency for sequnces in positions to call the position as a valuable with over phred quality cutoff (0-90, default = 80)',
             'minPairsPerCluster':'minimum number of read pairs supporting a cluster for it to be included in analysis (default 2)',
+            'minBasePhredQuality':'The minimum base phred quality at the position to call the position as a valuable base (0-40, default = 20)',
             'targetRegionBed':'A bedfile defining regions on the reference that will be used as a targets during analysis such as coverage stats and variant calling (default = None)',
             'IndexReferenceTsv':'A tsv-file of individual index sequnces that will be used as a reference target during analysis of individual index, column 1 should be the name or id and column two should be the sequence (default = None)',
             'temp':'path to temporary folder (used for copying database etc on eg uppmax to increase speed of IO)',
@@ -623,7 +627,9 @@ class Settings(object,):
         self.mapqCutOff = None
         self.minReadDepthForHetrozygousVariant = None
         self.minAlleleFreqForHetrozygousVariant = None
-        self.minPairsPerCluster=None
+        self.minFreqForSeqPosition = None
+        self.minPairsPerCluster = None
+        self.minBasePhredQuality = None
         self.targetRegionBed = None
         self.IndexReferenceTsv = None
         self.temp = None

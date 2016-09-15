@@ -1745,7 +1745,7 @@ class BarcodeCluster(object,):
                 if 'averageReadDepth' in entry: sys.stdout.write(entry['entry_name']+'(rd)='+str(entry['averageReadDepth'])+'\t')
             sys.stdout.write('\n')
 
-    def findHetroZygousBasesInTarget(self, ):
+    def findHetroZygousBasesInTarget(self, include_hetro=True,include_homo_reference=False,include_homo_non_reference=False):
         
         #
         # imports
@@ -1769,7 +1769,10 @@ class BarcodeCluster(object,):
         # go through each targeted region
         for entry in self.targetInfo:
             
+            # define new information containers for entry dictrionary
             entry['hetrozygous_positions'] = {}
+            entry['non_reference_positions'] = {}
+            entry['homo_reference_positions'] = {}
             
             # make a pilup of aligned bases for each base in targeted region
             for pileup_column in bamfile.pileup(stepper='nofilter', reference=entry['reference_name'], start=entry['start_position'], end=entry['end_position']):
@@ -1784,15 +1787,16 @@ class BarcodeCluster(object,):
                         bases_in_this_position = {}
                         inserted_bases_in_next_position = {}
                     
-                        #check all reads that align to this position
+                        #check all reads that align to this position and sequences phred quality
                         for pileup_read in pileup_column.pileups:
-                            
+                                                        
                             # if next position is an insertion save the inserted bases to be able too look for hetrozygosity 
                             if pileup_read.indel >= 0:
                                 
                                 if pileup_read.indel == 0: insertion = '-' # no insertion present in read ie read is same as reference
                                 else:                     insertion = pileup_read.alignment.seq[ pileup_read.query_position+1: pileup_read.query_position+pileup_read.indel+1] # insetion present
                                 
+                                # REMEMBER TO LOOK AT INSERTION BASEqualities later
                                 try:             inserted_bases_in_next_position[ insertion ] += 1
                                 except KeyError: inserted_bases_in_next_position[ insertion ]  = 1
                             
@@ -1804,20 +1808,39 @@ class BarcodeCluster(object,):
                             
                             # if a base has in the read has aligned to the reference, get the base to be able too look for hetrozygosity 
                             else:
-                                try: bases_in_this_position[pileup_read.alignment.seq[ pileup_read.query_position ]] += 1
-                                except KeyError: bases_in_this_position[pileup_read.alignment.seq[ pileup_read.query_position ]] = 1
+                                #Check the sequences phred quality
+                                if pileup_read.alignment.query_qualities[ pileup_read.query_position ] < int(self.analysisfolder.settings.minBasePhredQuality):
+                                    #if self.analysisfolder.settings.debug: print 'base: '+pileup_read.alignment.seq[ pileup_read.query_position ]+' at genomic position '+str(pileup_column.pos)+' is lower than cutoff ' + str(pileup_read.alignment.query_qualities[ pileup_read.query_position ])+' < ' +str(self.analysisfolder.settings.minBasePhredQuality)
+                                    try: bases_in_this_position[ 'lowBQ' ] += 1
+                                    except KeyError: bases_in_this_position[ 'lowBQ' ] = 1
+                                    continue
+                                else:
+                                    try: bases_in_this_position[pileup_read.alignment.seq[ pileup_read.query_position ]] += 1
+                                    except KeyError: bases_in_this_position[pileup_read.alignment.seq[ pileup_read.query_position ]] = 1
                             
                         # set flags
                         this_pos_hetro = None
                         insertion_hetro = None
+                        most_frequent_base = (None,0)
+                        
+                        try: tmp_low_quality_bases = bases_in_this_position['lowBQ']
+                        except KeyError: tmp_low_quality_bases = 0
                         
                         # check the distribution of bases at this position
                         for base, count in bases_in_this_position.iteritems():
-    
-                            # caluclate the allele frequency of the base
-                            allele_frequenzy = misc.percentage(count, pileup_column.nsegments)
                             
-                            if allele_frequenzy >= 100*self.analysisfolder.settings.minAlleleFreqForHetrozygousVariant and allele_frequenzy <= 100*(1 - self.analysisfolder.settings.minAlleleFreqForHetrozygousVariant): this_pos_hetro = True
+                            # caluclate the allele frequency of the base
+                            allele_frequenzy = misc.percentage(count, pileup_column.nsegments- tmp_low_quality_bases)
+                            
+                            if allele_frequenzy > most_frequent_base[1] and base != 'lowBQ': most_frequent_base = (base, allele_frequenzy)
+                            
+                            #filters
+                            larger_than_cutoff = allele_frequenzy >= 100*self.analysisfolder.settings.minAlleleFreqForHetrozygousVariant
+                            smaller_than_1_minus_cutoff = allele_frequenzy <= 100*(1 - self.analysisfolder.settings.minAlleleFreqForHetrozygousVariant)
+                            remove_bq_entry_filter = base != 'lowBQ'
+                            
+                            #check filters
+                            if larger_than_cutoff and smaller_than_1_minus_cutoff and remove_bq_entry_filter: this_pos_hetro = True
                         
                         # check the distribution of insertions at the next position
                         for insertion, count in inserted_bases_in_next_position.iteritems():
@@ -1828,8 +1851,21 @@ class BarcodeCluster(object,):
                             if allele_frequenzy >= 100*self.analysisfolder.settings.minAlleleFreqForHetrozygousVariant and allele_frequenzy <= 100*(1 - self.analysisfolder.settings.minAlleleFreqForHetrozygousVariant): insertion_hetro = True
                         
                         # if hetozygousity was detected add position to entry['hetrozygous_positions']
+                        reference_base_in_this_position = reference.fetch(reference=pileup_column.reference_name,start=pileup_column.reference_pos,end=pileup_column.reference_pos+1)
+                        
+                        if not this_pos_hetro and most_frequent_base[1] > int(self.analysisfolder.settings.minFreqForSeqPosition): # hard coded cutoff should maybe be setting???
+                            if most_frequent_base[0] != reference_base_in_this_position:
+                                if include_homo_non_reference:
+                                    entry['non_reference_positions'][pileup_column.pos] = {'position_readdepth':pileup_column.nsegments, 'reference_base':reference_base_in_this_position, 'bases':bases_in_this_position}
+                                    print 'NON referencebase found!!  ref='+reference_base_in_this_position+' mostfreqbase='+most_frequent_base[0]
+                        
+                            if most_frequent_base[0] == reference_base_in_this_position:
+                                if include_homo_reference:
+                                    entry['homo_reference_positions'][pileup_column.pos] = {'position_readdepth':pileup_column.nsegments, 'reference_base':reference_base_in_this_position, 'bases':bases_in_this_position}
+                                    #print ' Referencebase found!!  ref='+reference_base_in_this_position+' mostfreqbase='+most_frequent_base[0]
+                        
                         if this_pos_hetro or insertion_hetro:
-                            entry['hetrozygous_positions'][pileup_column.pos] = {'position_readdepth':pileup_column.nsegments, 'reference_base':reference.fetch(reference=pileup_column.reference_name,start=pileup_column.reference_pos,end=pileup_column.reference_pos+1)}
+                            entry['hetrozygous_positions'][pileup_column.pos] = {'position_readdepth':pileup_column.nsegments, 'reference_base':reference_base_in_this_position}
                         
                             # if the actual position was hetrozygous
                             if this_pos_hetro:
@@ -1864,6 +1900,8 @@ class BarcodeCluster(object,):
         
         # set number of hetrozygous positions
         self.hetrozygous_positions = sum([ len(entry['hetrozygous_positions']) for entry in self.targetInfo ])
+        
+        sys.exit() #REMOVE THIS WHEN DEVELOPMENT COMPLETE JUST FOR TESTING
 
 def revcomp(string):
     ''' Takes a sequence and reversecomplements it'''
