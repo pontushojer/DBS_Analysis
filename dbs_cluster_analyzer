@@ -139,7 +139,7 @@ def foreachCluster(cluster):
     if not cluster.analyzed and cluster.readPairCount >= cluster.analysisfolder.settings.minPairsPerCluster:
         cluster.analyze(createBamIndex=True)
         cluster.findTargetCoverage()
-        if cluster.targetInfo != []: cluster.findHetroZygousBasesInTarget(include_hetro=True,include_homo_reference=True,include_homo_non_reference=True)
+        if cluster.targetInfo != []: cluster.findHetroZygousBasesInTarget(include_hetro=True,include_homo_reference=False,include_homo_non_reference=True)
         cluster.removeAllFiles()
     
     # if already analyzed move on
@@ -198,9 +198,13 @@ def updateClusterChunk(analysisfolder,chunk):
                     analysisfolder.database.c.execute("alter table barcodeClusters add column targetInfo string")
                 if 'individual_ID_dictionary' not in columnNames:
                     analysisfolder.database.c.execute("alter table barcodeClusters add column individual_ID_dictionary string")
-                
+                if 'hetrozygous_positions' not in columnNames:
+                    analysisfolder.database.c.execute("alter table barcodeClusters add column hetrozygous_positions int")
+                if 'high_quality_cluster' not in columnNames:
+                    analysisfolder.database.c.execute("alter table barcodeClusters add column high_quality_cluster BOOLEAN")                
+
                 # update the values for all the clusters in the chunk
-                analysisfolder.database.c.executemany('UPDATE barcodeClusters SET annotations=?, constructTypes=?,readPairsInBamFile=?, mappedSEReads=?, SEreadsPassMappingQualityFilter=?, goodReadPairs=?, duplicateReadPairs=?, goodReadPairPositions=?, targetInfo=?,individual_ID_dictionary=?, htmlTable=?, analyzed=? WHERE clusterId=?', chunk)
+                analysisfolder.database.c.executemany('UPDATE barcodeClusters SET annotations=?, constructTypes=?,readPairsInBamFile=?, mappedSEReads=?, SEreadsPassMappingQualityFilter=?, goodReadPairs=?, duplicateReadPairs=?, goodReadPairPositions=?, targetInfo=?,individual_ID_dictionary=?, htmlTable=?, analyzed=?,hetrozygous_positions=?, high_quality_cluster=? WHERE clusterId=?', chunk)
                 
                 # commit the data and close the connection
                 analysisfolder.database.commitAndClose()

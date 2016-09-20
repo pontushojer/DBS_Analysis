@@ -977,7 +977,7 @@ class BarcodeCluster(object,):
         #
         self.filesCreated = []
         
-    def setValues(self, clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions, targetInfo, individual_ID_dictionary, htmlTable,analyzed,):
+    def setValues(self, clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions, targetInfo, individual_ID_dictionary, htmlTable,analyzed,hetrozygous_positions, high_quality_cluster,):
         """ set the variable values for all info in the cluster, ususally used in conjunction with a database load in one way or another """
         assert clusterId == self.id
         self.readPairCount      = int(clusterTotalReadCount)
@@ -1005,6 +1005,8 @@ class BarcodeCluster(object,):
         self.individual_ID_dictionary = eval(str(individual_ID_dictionary))
         self.tableStr = htmlTable
         self.analyzed = analyzed
+        self.hetrozygous_positions = hetrozygous_positions
+        self.high_quality_cluster = high_quality_cluster
 
     def loadClusterInfo(self, ):
         """ (re)load the info from the database of this cluster
@@ -1022,15 +1024,16 @@ class BarcodeCluster(object,):
                     assert len(info) == 1, 'More than one ('+str(len(info))+') clusters found with id '+str(self.id)
                     (clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations) = info[0]
                     constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions, targetInfo,individual_ID_dictionary, htmlTable,analyzed = 'None',None,None,None,None,None,'None','None',None,None,False
+                    hetrozygous_positions, high_quality_cluster = None,None
                 else:
-                    info = self.analysisfolder.database.c.execute('SELECT clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions, targetInfo,individual_ID_dictionary, htmlTable, analyzed FROM barcodeClusters WHERE clusterId=?',(self.id,)).fetchall()
+                    info = self.analysisfolder.database.c.execute('SELECT clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions, targetInfo,individual_ID_dictionary, htmlTable, analyzed, hetrozygous_positions, high_quality_cluster FROM barcodeClusters WHERE clusterId=?',(self.id,)).fetchall()
                     assert len(info) == 1, 'More than one ('+str(len(info))+') clusters found with id '+str(self.id)
-                    (clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,targetInfo,individual_ID_dictionary,htmlTable,analyzed) = info[0]
+                    (clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,targetInfo,individual_ID_dictionary,htmlTable,analyzed,hetrozygous_positions, high_quality_cluster) = info[0]
 
                 self.analysisfolder.database.commitAndClose()
 
                 assert clusterId == self.id
-                self.setValues(clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,targetInfo,individual_ID_dictionary,htmlTable,analyzed)
+                self.setValues(clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,targetInfo,individual_ID_dictionary,htmlTable,analyzed,hetrozygous_positions, high_quality_cluster)
                 success = True
             except sqlite3.OperationalError: time.sleep(1)
 
@@ -1576,13 +1579,19 @@ class BarcodeCluster(object,):
                             self.analysisfolder.database.c.execute("alter table barcodeClusters add column targetInfo string")
                         if 'individual_ID_dictionary' not in columnNames:
                             self.analysisfolder.database.c.execute("alter table barcodeClusters add column individual_ID_dictionary string")
+                        if 'hetrozygous_positions' not in columnNames:
+                            self.analysisfolder.database.c.execute("alter table barcodeClusters add column hetrozygous_positions int")
+                        if 'high_quality_cluster' not in columnNames:
+                            self.analysisfolder.database.c.execute("alter table barcodeClusters add column high_quality_cluster BOOLEAN")
+                        #self.hetrozygous_positions
+                        #self.high_quality_cluster
                         
                         #
                         # do the actual update
                         #
                         self.analysisfolder.database.c.execute(
-                                'UPDATE barcodeClusters SET annotations=?, constructTypes=?,readPairsInBamFile=?, mappedSEReads=?, SEreadsPassMappingQualityFilter=?, goodReadPairs=?, duplicateReadPairs=?, goodReadPairPositions=?, targetInfo=?,individual_ID_dictionary=?, htmlTable=?, analyzed=? WHERE clusterId=?',
-                                (str(self.annotations),str(self.constructTypes),self.readPairsInBamFile,self.mappedSEReads,self.SEreadsPassMappingQualityFilter,self.goodReadPairs,self.duplicateReadPairs,str(self.goodReadPairPositions),str(self.targetInfo),str(self.individual_ID_dictionary),self.tableStr,self.analyzed,self.id)
+                                'UPDATE barcodeClusters SET annotations=?, constructTypes=?,readPairsInBamFile=?, mappedSEReads=?, SEreadsPassMappingQualityFilter=?, goodReadPairs=?, duplicateReadPairs=?, goodReadPairPositions=?, targetInfo=?,individual_ID_dictionary=?, htmlTable=?, analyzed=?,hetrozygous_positions=?, high_quality_cluster=? WHERE clusterId=?',
+                                (str(self.annotations),str(self.constructTypes),self.readPairsInBamFile,self.mappedSEReads,self.SEreadsPassMappingQualityFilter,self.goodReadPairs,self.duplicateReadPairs,str(self.goodReadPairPositions),str(self.targetInfo),str(self.individual_ID_dictionary),self.tableStr,self.analyzed,self.hetrozygous_positions,self.high_quality_cluster,self.id)
                             )
                         self.analysisfolder.database.commitAndClose()
                         self.analysisfolder.database.writeInProgress.value = False
@@ -1594,7 +1603,7 @@ class BarcodeCluster(object,):
         # return a tuple formated for update of db
         #
         if returnTuple:
-            return (str(self.annotations),str(self.constructTypes),self.readPairsInBamFile,self.mappedSEReads,self.SEreadsPassMappingQualityFilter,self.goodReadPairs,self.duplicateReadPairs,str(self.goodReadPairPositions),str(self.targetInfo),str(self.individual_ID_dictionary),self.tableStr,self.analyzed,self.id)
+            return (str(self.annotations),str(self.constructTypes),self.readPairsInBamFile,self.mappedSEReads,self.SEreadsPassMappingQualityFilter,self.goodReadPairs,self.duplicateReadPairs,str(self.goodReadPairPositions),str(self.targetInfo),str(self.individual_ID_dictionary),self.tableStr,self.analyzed,self.hetrozygous_positions,self.high_quality_cluster,self.id)
 
     def generateHtmlSummary(self):
         """ generates a small html style summary to use in later visualization of the cluster
