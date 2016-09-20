@@ -358,22 +358,23 @@ class Database(object):
                     info = self.c.execute('SELECT clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations FROM barcodeClusters')
                     for (clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations) in info:
                         constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,targetInfo,individual_ID_dictionary,htmlTable,analyzed = 'None',None,None,None,None,None,'None','None',None,None,False,
+                        hetrozygous_positions, high_quality_cluster = None,None
                         if clusterId == None: continue
                         cluster = BarcodeCluster(clusterId,analysisfolder)
-                        cluster.setValues(clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,targetInfo,individual_ID_dictionary,htmlTable,analyzed)
+                        cluster.setValues(clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,targetInfo,individual_ID_dictionary,htmlTable,analyzed, hetrozygous_positions, high_quality_cluster)
                         yield cluster
                 
                 else: # ie the new columns are present
                     
                     # get values set clusterinfo and yield cluster
                     if cluster_id_min and cluster_id_max:
-                        info = self.c.execute('SELECT clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions, targetInfo,individual_ID_dictionary, htmlTable, analyzed FROM barcodeClusters WHERE clusterId BETWEEN '+str(cluster_id_min)+' AND '+str(cluster_id_max)+'')
+                        info = self.c.execute('SELECT clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions, targetInfo,individual_ID_dictionary, htmlTable, analyzed, hetrozygous_positions, high_quality_cluster FROM barcodeClusters WHERE clusterId BETWEEN '+str(cluster_id_min)+' AND '+str(cluster_id_max)+'')
                     else:
-                        info = self.c.execute('SELECT clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions, targetInfo,individual_ID_dictionary, htmlTable, analyzed FROM barcodeClusters')
-                    for (clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,targetInfo,individual_ID_dictionary,htmlTable,analyzed) in info:
+                        info = self.c.execute('SELECT clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions, targetInfo,individual_ID_dictionary, htmlTable, analyzed, hetrozygous_positions, high_quality_cluster FROM barcodeClusters')
+                    for (clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,targetInfo,individual_ID_dictionary,htmlTable,analyzed, hetrozygous_positions, high_quality_cluster) in info:
                         if clusterId == None: continue
                         cluster = BarcodeCluster(clusterId,analysisfolder)
-                        cluster.setValues(clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,targetInfo,individual_ID_dictionary,htmlTable,analyzed)
+                        cluster.setValues(clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,targetInfo,individual_ID_dictionary,htmlTable,analyzed, hetrozygous_positions, high_quality_cluster)
                         yield cluster
                 
                 self.commitAndClose()
@@ -565,9 +566,11 @@ class Settings(object,):
             'bowtie2Reference':None,
             'picardPath':None,
             'mapqCutOff':0,
-            'minReadDepthForHetrozygousVariant':10,
+            'minReadDepthForVariantCalling':10,
             'minAlleleFreqForHetrozygousVariant':0.2,
+            'minFreqForSeqPosition':80,
             'minPairsPerCluster':2,
+            'minBasePhredQuality':20,
             'targetRegionBed':None,
             'IndexReferenceTsv':None,
             'temp':None,
@@ -593,9 +596,11 @@ class Settings(object,):
             'bowtie2Reference':'path to the bowtie 2 reference index',
             'picardPath':'path to the picard installation to use',
             'mapqCutOff':'filter all reads with mapping quality less than this (default='+str(self.defaultValues['mapqCutOff'])+')',
-            'minReadDepthForHetrozygousVariant':'the minimum read depth to call a position as a hetroxygous variant',
+            'minReadDepthForVariantCalling':'the minimum read depth to call a position as variant calling ( default = 10)',
             'minAlleleFreqForHetrozygousVariant':'the minimum allele frequency of the minor allele at a position to call the position as a hetroxygous variant (0-1, default = 0.2)',
+            'minFreqForSeqPosition': 'the minimum frequency for sequnces in positions to call the position as a valuable with over phred quality cutoff (0-100 %, default = 80)',
             'minPairsPerCluster':'minimum number of read pairs supporting a cluster for it to be included in analysis (default 2)',
+            'minBasePhredQuality':'The minimum base phred quality at the position to call the position as a valuable base (0-40, default = 20)',
             'targetRegionBed':'A bedfile defining regions on the reference that will be used as a targets during analysis such as coverage stats and variant calling (default = None)',
             'IndexReferenceTsv':'A tsv-file of individual index sequnces that will be used as a reference target during analysis of individual index, column 1 should be the name or id and column two should be the sequence (default = None)',
             'temp':'path to temporary folder (used for copying database etc on eg uppmax to increase speed of IO)',
@@ -625,9 +630,11 @@ class Settings(object,):
         self.bowtie2Reference = None
         self.picardPath = None
         self.mapqCutOff = None
-        self.minReadDepthForHetrozygousVariant = None
+        self.minReadDepthForVariantCalling = None
         self.minAlleleFreqForHetrozygousVariant = None
-        self.minPairsPerCluster=None
+        self.minFreqForSeqPosition = None
+        self.minPairsPerCluster = None
+        self.minBasePhredQuality = None
         self.targetRegionBed = None
         self.IndexReferenceTsv = None
         self.temp = None
