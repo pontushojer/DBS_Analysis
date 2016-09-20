@@ -22,7 +22,7 @@ def main():
         analysisfolder.readindexTsv()
         if analysisfolder.settings.temp: analysisfolder.copy_to_temp()
 
-    except IndexError: sys.stderr.write('please supply a commandline on format:\n'+os.path.basename(__file__)+' <analysis-output-folder> [reanalyze=bool] [clusterid=bool]\n');sys.exit()
+    except IndexError: sys.stderr.write('please supply a commandline on format:\n'+os.path.basename(__file__)+' <analysis-output-folder> [reanalyze=bool] [clusterid=int]\n');sys.exit()
 
     #
     # check analysis folder
