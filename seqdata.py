@@ -1766,6 +1766,8 @@ class BarcodeCluster(object,):
         except IOError:
             reference = pysam.FastaFile(self.analysisfolder.settings.bowtie2Reference+'.fa')
         
+        self.high_quality_cluster = True
+        
         # go through each targeted region
         for entry in self.targetInfo:
             
@@ -1774,6 +1776,8 @@ class BarcodeCluster(object,):
             entry['non_reference_positions'] = {}
             entry['homo_reference_positions'] = {}
             
+            tmp_coverage_check = {}
+            
             # make a pilup of aligned bases for each base in targeted region
             for pileup_column in bamfile.pileup(stepper='nofilter', reference=entry['reference_name'], start=entry['start_position'], end=entry['end_position']):
                 
@@ -1781,7 +1785,7 @@ class BarcodeCluster(object,):
                 if pileup_column.pos >= entry['start_position'] and pileup_column.pos <= entry['end_position']:
                     
                     # check readcount above defined cutoff
-                    if pileup_column.nsegments >= self.analysisfolder.settings.minReadDepthForHetrozygousVariant:
+                    if pileup_column.nsegments >= int(self.analysisfolder.settings.minReadDepthForVariantCalling): #change this to not only hetro variant but variant callin general
                         
                         # init counters
                         bases_in_this_position = {}
@@ -1794,11 +1798,17 @@ class BarcodeCluster(object,):
                             if pileup_read.indel >= 0:
                                 
                                 if pileup_read.indel == 0: insertion = '-' # no insertion present in read ie read is same as reference
-                                else:                     insertion = pileup_read.alignment.seq[ pileup_read.query_position+1: pileup_read.query_position+pileup_read.indel+1] # insetion present
+                                else:
+                                    insertion = pileup_read.alignment.seq[ pileup_read.query_position+1: pileup_read.query_position+pileup_read.indel+1] # insetion present
+                                    insertion_qualities = pileup_read.alignment.query_qualities[ pileup_read.query_position+1: pileup_read.query_position+pileup_read.indel+1]
+                                    averager_insertion_BQ = float(sum(insertion_qualities))/float(len(insertion_qualities))
                                 
-                                # REMEMBER TO LOOK AT INSERTION BASEqualities later
-                                try:             inserted_bases_in_next_position[ insertion ] += 1
-                                except KeyError: inserted_bases_in_next_position[ insertion ]  = 1
+                                    if averager_insertion_BQ < int(self.analysisfolder.settings.minBasePhredQuality):
+                                        try: inserted_bases_in_next_position[ 'InsertLowBQ' ] += 1
+                                        except KeyError: inserted_bases_in_next_position[ 'InsertLowBQ' ] = 1
+                                    else:
+                                        try:             inserted_bases_in_next_position[ insertion ] += 1
+                                        except KeyError: inserted_bases_in_next_position[ insertion ]  = 1
                             
                             # if the current reference position is deleted in read set the base to "-"
                             if pileup_read.query_position == None: 
@@ -1818,19 +1828,25 @@ class BarcodeCluster(object,):
                                     try: bases_in_this_position[pileup_read.alignment.seq[ pileup_read.query_position ]] += 1
                                     except KeyError: bases_in_this_position[pileup_read.alignment.seq[ pileup_read.query_position ]] = 1
                             
-                        # set flags
+                        # set flags for positions
                         this_pos_hetro = None
                         insertion_hetro = None
                         most_frequent_base = (None,0)
+                        most_frequent_insertion = (None,0)
                         
+                        # if low base quality was detected add position to entry, as a list for low quality sequence positions in the temporary 
                         try: tmp_low_quality_bases = bases_in_this_position['lowBQ']
                         except KeyError: tmp_low_quality_bases = 0
+
+                        try: tmp_low_quality_insertions = inserted_bases_in_next_position['InsertLowBQ']
+                        except KeyError: tmp_low_quality_insertions = 0
+
                         
                         # check the distribution of bases at this position
                         for base, count in bases_in_this_position.iteritems():
                             
                             # caluclate the allele frequency of the base
-                            allele_frequenzy = misc.percentage(count, pileup_column.nsegments- tmp_low_quality_bases)
+                            allele_frequenzy = misc.percentage(count, pileup_column.nsegments - tmp_low_quality_bases)
                             
                             if allele_frequenzy > most_frequent_base[1] and base != 'lowBQ': most_frequent_base = (base, allele_frequenzy)
                             
@@ -1846,48 +1862,117 @@ class BarcodeCluster(object,):
                         for insertion, count in inserted_bases_in_next_position.iteritems():
     
                             # caluclate the allele frequency of the base
-                            allele_frequenzy = misc.percentage(count, sum(inserted_bases_in_next_position.values()))
+                            allele_frequenzy = misc.percentage(count, sum(inserted_bases_in_next_position.values())-tmp_low_quality_insertions) # tmp_low_quality_insertions
                             
-                            if allele_frequenzy >= 100*self.analysisfolder.settings.minAlleleFreqForHetrozygousVariant and allele_frequenzy <= 100*(1 - self.analysisfolder.settings.minAlleleFreqForHetrozygousVariant): insertion_hetro = True
+                            if allele_frequenzy > most_frequent_insertion[1] and insertion != 'InsertLowBQ': most_frequent_insertion = (insertion, allele_frequenzy)
+                            
+                            #filters
+                            larger_than_cutoff = allele_frequenzy >= 100*self.analysisfolder.settings.minAlleleFreqForHetrozygousVariant
+                            smaller_than_1_minus_cutoff = allele_frequenzy <= 100*(1 - self.analysisfolder.settings.minAlleleFreqForHetrozygousVariant)
+                            remove_bq_entry_filter = insertion != 'InsertLowBQ'
+                            
+                            if larger_than_cutoff and smaller_than_1_minus_cutoff and remove_bq_entry_filter: insertion_hetro = True
                         
-                        # if hetozygousity was detected add position to entry['hetrozygous_positions']
+                        # Get the reference base at this position
                         reference_base_in_this_position = reference.fetch(reference=pileup_column.reference_name,start=pileup_column.reference_pos,end=pileup_column.reference_pos+1)
                         
-                        if not this_pos_hetro and most_frequent_base[1] > int(self.analysisfolder.settings.minFreqForSeqPosition): # hard coded cutoff should maybe be setting???
+                        # do read depth checks to see that the number of high quality bases are larger than defined cutoff
+                        high_quality_bases_in_this_position = pileup_column.nsegments - tmp_low_quality_bases
+                        high_quality_insertions = sum(inserted_bases_in_next_position.values()) - tmp_low_quality_insertions
+                        this_position_read_depth_check = high_quality_bases_in_this_position >= int(self.analysisfolder.settings.minReadDepthForVariantCalling)
+                        insertion_read_depth_check = high_quality_insertions >= int(self.analysisfolder.settings.minReadDepthForVariantCalling)
+                        
+                        # add to coverage check dict to be able to say if all positions in target are covered enough to be called
+                        if high_quality_bases_in_this_position >= int(self.analysisfolder.settings.minReadDepthForVariantCalling): tmp_coverage_check[pileup_column.pos] = high_quality_bases_in_this_position
+                        
+                        
+                        # if position is not hetro add it to non reference or reference base dictionaries depending on include flag
+                        if this_position_read_depth_check and not this_pos_hetro and most_frequent_base[1] > int(self.analysisfolder.settings.minFreqForSeqPosition):
+                            
                             if most_frequent_base[0] != reference_base_in_this_position:
                                 if include_homo_non_reference:
                                     entry['non_reference_positions'][pileup_column.pos] = {'position_readdepth':pileup_column.nsegments, 'reference_base':reference_base_in_this_position, 'bases':bases_in_this_position}
-                                    print 'NON referencebase found!!  ref='+reference_base_in_this_position+' mostfreqbase='+most_frequent_base[0]
+                                    if self.analysisfolder.settings.debug: print 'NON referencebase found!!  ref='+reference_base_in_this_position+' mostfreqbase='+most_frequent_base[0]
                         
                             if most_frequent_base[0] == reference_base_in_this_position:
                                 if include_homo_reference:
                                     entry['homo_reference_positions'][pileup_column.pos] = {'position_readdepth':pileup_column.nsegments, 'reference_base':reference_base_in_this_position, 'bases':bases_in_this_position}
                                     #print ' Referencebase found!!  ref='+reference_base_in_this_position+' mostfreqbase='+most_frequent_base[0]
                         
+                        # if hetozygousity was detected add position to entry['hetrozygous_positions']
                         if this_pos_hetro or insertion_hetro:
-                            entry['hetrozygous_positions'][pileup_column.pos] = {'position_readdepth':pileup_column.nsegments, 'reference_base':reference_base_in_this_position}
-                        
+                            
                             # if the actual position was hetrozygous
-                            if this_pos_hetro:
+                            if this_pos_hetro and this_position_read_depth_check:
+                                entry['hetrozygous_positions'][pileup_column.pos] = {'position_readdepth':pileup_column.nsegments, 'reference_base':reference_base_in_this_position}
                                 entry['hetrozygous_positions'][pileup_column.pos]['bases'] = bases_in_this_position
+                                if self.analysisfolder.settings.debug: print 'HETRO detected!',entry['entry_name'],pileup_column.pos
                             
                             # if next position was a hetrozygous insertion
-                            if insertion_hetro:
+                            if insertion_hetro and insertion_read_depth_check and high_quality_insertions>=0.5*high_quality_bases_in_this_position:
+                                if pileup_column.pos not in entry['hetrozygous_positions']: entry['hetrozygous_positions'][pileup_column.pos] = {'position_readdepth':pileup_column.nsegments, 'reference_base':reference_base_in_this_position}
                                 entry['hetrozygous_positions'][pileup_column.pos]['insertion_in_next_position'] = True
                                 entry['hetrozygous_positions'][pileup_column.pos]['insertions'] = inserted_bases_in_next_position
+                                if self.analysisfolder.settings.debug: print 'HETRO detected!',entry['entry_name'],pileup_column.pos
                             else:
+                                if pileup_column.pos not in entry['hetrozygous_positions']: entry['hetrozygous_positions'][pileup_column.pos] = {'position_readdepth':pileup_column.nsegments, 'reference_base':reference_base_in_this_position}
                                 entry['hetrozygous_positions'][pileup_column.pos]['insertion_in_next_position'] = False
+                        
+                        # check for non hetrozygous insertions
+                        if not insertion_hetro and most_frequent_insertion[1] > int(self.analysisfolder.settings.minFreqForSeqPosition) and insertion_read_depth_check and high_quality_insertions>=0.5*high_quality_bases_in_this_position:
+                            if include_homo_non_reference:
+                                if pileup_column.pos not in entry['non_reference_positions']: entry['non_reference_positions'][pileup_column.pos] = {'position_readdepth':pileup_column.nsegments, 'reference_base':reference_base_in_this_position}
+                                entry['non_reference_positions'][pileup_column.pos]['insertion_in_next_position'] = True
+                                entry['non_reference_positions'][pileup_column.pos]['insertions'] = inserted_bases_in_next_position
+                                if self.analysisfolder.settings.debug: print 'NON reference insertion found!!  ref='+str(inserted_bases_in_next_position)+' mostfreqinsertion='+str(most_frequent_insertion[0])
+
+
+            if self.high_quality_cluster:
+                for tmp_position in xrange(entry['start_position'],entry['end_position']+1,1):
+                    if tmp_position not in tmp_coverage_check:
+                        if self.analysisfolder.settings.debug: print entry['entry_name'],tmp_position
+                        self.high_quality_cluster = False
+                        break
+                    else:
+                        if self.analysisfolder.settings.debug: print entry['entry_name'],tmp_position,tmp_coverage_check[tmp_position]
+
         # debugging message
         if self.analysisfolder.settings.debug:
             for entry in self.targetInfo:
                 
-                print entry['entry_name']
+                print entry['entry_name'],entry['start_position'],'-',entry['end_position']
                 
-                for position, info_dictionary in entry['hetrozygous_positions'].iteritems():
+                tmp_positions = sorted(list(set(entry['hetrozygous_positions'].keys() +entry['non_reference_positions'].keys() + entry['homo_reference_positions'].keys())))
+                
+                #for position, info_dictionary, tmp_hetro_flag, tmp_homo_flag, tmp_ref_flag print the result
+                for position in tmp_positions:
+                    info_dictionary = None
+                    tmp_hetro_flag = False
+                    tmp_homo_flag = False
+                    tmp_ref_flag = False
                     
-                    if 'bases' in info_dictionary: print position,'\t',info_dictionary['reference_base'],'\t',info_dictionary['position_readdepth'],'\t'.join([base+'='+str(count) for base,count in info_dictionary['bases'].iteritems() ])
+                    if position in entry['homo_reference_positions']:
+                        tmp_ref_flag = True;
+                        info_dictionary = entry['homo_reference_positions'][position];
+                    if position in entry['hetrozygous_positions']:
+                        info_dictionary = entry['hetrozygous_positions'][position];
+                        tmp_hetro_flag = True;
+                    if position in entry['non_reference_positions']:
+                        info_dictionary = entry['non_reference_positions'][position];
+                        tmp_homo_flag = True;
                     
-                    if 'insertions' in info_dictionary: print str(position)+'.i','\t',info_dictionary['reference_base'],'\t',info_dictionary['position_readdepth'],'\t'.join([base+'='+str(count) for base,count in info_dictionary['insertions'].iteritems() ])
+                    if (tmp_hetro_flag and tmp_homo_flag) or (tmp_homo_flag and  tmp_ref_flag): print 'No acceptable!!! position',position,tmp_hetro_flag,tmp_homo_flag,tmp_ref_flag
+                    
+                #for position, info_dictionary in entry['hetrozygous_positions'].iteritems():
+                    
+                    if 'bases' in info_dictionary and tmp_hetro_flag and not tmp_ref_flag: print str(position)+'.H\t',info_dictionary['reference_base'],'\t',info_dictionary['position_readdepth'],'\t'.join([base+'='+str(count) for base,count in info_dictionary['bases'].iteritems() ])
+                    if 'bases' in info_dictionary and tmp_homo_flag and not tmp_ref_flag: print str(position)+'.N\t',info_dictionary['reference_base'],'\t',info_dictionary['position_readdepth'],'\t'.join([base+'='+str(count) for base,count in info_dictionary['bases'].iteritems() ])
+                    if 'bases' in info_dictionary and tmp_ref_flag: print str(position)+'.r\t',info_dictionary['reference_base'],'\t',info_dictionary['position_readdepth'],'\t'.join([base+'='+str(count) for base,count in info_dictionary['bases'].iteritems() ])
+                    
+                    if 'insertions' in info_dictionary:
+                        if tmp_ref_flag:
+                            print str(position)+'.r\t',entry['homo_reference_positions'][position]['reference_base'],'\t',entry['homo_reference_positions'][position]['position_readdepth'],'\t'.join([base+'='+str(count) for base,count in entry['homo_reference_positions'][position]['bases'].iteritems() ])
+                        print str(position)+'.i','\t',info_dictionary['reference_base'],'\t',info_dictionary['position_readdepth'],'\t'.join([base+'='+str(count) for base,count in info_dictionary['insertions'].iteritems() ])
         
         # write to tablestr to use at clusterspecific web interface page
         tmp = ''
@@ -1901,7 +1986,8 @@ class BarcodeCluster(object,):
         # set number of hetrozygous positions
         self.hetrozygous_positions = sum([ len(entry['hetrozygous_positions']) for entry in self.targetInfo ])
         
-        sys.exit() #REMOVE THIS WHEN DEVELOPMENT COMPLETE JUST FOR TESTING
+        if self.analysisfolder.settings.debug:
+            print 'found ',self.hetrozygous_positions, 'hetrozygous positions in total. Flag for all callable=',self.high_quality_cluster
 
 def revcomp(string):
     ''' Takes a sequence and reversecomplements it'''
