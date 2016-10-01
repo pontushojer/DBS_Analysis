@@ -35,6 +35,7 @@ def create_links():
         'dbs_handle_indetifier',
         'dbs_insert_mapper',
         'dbs_web_interface_server',
+        'dbs_find_alleles',
         'viewLogfiles'
         ]
     

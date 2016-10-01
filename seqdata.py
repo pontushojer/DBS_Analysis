@@ -1834,7 +1834,7 @@ class BarcodeCluster(object,):
                                         try: inserted_bases_in_next_position[ 'InsertLowBQ' ] += 1
                                         except KeyError: inserted_bases_in_next_position[ 'InsertLowBQ' ] = 1
                                     else:
-                                        try:             inserted_bases_in_next_position[ insertion ] += 1
+                                        try: inserted_bases_in_next_position[ insertion ] += 1
                                         except KeyError: inserted_bases_in_next_position[ insertion ]  = 1
                             
                             # if the current reference position is deleted in read set the base to "-"

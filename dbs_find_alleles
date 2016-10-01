@@ -1,0 +1,373 @@
+#! /usr/bin/env python
+
+import sys
+
+def main(): 
+    #
+    # Imports
+    #
+    import metadata
+    import time
+    from seqdata import BarcodeClusterer
+    from misc import Progress
+    import multiprocessing
+    import sqlite3
+    import os
+
+    #
+    # check input and get commandline args
+    #
+    try:
+        analysisfolder = metadata.AnalysisFolder(sys.argv[1])
+        analysisfolder.readindexTsv()
+        if analysisfolder.settings.temp: analysisfolder.copy_to_temp()
+
+    except IndexError: sys.stderr.write('please supply a commandline on format:\n'+os.path.basename(__file__)+' <analysis-output-folder>\n');sys.exit()
+
+    #
+    # check analysis folder
+    #
+    if not analysisfolder.checkIntegrity() == 'PASS': print analysisfolder.checkIntegrity()+'\nERROR: Now exiting'
+
+    #
+    # create a logfile
+    #
+    logfile = open(analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'_find_alleles.log.txt','w',1)
+    logfile.write('cmd: '+' '.join(sys.argv)+'\n')
+    analysisfolder.logfile = logfile
+
+    #
+    # check if the target region bedfile is defined
+    #
+    if not analysisfolder.settings.targetRegionBed or not os.path.exists(analysisfolder.settings.targetRegionBed):
+        msg = 'WARNING: cant find the target definition bed file!!\n'
+        msg+= '(If run is not targeted you can safely ignore this message).\n'
+        sys.stderr.write(msg);
+        logfile.write(msg)
+    
+  
+    
+    #
+    # Do the work here!!
+    #
+    compmachine = ClusterAllelComparer(analysisfolder)
+    
+    compmachine.find_high_quality_clusters()
+    compmachine.load_HQ_clusters()
+    compmachine.build_allele_representation_dict_for_HQ_clusters()
+    compmachine.find_unique_allales_among_HQ_clusters()
+    compmachine.compare_uniq_HQ_alleles()
+    
+    if analysisfolder.database_in_temp: analysisfolder.copy_from_temp()
+        
+    logfile.write('find_alleles FINISHED\n')
+
+class ClusterAllelComparer():
+    """ comparison machine for looking identifying, comparing and finiding support for alleles in the datat """
+    
+    def __init__(self,analysisfolder):
+        
+        # set conectionn to the analysisfolder
+        self.analysisfolder = analysisfolder
+        
+        # define initial values for variables to be used later
+        self.high_qualitty_cluster_ids = None # list for holding the ids of high quality clusters
+        
+        self.high_qualitty_clusters = []
+
+    def find_high_quality_clusters(self, ):
+        """ function that finds clusters with high quality alleles in the data """
+
+        # connect to database and extract cluster ids for clusters with high quality data
+        # defined as having no more than 3 hetrozygous position and having coverage over cutoff for all targeted bases
+        self.analysisfolder.database.getConnection()
+        tmp_high_qualitty_cluster_ids = self.analysisfolder.database.c.execute('SELECT clusterId FROM barcodeClusters WHERE hetrozygous_positions<=3 AND high_quality_cluster=1').fetchall()
+        
+        # reformat the list of ids
+        self.high_qualitty_cluster_ids = [int(tmp_info[0]) for tmp_info in tmp_high_qualitty_cluster_ids]
+        
+        import sys
+        if len(self.high_qualitty_cluster_ids) == 0: sys.stderr.write('WARNING: no highquality clusters found.\n')
+        
+    def load_HQ_clusters(self,):
+        
+        from seqdata import BarcodeCluster
+        
+        for idnumber in self.high_qualitty_cluster_ids:
+            
+            cluster = BarcodeCluster(idnumber, self.analysisfolder)
+            self.high_qualitty_clusters.append(cluster)
+            cluster.loadClusterInfo()
+    
+    def build_allele_representation_dict_for_HQ_clusters(self,):
+
+        import operator
+        
+        #find high quality cluster information
+        for cluster in self.high_qualitty_clusters:
+            
+            # make a dictuionary for positions with highest base 
+            intresting_postitions = {}
+            for entry in cluster.targetInfo:
+                
+                # check the distribution of bases at the position and which base is most frequent
+                for position,information in entry['non_reference_positions'].iteritems():
+                    
+                    most_frequent_base = (None,0)
+                    print information
+                    try:
+                        for base, count in information['bases'].iteritems(): 
+                        # check the highest frequent base in the position
+                    
+                            if count > most_frequent_base[1] and base != 'lowBQ': most_frequent_base = (base, count)
+                    
+                    except KeyError:
+                        for base, count in information['insertions'].iteritems():
+                             if count > most_frequent_base[1] and base != 'InsertlowBQ': most_frequent_base = (base, count)
+                    intresting_postitions[position] = most_frequent_base[0]
+                        
+            # save allele representation as dictionary linked to cluster
+            cluster.allele_representation_dict = intresting_postitions
+        
+    def find_unique_allales_among_HQ_clusters(self,):
+        
+        import operator
+        
+        self.unique_alleles = {}
+        
+        #    
+        # find clusters with identical alllels
+        #
+        for cluster in self.high_qualitty_clusters:
+            allele_representation_string = '|'.join([str(position)+'='+base for position, base in sorted(cluster.allele_representation_dict.iteritems(), key=operator.itemgetter(0))])
+            #print cluster.id, allele_representation_string
+            try:
+                self.unique_alleles[allele_representation_string].append(cluster)
+            except KeyError:
+                self.unique_alleles[allele_representation_string] = [cluster]
+            
+        #
+        # sort the identical alleles by count
+        #
+        self.unique_alleles_by_count = {}
+        for allele_representation_string, cluster_list in self.unique_alleles.iteritems(): self.unique_alleles_by_count[allele_representation_string] = len(cluster_list)
+        for allele_representation_string, length_of_cluster_id_list in sorted(self.unique_alleles_by_count.iteritems(), key=operator.itemgetter(1), reverse=True):
+            cluster_list = self.unique_alleles[allele_representation_string]
+            if self.analysisfolder.settings.debug: print '\nThe allele is supported by', length_of_cluster_id_list,'cluster (', cluster_id_list,')\nallelerepstring="',allele_representation_string,'"'
+
+    def compare_uniq_HQ_alleles(self, number_of_errors_allowed = 1):
+        """
+         EXPLENATION OF WHAT THIS FUNCTION DOES
+        """
+        
+        import operator
+        self.alleles = {}
+        tmp_allele_counter = 0
+        
+        #
+        # find all positions where an variation was detected in atleast one cluster
+        #
+        variable_positions_in_at_least_one_cluster = {}
+        for cluster in self.high_qualitty_clusters:
+            for position in cluster.allele_representation_dict.keys():
+                variable_positions_in_at_least_one_cluster[position] = True
+        
+        #
+        # print table for manual check during development
+        #
+        print '\t'+'\t'.join([str(position) for position in variable_positions_in_at_least_one_cluster])+'\tIDs' # prints the header
+        #for cluster in self.high_qualitty_clusters:
+        clusters_to_compare = []
+        for allele_representation_string, length_of_cluster_id_list in sorted(self.unique_alleles_by_count.iteritems(), key=operator.itemgetter(1), reverse=True):
+            
+            # get the list of  clusters with identical alleles
+            cluster_list = self.unique_alleles[allele_representation_string]
+            
+            # get a representative cluster to compare
+            cluster = cluster_list[0]
+            clusters_to_compare.append(cluster)
+            
+            tmp_allele_counter += 1
+            self.alleles[tmp_allele_counter] = {
+                        'id':tmp_allele_counter,
+                        'seed':cluster_list[0], # representative for original uniuqe allele
+                        'clusters_by_difference':{0:cluster_list}, # all clusters soreted by difference to the seed
+                        'total_cluster_count':len(cluster_list), # total number of clusters supporting this allele
+                        'all_clusters':cluster_list, # list of all clusters supporting this allele
+                        'new_clusters':[cluster_list[0]] # new clusters added since last iteration of "allele clustering"
+                    }
+            
+            # print some info START
+            #print ','.join([str(tmp_cluster.id) for tmp_cluster in cluster_list])+'\t',
+            print str(len(cluster_list))+'\t',
+            for position in variable_positions_in_at_least_one_cluster:
+                try:
+                    print cluster.allele_representation_dict[position],'\t',
+                except KeyError:
+                    print '*','\t',
+            print ','.join([str(tmp_cluster.id) for tmp_cluster in cluster_list])+'\t'
+            # print some END
+        
+        import itertools
+        
+        previous_number_of_alleles = len(self.alleles)+1
+        while len(self.alleles) < previous_number_of_alleles:
+            
+            for allele in self.alleles.values(): allele['new_clusters'] = []
+                
+            allele_ids_sorted_by_cluster_count = sorted(  [ (allele['total_cluster_count'], allele['id']) for allele in self.alleles.values()], key=operator.itemgetter(0), reverse=True)
+            allele_ids_sorted_by_cluster_count = [id_number for count,id_number in allele_ids_sorted_by_cluster_count]
+            merged_to_other = []
+            for combo in list(itertools.combinations(allele_ids_sorted_by_cluster_count,2)): # remember to sort this by counts so you alwways start with the most frewuent alleles
+                
+                allele1 = self.alleles[combo[0]]
+                allele2 = self.alleles[combo[1]]
+                
+                if allele2['total_cluster_count'] > allele1['total_cluster_count']:
+                    allele1 = self.alleles[combo[1]]
+                    allele2 = self.alleles[combo[0]]
+                
+                if allele2 in merged_to_other or allele1 in merged_to_other: continue
+                
+                print 'comparing',allele1['id'],allele2['id']
+                
+                # only compare the seeds for starters maybe do more proper clustering later
+                cluster1 = allele1['seed']
+                cluster2 = allele2['seed']
+                
+                # find difference count for combo
+                cluster1_vs_cluster2_differences = self.compare_allele_representation(cluster1,cluster2)
+                
+                # if difference below cutoff do merge
+                if cluster1_vs_cluster2_differences <= number_of_errors_allowed:
+
+                    #difference_to_seed = self.compare_allele_representation(self.alleles['seed'],cluster2)
+                    try:             allele1['clusters_by_difference'][cluster1_vs_cluster2_differences].append( allele2['clusters_by_difference'][0] )
+                    except KeyError: allele1['clusters_by_difference'][cluster1_vs_cluster2_differences] = [ allele2['clusters_by_difference'][0] ]
+                    
+                    allele1['total_cluster_count'] += allele2['total_cluster_count']
+                    allele1['all_clusters'] += allele2['all_clusters']
+                    allele1['new_clusters'] += allele2['all_clusters']
+                    print 'merged alleles',allele1['id'],allele2['id']
+
+                    merged_to_other.append(allele2)
+                else: print 'no merge'
+            for allele in merged_to_other: del self.alleles[allele['id']]
+            
+            for allele in  self.alleles:
+                print allele
+                
+            previous_number_of_alleles = len(self.alleles)
+        
+        #for i in range(len(clusters_to_compare)):
+        #    if i == 0: continue
+        #    if self.compare_allele_representation(clusters_to_compare[0],clusters_to_compare[i]):pass
+                #print clusters_to_compare[0].id,'same as',clusters_to_compare[i].id
+
+        variable_positions_in_at_least_one_cluster = {}
+        for allele in self.alleles.values():
+            cluster = allele['seed']
+            for position in cluster.allele_representation_dict.keys(): variable_positions_in_at_least_one_cluster[position] = True
+        
+        print '\t'+'\t'.join([str(position) for position in variable_positions_in_at_least_one_cluster])+'\tIDs' # prints the header
+        for allele in self.alleles.values():
+            
+            # get the list of  clusters with identical alleles
+            cluster_list = allele['all_clusters']
+            
+            # get a representative cluster to compare
+            cluster = allele['seed']
+            
+            #tmp_allele_counter += 1
+            #self.alleles[tmp_allele_counter] = {
+            #            'id':tmp_allele_counter,
+            #            'seed':cluster_list[0], # representative for original uniuqe allele
+            #            'clusters_by_difference':{0:cluster_list}, # all clusters soreted by difference to the seed
+            #            'total_cluster_count':len(cluster_list), # total number of clusters supporting this allele
+            #            'all_clusters':cluster_list, # list of all clusters supporting this allele
+            #            'new_clusters':[cluster_list[0]] # new clusters added since last iteration of "allele clustering"
+            #        }
+            
+            # print some info START
+            #print ','.join([str(tmp_cluster.id) for tmp_cluster in cluster_list])+'\t',
+            print str(allele['total_cluster_count'])+'\t',
+            for position in variable_positions_in_at_least_one_cluster:
+                try:
+                    print cluster.allele_representation_dict[position],'\t',
+                except KeyError:
+                    print '*','\t',
+            print ','.join([str(tmp_cluster.id) for tmp_cluster in allele['all_clusters']])+'\t'
+            # print some END
+
+
+    def compare_allele_representation(self,cluster1,cluster2):
+
+        variable_positions_in_at_least_one_cluster = {}
+        for cluster in [cluster1,cluster2]:
+            for position in cluster.allele_representation_dict.keys(): variable_positions_in_at_least_one_cluster[position] = True
+
+        #
+        # print table for manual check during development
+        #
+        #print '\t'+'\t'.join([str(position) for position in variable_positions_in_at_least_one_cluster])
+        #clusters_to_compare = []
+        # for allele_representation_string, length_of_cluster_id_list in sorted(self.unique_alleles_by_count.iteritems(), key=operator.itemgetter(1), reverse=True):
+        #for cluster in [cluster1,cluster2]:
+            #cluster_list = self.unique_alleles[allele_representation_string]
+            #cluster = cluster_list[0]
+            #clusters_to_compare.append(cluster)
+            #print ','.join([str(tmp_cluster.id) for tmp_cluster in cluster_list])+'\t',
+            #print str(cluster.id)+'\t',
+            #for position in variable_positions_in_at_least_one_cluster:
+                #try:
+                    #print cluster.allele_representation_dict[position],'\t',
+                #except KeyError:
+                    #print '*','\t',
+            #print ''
+        #print len(variable_positions_in_at_least_one_cluster)
+        
+        non_equal_position_count = 0
+        for position in variable_positions_in_at_least_one_cluster:
+            try:
+                if cluster1.allele_representation_dict[position] != cluster2.allele_representation_dict[position]:
+                    # both are non reference but they differ
+                    non_equal_position_count += 1
+                else:
+                    # both are non reference but same base do nothing
+                    pass
+            except KeyError:
+                # one base is reference the other not
+                non_equal_position_count += 1
+        #print non_equal_position_count
+        
+        import misc
+        percentage_difference = misc.percentage(non_equal_position_count,len(variable_positions_in_at_least_one_cluster))
+        print percentage_difference,'% difference between the variable positions in the allele representation of the two clusters '+str(cluster1.id)+' and '+str(cluster2.id)+' (',non_equal_position_count,'out of',len(variable_positions_in_at_least_one_cluster),' variable positions are different).'
+        
+        return non_equal_position_count
+
+    def find_support_for_alleles(self,):
+        pass
+    
+    def report(self, ):
+        pass
+    
+
+# old stuff remove when done
+# just a progeress meter
+# progress = Progress(analysisfolder.results.barcodeClusterCount,logfile=analysisfolder.logfile, unit='clusters',printint=1)
+# analysisfolder.database.getConnection()
+# high_qualitty_cluster_ids = analysisfolder.database.c.execute('SELECT clusterId FROM barcodeClusters WHERE hetrozygous_positions<=3 AND high_quality_cluster=1').fetchall()
+# Number_of_Cluster = len(high_qualitty_cluster_ids)
+# print high_qualitty_cluster_ids , Number_of_Cluster
+
+# from seqdata import BarcodeCluster
+# input_cluster_id = raw_input('Enter the cluster id: ')
+# cluster = BarcodeCluster(int(input_cluster_id),analysisfolder)
+# cluster.loadClusterInfo()
+# print 'hetro=',cluster.hetrozygous_positions, 'highqual=',cluster.high_quality_cluster , 'total=',  cluster.readPairCount, cluster.barcodeSequence
+
+        
+        
+
+if __name__ == "__main__": main()
