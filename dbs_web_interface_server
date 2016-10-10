@@ -206,14 +206,7 @@ def index(high=1000,low=0):
     outStr += """
     <script src="http://labratrevenge.com/d3-tip/javascripts/d3.tip.v0.6.3.js"></script>
     <script src="/static/js/readsPerClusterHistogram2.js"></script>
-    <br>
-    <div id="slider">
-        <span style="font: 12px sans-serif;color:black">Minimum Read Count Per Barcode Cluster</span><br>
-        <label for="nReadsMin" style="display: inline-block; width: 55px; text-align: right">
-        <span id="nReadsMin-value" style="font: 12px sans-serif;color:black">...</span>
-        </label>
-        <input type="range" step="1" min="0" max="5000" id="nRPCcutoff" value="0"><br> 
-    </div><br><div id="image"></div>
+    <br><br><div id="image"></div>
     
     """
 
