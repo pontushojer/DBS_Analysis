@@ -117,9 +117,17 @@
       top: 100%;
       left: 0;
     }
-    
+
+    #cluster_line {
+        stroke: red;
+        stroke-width: 1;
+        fill: none;
+    }
+
     path {
         stroke: #000;
+        /*stroke-width: 2;*/
+        fill: none;
     }
 
 </style>
