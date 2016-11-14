@@ -234,6 +234,7 @@ def index(high=1000,low=0):
         tableHeader += '<th>goodPair%</th>'
         tableHeader += '<th>dup%</th>'
         tableHeader += '<th>targetInfo</th>'
+        tableHeader += '<th>heterozygousInfo</th>'
         tableHeader += '</tr>' 
         counter = 0
         sameChrom = 0
@@ -379,8 +380,10 @@ def index(high=1000,low=0):
         outStr += str(dupPerc)+'%</font></td>\n'
 
         outStr += '<td>'
-        outStr += '<font color="gray">'+str('targetInfo')+'</font></td>\n'
+        outStr += '<font color="green">'+str('Target Info')+'</font></td>\n'
         
+        outStr += '<td>'
+        outStr += '<font color="red">'+str('Heterozygous Info')+'</font></td>\n'
         
         outStr += tableHeader
         outStr += tableRows    
