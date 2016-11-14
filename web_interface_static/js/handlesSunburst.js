@@ -12,6 +12,27 @@ var y = d3.scale.sqrt()
 
 var color = d3.scale.category20c();
 
+var color2 = {
+  'undefined':"#999966",
+  'Has h1':"#879942",
+  'Has h1 and h2':"#789924",
+  'Has h1, h2 and h3':"#669900",
+
+  'Miss h1':"#D65C29",
+  
+  'Has h1 and miss h2':"#EB4714",
+  'Miss h1 and h2':"#EB4714",
+  'Miss h1 and has h2':"#EB4714",
+
+  'Has h1, h2 and miss h3':"#FF3300",
+  'Has h1, miss h2 and has h3':"#FF3300",
+  'Has h1, miss h2 and miss h3':"#FF3300",
+  'Miss h1, h2 and h3':"#FF3300",
+  'Miss h1, miss h2 and has h3':"#FF3300",
+  'Miss h1, has h2 and h3':"#FF3300",
+  'Miss h1, has h2 and miss h3':"#FF3300"
+}
+
 var partition = d3.layout.partition()
     .value(function(d) { return d.size; });
     
@@ -36,7 +57,8 @@ d3.json("handles.json", function(error, root) {
       .data(partition.nodes(root))
     .enter().append("path")
       .attr("d", arc)
-      .style("fill", function(d) { return color((d.children ? d : d.parent).name); })
+      //.style("fill", function(d) { return color((d.children ? d : d.parent).name); })
+      .style("fill", function(d) { var res = d.name.split("% "); return color2[res[1]]; })
       .on("click", click)
       .on('mouseover', function changeLable(d) { d3.select("#handleinfo").text( d.name + " (" + formatNumber(d.value) + ")" );})
       .on("mouseout", function () {d3.select("#handleinfo").text(tmpText);})
