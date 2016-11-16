@@ -1830,11 +1830,12 @@ class BarcodeCluster(object,):
             entry['hetrozygous_positions'] = {}
             entry['non_reference_positions'] = {}
             entry['homo_reference_positions'] = {}
+            entry['missing_data'] = {}
             
             tmp_coverage_check = {}
             
             # make a pilup of aligned bases for each base in targeted region
-            for pileup_column in bamfile.pileup(stepper='nofilter', reference=entry['reference_name'], start=entry['start_position'], end=entry['end_position']):
+            for pileup_column in bamfile.pileup(stepper='nofilter', reference=entry['reference_name'], start=int(entry['start_position'])-1, end=int(entry['end_position'])+1):
                 
                 # "assert" that the base are within target
                 if pileup_column.pos >= entry['start_position'] and pileup_column.pos <= entry['end_position']:
@@ -1938,8 +1939,9 @@ class BarcodeCluster(object,):
                         insertion_read_depth_check = high_quality_insertions >= int(self.analysisfolder.settings.minReadDepthForVariantCalling)
                         
                         # add to coverage check dict to be able to say if all positions in target are covered enough to be called
-                        if high_quality_bases_in_this_position >= int(self.analysisfolder.settings.minReadDepthForVariantCalling): tmp_coverage_check[pileup_column.pos] = high_quality_bases_in_this_position
-                        
+                        if this_position_read_depth_check:
+                            tmp_coverage_check[pileup_column.pos] = high_quality_bases_in_this_position
+                            #print tmp_coverage_check
                         
                         # if position is not hetro add it to non reference or reference base dictionaries depending on include flag
                         if this_position_read_depth_check and not this_pos_hetro and most_frequent_base[1] > int(self.analysisfolder.settings.minFreqForSeqPosition):
@@ -1980,16 +1982,22 @@ class BarcodeCluster(object,):
                                 entry['non_reference_positions'][pileup_column.pos]['insertion_in_next_position'] = True
                                 entry['non_reference_positions'][pileup_column.pos]['insertions'] = inserted_bases_in_next_position
                                 if self.analysisfolder.settings.debug: print 'NON reference insertion found!!  ref='+str(inserted_bases_in_next_position)+' mostfreqinsertion='+str(most_frequent_insertion[0])
-
-
-            if self.high_quality_cluster:
+            
+                
+            entry['no_coverage'] = True
+            entry['complete_coverage'] = True
+            
+            if True:#self.high_quality_cluster:
                 for tmp_position in xrange(entry['start_position'],entry['end_position']+1,1):
                     if tmp_position not in tmp_coverage_check:
-                        if self.analysisfolder.settings.debug: print entry['entry_name'],tmp_position
                         self.high_quality_cluster = False
-                        break
+                        entry['complete_coverage'] = False
+                        entry['missing_data'][tmp_position] = True
+                        if self.analysisfolder.settings.debug: print entry['entry_name'],tmp_position,'do NOT pass read coverage check!!! <----- ATTENTION!!'
+                        #break
                     else:
-                        if self.analysisfolder.settings.debug: print entry['entry_name'],tmp_position,tmp_coverage_check[tmp_position]
+                        if self.analysisfolder.settings.debug: print entry['entry_name'],tmp_position,tmp_coverage_check[tmp_position],'pass read coverage check'
+                        entry['no_coverage']=False
 
         # debugging message
         if self.analysisfolder.settings.debug:
