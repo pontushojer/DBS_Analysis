@@ -8,7 +8,7 @@ d3.csv("first1k.readspercluster.csv", function (data) {
     });
     
     // initiate variables defining the size of the image
-    var width = 600,
+    var width = 750,
     height = 300,
     padding = 50,
     move_left = 60,
