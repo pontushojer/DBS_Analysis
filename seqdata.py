@@ -363,6 +363,34 @@ class ReadPair(object):
         
         import sequences
         
+        import re
+        perfect_read_regex = re.compile('^'+sequences.H1+UIPAC2REGEXP(sequences.DBS)+revcomp(sequences.H2)+'[AGTCN]+'+revcomp(sequences.H3)+'$')
+        if perfect_read_regex.match(self.r1Seq+revcomp(self.r2Seq)):
+            self.direction  = '1 -> 2'
+            self.h1 = [0,len(sequences.H1),0]
+            self.h2 = [len(sequences.H1)+len(sequences.DBS),len(sequences.H1)+len(sequences.DBS)+len(sequences.H2),0]
+            self.h3 = [0,len(sequences.H3),0]
+            self.dbsPrimaryCoordinates = [self.r1Seq,self.h1[1],self.h2[0],self.r1Qual]
+            self.construct = 'constructOK'
+            
+            self.h1_in_both_ends = None
+            self.h3_in_both_ends = None
+            self.h1in2ndReadCoordinates = None
+            self.h3in2ndReadCoordinates = None
+            self.readIntoh3 = None
+            self.readIntoh3Coordinates = None
+            
+            if self.analysisfolder.settings.IndexReferenceTsv:
+                self.individual_id_primer = self.matchSequence(self.r1Seq,sequences.IND_HANDLE_1,missmatchesAllowed,breakAtFirstMatch=True)
+                self.fwd_primer           = self.matchSequence(self.r1Seq,sequences.IND_HANDLE_2,missmatchesAllowed,breakAtFirstMatch=True)
+                self.individual_id = self.r1Seq[self.individual_id_primer[1]:self.fwd_primer[0]]
+            else:
+                self.individual_id_primer = None
+                self.fwd_primer           = None
+                self.individual_id = None
+            return ''
+            
+        
         # set direction to None (ie. not identified)
         self.direction = None
         
