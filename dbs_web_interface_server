@@ -156,12 +156,7 @@ def index(high=1000,low=0):
     outStr += '<div id="header">'
     outStr += '<h2>'+'&nbsp&nbsp&nbsp&nbsp'+'Summary of analysis at '+str(os.path.abspath(app.analysisfolder.path))+':</h2>'
     outStr += '</div>'
-    outStr += '<div id="status">'
-    outStr += '<svg height="32" width="150"><circle cx="16" cy="16" r="15" stroke="black" stroke-width="1" fill="gray" /><text x="40" y="20">wfaChecker</text></svg>'
-    outStr += '<svg height="32" width="180"><circle cx="16" cy="16" r="15" stroke="black" stroke-width="1" fill="gray" /><text x="40" y="20">barcodeClustrer</text></svg>'
-    outStr += '<svg height="32" width="180"><circle cx="16" cy="16" r="15" stroke="black" stroke-width="1" fill="gray" /><text x="40" y="20">clustersMapper</text></svg>'
-    outStr += '<svg height="32" width="150"><circle cx="16" cy="16" r="15" stroke="black" stroke-width="1" fill="gray" /><text x="40" y="20">analyseClusters</text></svg>'
-    outStr += '</div>'
+    outStr += '<div id="status">...</div>'
     
     #
     # The stats sidebar on the left
