@@ -599,11 +599,13 @@ class BarcodeClusterer(object):
         #
         with open(self.analysisfolder.dataPath+'/rawBarcodeBaseFreq.dict.txt','w') as outfile: outfile.write(str(base_frequencies))
 
+        self.id2seq = {}
         if self.logfile: self.logfile.write('Sorting the barcodes by number of reads/sequence.\n')
         if self.logfile: self.logfile.write('Building the sorting dictionary ...\n')
         for barcode, idList in uniqBarcodeSequences.iteritems():
             try:		temporaryDict[len(idList)].append(barcode)
             except KeyError:temporaryDict[len(idList)] = [barcode]
+            for idnumber in idList: self.id2seq[idnumber] = barcode
 
         if self.logfile: self.logfile.write('Creating output ... \n')
         barcodeFastqFile = open(self.analysisfolder.dbsfastq,'w')
@@ -654,19 +656,19 @@ class BarcodeClusterer(object):
             sys.exit()
 
         # Build consensus sequences for read pair clusters
-        command = ['cdhit-cluster-consensus',
-            self.analysisfolder.dataPath+'/clusteredBarcodeSequences.clstr',
-            self.analysisfolder.dataPath+'/rawBarcodeSequencesSortedByAbundance.fq',
-            self.analysisfolder.dataPath+'/clusteredBarcodeSequences.consensus',
-            self.analysisfolder.dataPath+'/clusteredBarcodeSequences.aligned'
-            ]
-        if self.logfile: self.logfile.write('Starting command: '+' '.join(command)+'\n')
-        ccc = subprocess.Popen(command,stdout=clusteringProgramsLogfile,stderr=subprocess.PIPE )
-        errdata = ccc.communicate()
-        if ccc.returncode != 0:
-            print 'cmd: '+' '.join( command )
-            print 'cdhit-cluster-consensus view Error code', ccc.returncode, errdata
-            sys.exit()
+        # command = ['cdhit-cluster-consensus',
+        #     self.analysisfolder.dataPath+'/clusteredBarcodeSequences.clstr',
+        #     self.analysisfolder.dataPath+'/rawBarcodeSequencesSortedByAbundance.fq',
+        #     self.analysisfolder.dataPath+'/clusteredBarcodeSequences.consensus',
+        #     self.analysisfolder.dataPath+'/clusteredBarcodeSequences.aligned'
+        #     ]
+        # if self.logfile: self.logfile.write('Starting command: '+' '.join(command)+'\n')
+        # ccc = subprocess.Popen(command,stdout=clusteringProgramsLogfile,stderr=subprocess.PIPE )
+        # errdata = ccc.communicate()
+        # if ccc.returncode != 0:
+        #     print 'cmd: '+' '.join( command )
+        #     print 'cdhit-cluster-consensus view Error code', ccc.returncode, errdata
+        #     sys.exit()
         clusteringProgramsLogfile.close()
 
         return 0
@@ -688,31 +690,31 @@ class BarcodeClusterer(object):
         #
         # open file connections
         #
-        consensusFile = open(self.analysisfolder.dataPath+'/clusteredBarcodeSequences.consensus.fastq')
+        # consensusFile = open(self.analysisfolder.dataPath+'/clusteredBarcodeSequences.consensus.fastq')
         clstrFile = open(self.analysisfolder.dataPath+'/clusteredBarcodeSequences.clstr')
 
         #
         # load cluster ids and consensus sequences
         #
         if self.logfile: self.logfile.write('\nLoading barcode clusters and a barcode consesnsus sequences for each cluster ...\n')
-        while True:
-            header = consensusFile.readline().rstrip()
-            barcodeSequence = consensusFile.readline().rstrip()
-            junk = consensusFile.readline().rstrip()
-            barcodeQuality = consensusFile.readline().rstrip()
-            if header == '': break
-            totalClusterCount += 1
-            header = header.split('_cluster_')
-            clusterId = int(header[1].split(' ')[0])
-            if header[0][:2] == '@s':
-                singletonClusters[clusterId] = {'clusterReadCount':1,'readPairs':[],'identities':[],'clusterBarcodeSequence':barcodeSequence,'clusterBarcodeQuality':barcodeQuality}
-                barcodeClusters[clusterId] = singletonClusters[clusterId]
-            elif header[0][:2] == '@c':
-                nonSingletonClusters[clusterId] = {'clusterReadCount':int(header[1].split(' ')[2]),'readPairs':[],'identities':[],'clusterBarcodeSequence':barcodeSequence,'clusterBarcodeQuality':barcodeQuality}
-                barcodeClusters[clusterId] = nonSingletonClusters[clusterId]
-            else: raise ValueError
-        self.analysisfolder.results.setResult('barcodeClusterCount',totalClusterCount)
-        self.analysisfolder.results.setResult('singeltonBarcodeClusters',len(singletonClusters))
+        # while True:
+        #     header = consensusFile.readline().rstrip()
+        #     barcodeSequence = consensusFile.readline().rstrip()
+        #     junk = consensusFile.readline().rstrip()
+        #     barcodeQuality = consensusFile.readline().rstrip()
+        #     if header == '': break
+        #     totalClusterCount += 1
+        #     header = header.split('_cluster_')
+        #     clusterId = int(header[1].split(' ')[0])
+        #     if header[0][:2] == '@s':
+        #         singletonClusters[clusterId] = {'clusterReadCount':1,'readPairs':[],'identities':[],'clusterBarcodeSequence':barcodeSequence,'clusterBarcodeQuality':barcodeQuality}
+        #         barcodeClusters[clusterId] = singletonClusters[clusterId]
+        #     elif header[0][:2] == '@c':
+        #         nonSingletonClusters[clusterId] = {'clusterReadCount':int(header[1].split(' ')[2]),'readPairs':[],'identities':[],'clusterBarcodeSequence':barcodeSequence,'clusterBarcodeQuality':barcodeQuality}
+        #         barcodeClusters[clusterId] = nonSingletonClusters[clusterId]
+        #     else: raise ValueError
+        # self.analysisfolder.results.setResult('barcodeClusterCount',totalClusterCount)
+        # self.analysisfolder.results.setResult('singeltonBarcodeClusters',len(singletonClusters))
         if self.logfile: self.logfile.write('A total of '+str(totalClusterCount)+' clusters of barcode sequences were loaded into memory.\n')
 
         #
@@ -720,22 +722,42 @@ class BarcodeClusterer(object):
         #
         if self.logfile: self.logfile.write('\nLoading read pair to barcode cluster connections ...\n')
         progress = misc.Progress(readPairsHasBarcode, logfile=self.logfile, unit='reads-loaded', mem=True)
+        # tmp_totalClusterCount = 0
+        barcodeCluster = None
         with progress:
             for line in clstrFile:
                 line = line.rstrip()
                 if line[0] == '>':
+                    if barcodeCluster:
+                        # print '#',clusterId,barcodeCluster['clusterReadCount'],barcodeCluster['clusterBarcodeSequence'],(clusterId in nonSingletonClusters),(clusterId in singletonClusters),len(barcodeCluster['readPairs']),len(barcodeCluster['identities'])
+                        # assert barcodeCluster['clusterReadCount'] == barcodeClusters[clusterId]['clusterReadCount'],'readcounts dont match'
+                        # if barcodeCluster['clusterBarcodeSequence'] != barcodeClusters[clusterId]['clusterBarcodeSequence']:print'NNNNNNNNNNNNNNNNNNNN';print barcodeCluster['clusterBarcodeSequence'];print barcodeClusters[clusterId]['clusterBarcodeSequence']
+                        barcodeClusters[clusterId] = barcodeCluster
+                        if barcodeCluster['clusterReadCount'] >1: nonSingletonClusters[clusterId] = barcodeCluster
+                        else: singletonClusters[clusterId] = barcodeCluster
+                    # tmp_totalClusterCount += 1
                     clusterId = int(line.split(' ')[1])
+                    clusterReadCount = 0
+                    barcodeCluster = {'clusterReadCount':0,'readPairs':[],'identities':[],'clusterBarcodeSequence':None,'clusterBarcodeQuality':None}
                     continue
                 elif line[0] == '0':
                     readId = line.split('>')[1].split('.')[0]
                     identity = 'seed'
                     assert line.split(' ')[-1] == '*', 'Error in file format of clstr file'
+                    barcodeCluster['clusterBarcodeSequence'] = self.id2seq[int(readId)]
                 else:
                     readId = line.split('>')[1].split('.')[0]
                     identity = float(line.split(' ')[-1].split('/')[-1].split('%')[0])
-                barcodeClusters[clusterId]['readPairs'].append(readId)
-                barcodeClusters[clusterId]['identities'].append(identity)
+                # barcodeClusters[clusterId]['readPairs'].append(readId)
+                # barcodeClusters[clusterId]['identities'].append(identity)
+                # clusterReadCount += 1
+                barcodeCluster['readPairs'].append(int(readId))
+                barcodeCluster['identities'].append(identity)
+                barcodeCluster['clusterReadCount'] += 1
                 progress.update()
+        totalClusterCount = len(barcodeClusters)
+        self.analysisfolder.results.setResult('barcodeClusterCount',len(barcodeClusters))
+        self.analysisfolder.results.setResult('singeltonBarcodeClusters',len(singletonClusters))
         if self.logfile: self.logfile.write('All read pair to barcode cluster connections loaded.\n')
 
         return barcodeClusters
@@ -837,8 +859,8 @@ class BarcodeClusterer(object):
               self.analysisfolder.dataPath+'/clusteredBarcodeSequences',
               self.analysisfolder.dataPath+'/clusteredBarcodeSequences.clstr',
               self.analysisfolder.dataPath+'/rawBarcodeSequencesSortedByAbundance.fq',
-              self.analysisfolder.dataPath+'/clusteredBarcodeSequences.consensus.fastq',
-              self.analysisfolder.dataPath+'/clusteredBarcodeSequences.aligned',
+              #self.analysisfolder.dataPath+'/clusteredBarcodeSequences.consensus.fastq',
+              #self.analysisfolder.dataPath+'/clusteredBarcodeSequences.aligned',
               ]
         processes = [] 
         if self.logfile: temp = self.logfile
