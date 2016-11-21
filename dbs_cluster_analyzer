@@ -121,12 +121,19 @@ def cluster_generator(analysisfolder):
     for arg in sys.argv:
         if arg.split('=')[0] in ['clusterid','clusterId','clusterID']:
             cluster_ids = [int(arg.split('=')[1])]
+            cluster_ids = [ BarcodeCluster(int(cluster_id), analysisfolder) for cluster_id in cluster_ids ]
+            for cluster in cluster_ids: cluster.loadClusterInfo()
     if not cluster_ids:
-        cluster_ids = barcodeClusterer.getBarcodeClusterIds(shuffle=True,byMixedClusterReadCount=True)
+        #cluster_ids = barcodeClusterer.getBarcodeClusterIds(shuffle=True,byMixedClusterReadCount=True)
+        analysisfolder.database.getConnection()
+        cluster_ids = list(analysisfolder.database.getAllClustersLoaded(analysisfolder))
+        import random
+        random.shuffle(cluster_ids)
     
-    for cluster_id in cluster_ids:
-        cluster = BarcodeCluster(int(cluster_id), analysisfolder)
-        cluster.loadClusterInfo()
+    # for cluster_id in cluster_ids:
+    #     cluster = BarcodeCluster(int(cluster_id), analysisfolder)
+    #     cluster.loadClusterInfo()
+    for cluster in cluster_ids:
         yield cluster
 
 def foreachCluster(cluster):
@@ -216,11 +223,11 @@ def updateClusterChunk(analysisfolder,chunk):
                 print 'updated ',len(chunk),'clusters', updated,'(',','.join([str(x[-1]) for x in chunk]),')'
                 time.sleep(1)
                 
-            except sqlite3.OperationalError:
+            except sqlite3.OperationalError as err:
                 import sys
-                msg = 'WARNING: Waiting for database connection! (retry in 1s).\n'
+                msg = 'WARNING: Waiting for database connection! (retry in 1s, '+str(err)+').\n'
                 sys.stderr.write(msg)
-                analysisfolder.logfile.write(msg)
+                #analysisfolder.logfile.write(msg)
                 time.sleep(1) # will be executed if database is blocked
 
 if __name__ == "__main__": main()
