@@ -265,10 +265,10 @@ class FastqReader(object):
                 self.analysisfolder.fastq_outfile2.write( str(pair.header)+' '+str(pair.dbs)+'\n'+str(pair.insert[1])+'\n+\n'+str(pair.insert[3])+'\n')
                 pair.annotations['PeInsert'] = True
             elif pair.insert[0] and len(pair.insert[0]) >= minInsertSize:
-                self.analysisfolder.fastq_outfile3.write( str(pair.header)+' '+str(pair.dbs)+'\n'+str(pair.insert[0])+'\n+\n'+str(pair.insert[2])+'\n')
+                # self.analysisfolder.fastq_outfile3.write( str(pair.header)+' '+str(pair.dbs)+'\n'+str(pair.insert[0])+'\n+\n'+str(pair.insert[2])+'\n')
                 pair.annotations['SingletInsert'] = True
             elif pair.insert[1] and len(pair.insert[1]) >= minInsertSize:
-                self.analysisfolder.fastq_outfile3.write( str(pair.header)+' '+str(pair.dbs)+'\n'+str(pair.insert[1])+'\n+\n'+str(pair.insert[3])+'\n')
+                # self.analysisfolder.fastq_outfile3.write( str(pair.header)+' '+str(pair.dbs)+'\n'+str(pair.insert[1])+'\n+\n'+str(pair.insert[3])+'\n')
                 pair.annotations['SingletInsert'] = True
             else: pair.annotations['AllInsertsFail'] = True
 
