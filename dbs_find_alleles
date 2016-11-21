@@ -585,6 +585,11 @@ class ClusterAllelComparer():
         self.statistic_position_info = []
         tmp_position_list = []
         tmp_cluster = cluster_list[0]
+        if not tmp_cluster.targetInfo:
+            tmp_cluster.analyze(createBamIndex=True)
+            tmp_cluster.findTargetCoverage()
+            tmp_cluster.findHetroZygousBasesInTarget()
+            tmp_cluster.updatedb()
         last_exon_end = min([entry['start_position'] for entry in tmp_cluster.targetInfo])-50
         for entry in tmp_cluster.targetInfo:
             if True:
@@ -610,6 +615,11 @@ class ClusterAllelComparer():
 
         for cluster in cluster_list:
             total_clusters += 1
+            if not cluster.targetInfo:
+                cluster.analyze(createBamIndex=True)
+                cluster.findTargetCoverage()
+                cluster.findHetroZygousBasesInTarget()
+                cluster.updatedb()
             for entry in cluster.targetInfo:
                 for position in xrange(entry['start_position'],entry['end_position']):
                     try:
@@ -641,7 +651,9 @@ class ClusterAllelComparer():
         # for i in tmp_position_list: print misc.percentage(missing_data_positions[i],total_clusters),'\t',
         # print '\nnonR\t',
         # for i in tmp_position_list: print misc.percentage(non_reference_positions[i],total_clusters),'\t',
-        # print ''        
+        # print ''
+        
+        return 'gammelsmurf'
         
     def statistic_graph_report(self, genomic_position=True):
         """ Function reports the statistical result for position variation with graph visualization """
@@ -748,6 +760,8 @@ class ClusterAllelComparer():
         # plt.title('Individual position Info')
         # plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
         # plt.show()
+        
+        return 0
 
     def add_high_quality_heterozygous_clusters(self, ):
         
