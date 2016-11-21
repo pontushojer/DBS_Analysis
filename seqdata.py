@@ -362,6 +362,12 @@ class ReadPair(object):
         """
         
         import sequences
+
+        # set direction to None (ie. not identified)
+        self.direction = None
+        
+        missmatchesAllowed = self.analysisfolder.settings.maxHandleMissMatches
+
         
         import re
         perfect_read_regex = re.compile('^'+sequences.H1+UIPAC2REGEXP(sequences.DBS)+revcomp(sequences.H2)+'[AGTCN]+'+revcomp(sequences.H3)+'$')
@@ -383,18 +389,14 @@ class ReadPair(object):
             if self.analysisfolder.settings.IndexReferenceTsv:
                 self.individual_id_primer = self.matchSequence(self.r1Seq,sequences.IND_HANDLE_1,missmatchesAllowed,breakAtFirstMatch=True)
                 self.fwd_primer           = self.matchSequence(self.r1Seq,sequences.IND_HANDLE_2,missmatchesAllowed,breakAtFirstMatch=True)
-                self.individual_id = self.r1Seq[self.individual_id_primer[1]:self.fwd_primer[0]]
+                if self.individual_id_primer[0] and self.fwd_primer[0]: self.individual_id = self.r1Seq[self.individual_id_primer[1]:self.fwd_primer[0]]
+                else: self.individual_id = None
             else:
                 self.individual_id_primer = None
                 self.fwd_primer           = None
                 self.individual_id = None
             return ''
-            
-        
-        # set direction to None (ie. not identified)
-        self.direction = None
-        
-        missmatchesAllowed = self.analysisfolder.settings.maxHandleMissMatches
+
 
         # look for h1 in read 1
         self.h1 = self.matchSequence(self.r1Seq,sequences.H1,missmatchesAllowed,startOfRead=True,breakAtFirstMatch=True)
