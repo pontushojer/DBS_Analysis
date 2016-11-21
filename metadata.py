@@ -342,6 +342,7 @@ class Database(object):
         """ function that loads all cluster info available in the database and returns object will all available info, ie there is no need to run cluster.loadInfo() afterwards"""
         
         from seqdata import BarcodeCluster
+        import sqlite3
         
         success = False
         while not success:
