@@ -1314,12 +1314,16 @@ class BarcodeCluster(object,):
                                         for r1,r2 in pairList:
                                             r1.is_duplicate = True
                                             r2.is_duplicate  = True
+                                            r1.set_tag('cd',1)
+                                            r2.set_tag('cd',1)
                                     
                                     # get all the pairs with the highest score and mark all but one as duplicate no sorting just what happens to be last in list
                                     pairBaseQualitySum,pairList = pairsSortedbyqSum[-1]
                                     for r1,r2 in pairList[:-1]:
                                         r1.is_duplicate = True
                                         r2.is_duplicate = True
+                                        r1.set_tag('cd',1)
+                                        r2.set_tag('cd',1)
             
         #
         # print the reads to the bamfile in the order specified in bamfile header and coordinate sorted
