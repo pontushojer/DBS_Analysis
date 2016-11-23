@@ -782,6 +782,7 @@ class ClusterAllelComparer():
                 cluster_junk.append(barcode_cluster)
                 bad_counter += 1
                 if self.analysisfolder.settings.debug:print 'the cluster is non clonal overlaps hetro bases'
+                continue
             elif not overlap:
                 good_counter += 1
                 if self.analysisfolder.settings.debug:print 'no hetrozygous variant overlap found to known variable positions'
