@@ -1029,6 +1029,10 @@ class BarcodeCluster(object,):
         #
         self.filesCreated = []
         
+        # flags for keeping track of whats been done
+        self.reads_loaded = False
+        self.info_loaded = False
+        
     def setValues(self, clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions, targetInfo, individual_ID_dictionary, htmlTable,analyzed,hetrozygous_positions, high_quality_cluster,):
         """ set the variable values for all info in the cluster, ususally used in conjunction with a database load in one way or another """
         assert clusterId == self.id
@@ -1059,6 +1063,8 @@ class BarcodeCluster(object,):
         self.analyzed = analyzed
         self.hetrozygous_positions = hetrozygous_positions
         self.high_quality_cluster = high_quality_cluster
+        
+        self.info_loaded = True
 
     def loadClusterInfo(self, ):
         """ (re)load the info from the database of this cluster
@@ -1124,6 +1130,7 @@ class BarcodeCluster(object,):
                 self.readPairsByHeader[readPair.header] = readPair
                 try : p.update()
                 except ValueError: pass
+            self.reads_loaded = True
 #	  except sqlite3.OperationalError: print 'ERROR: BarcodeCluster.loadReadPairs() is giving a sqlite3.OperationalError!!'
         # else: # THIS PART SHOULD BE OK TO REMOVE NOT USED ANYMORE!
         #     for readPair in self.analysisfolder.readsdb.getClusterReadPairs(self.id):
@@ -2079,6 +2086,41 @@ class BarcodeCluster(object,):
         
         if self.analysisfolder.settings.debug:
             print 'found ',self.hetrozygous_positions, 'hetrozygous positions in total. Flag for all callable=',self.high_quality_cluster
+
+    @property
+    def individual_id(self,):
+        
+        from misc import percentage
+        import operator
+        
+        if not self.info_loaded: self.loadClusterInfo()
+        total_reads_with_id_info = sum([count for ind_id_number, count in self.individual_ID_dictionary.iteritems() if ind_id_number != 'other_exon'])
+        if not total_reads_with_id_info: return 'No info'
+                
+        if len(self.individual_ID_dictionary) == 2 and 'other_exon' in self.individual_ID_dictionary and 'unknown' in self.individual_ID_dictionary: return 'unknown id'
+        if len(self.individual_ID_dictionary) == 1 and 'unknown' in self.individual_ID_dictionary: return 'unknown id'
+
+        number_ids = len([count for ind_id_number, count in self.individual_ID_dictionary.iteritems() if ind_id_number != 'unknown' and ind_id_number != 'other_exon'])
+        if number_ids >= 2:
+            most_frequent,second_to_most_frequent = sorted([ count for ind_id_number, count in self.individual_ID_dictionary.iteritems() if ind_id_number != 'unknown' and ind_id_number != 'other_exon'],reverse=True)[:2]
+            if second_to_most_frequent >= most_frequent*(2.0/3.0): return 'Non clonal'
+        
+        most_frequent_id, count = [(ind_id_number, count) for ind_id_number, count in sorted([ (ind_id_number, count) for ind_id_number, count in self.individual_ID_dictionary.iteritems() if ind_id_number != 'unknown' and ind_id_number != 'other_exon'], key=operator.itemgetter(1),reverse=True)][0]
+        
+        if percentage(count,total_reads_with_id_info) >= 90:
+            return most_frequent_id
+        else: return 'nosiy signal'
+        
+        #for ind_id_number, count in self.individual_ID_dictionary.iteritems():
+        #    if ind_id_number != 'unknown' and ind_id_number != 'other_exon':
+        #        if percentage(count,total_reads_with_id_info) >= 100.0*2.0/3.0:
+        #            return ind_id_number
+        #            pass#print ind_id_number
+                    #print '   ',ind_id_number,'has',percentage(count,total_id_cluster),'% and is ok'
+                    #if count >= 10:  ##### I changed this cutoff upp to 30 but did not changes for allele 6!!! It looks only 1 cluster with high number of reads have dominant with some littel diferences with one the 6 other alleles!!! We should check the alleles comparison!!!!
+        #        else:
+                    #pass#print '   ',ind_id_number,'has',percentage(count,total_id_cluster),'% and is NOT ok'
+
 
 def revcomp(string):
     ''' Takes a sequence and reversecomplements it'''
