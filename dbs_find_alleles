@@ -571,7 +571,7 @@ class ClusterAllelComparer():
                 tmp_sum += barcode_cluster.readPairCount
                 allele_cluster_sum += barcode_cluster.readPairCount
             print 'allele cluster =',allele_cluster['id'],'has',misc.percentage(allele_cluster_sum,rc),'% of the total read count'
-        print 'a total of ',misc.percentage(tmp_sum,rc),'% of the reads are in the alleles'
+        print 'a total of ',misc.percentage(tmp_sum,rc),'% of the reads are in the alleles ('+misc.thousandString(tmp_sum)+' out of '+misc.thousandString(rc)+')'
         
         for allele_cluster in self.allele_clusters.values():allele_cluster['supporting_barcode_clusters'] = []
 
@@ -616,6 +616,7 @@ class ClusterAllelComparer():
                 cluster_junk.append(barcode_cluster)
             p.update()
                 
+        tmp_sum = 0
         junk_sum = sum([barcode_cluster.readPairCount for barcode_cluster in cluster_junk])
         print len(cluster_junk),'out of',len(cluster_ids_not_hetro_with_missing),'could not be placed (',misc.percentage(len(cluster_junk),len(cluster_ids_not_hetro_with_missing)),'%)',junk_sum,'reads ie',misc.percentage(junk_sum,rc),'% of the total read count'
         for allele_cluster in self.allele_clusters.values():
@@ -625,10 +626,11 @@ class ClusterAllelComparer():
                 allele_cluster_sum += barcode_cluster.readPairCount
             print 'allele cluster =',allele_cluster['id'],'has',misc.percentage(allele_cluster_sum,rc),'% of the total read count'
         
-        print 'a total of ',tmp_sum, 'which',misc.percentage(tmp_sum,rc),'% of the reads are in the alleles'
+        print 'Now: ',tmp_sum, 'reads',misc.percentage(tmp_sum,rc),'% of total are in the alleles ('+misc.thousandString(tmp_sum)+' out of '+misc.thousandString(rc)+')'
         
-        total_clusters_cover_the_alleles = int(int(len(cluster_ids_not_hetro_with_missing)-len(cluster_junk))+ int(len(cluster_ids_with_hetro_not_missing)) + int(len(high_quality_cluster_ids)))
-        print 'a total number of clusters that cover the reads for the alleles =',total_clusters_cover_the_alleles,'which are',misc.percentage(total_clusters_cover_the_alleles, not_singletons_clusters),'% of the total usable clusters'
+        #total_clusters_cover_the_alleles = int(int(len(cluster_ids_not_hetro_with_missing)-len(cluster_junk))+ int(len(cluster_ids_with_hetro_not_missing)) + int(len(high_quality_cluster_ids)))
+        #print 'a total number of clusters that cover the reads for the alleles =',total_clusters_cover_the_alleles,'which are',misc.percentage(total_clusters_cover_the_alleles, not_singletons_clusters),'% of the total usable clusters'
+        pass
 
     def find_individuals_id_in_clusters(self, list_of_cluster_ids):
         """ Functions find the individual's information and reports which individuals have which alleles""" 
@@ -896,7 +898,7 @@ class ClusterAllelComparer():
             print 'allele cluster =',allele_cluster['id'],'has',misc.percentage(allele_cluster_sum,total_read_count),'% of the total read count'
             reads_in_alleles += tmp_sum
         
-        print 'a total of ',misc.percentage(reads_in_alleles,total_read_count),'% of the reads are in the alleles'
+        print 'a total of ',misc.percentage(reads_in_alleles,total_read_count),'% of the reads are in the alleles ('+misc.thousandString(reads_in_alleles)+' out of '+misc.thousandString(total_read_count)+')'
 
         print ''
         print '######### allele clusters:\n'
