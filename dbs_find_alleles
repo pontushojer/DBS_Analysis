@@ -981,6 +981,7 @@ class ClusterAllelComparer():
         # import
         #
         import misc
+        import operator
         
         tmp_read_count = sum([barcode_cluster.readPairCount for barcode_cluster in self.cluster_trash_bin['non clonal']['hetro_bases'].values()])
         msg = 'In total '+str(len(self.cluster_trash_bin['non clonal']['hetro_bases']))+' barcode_clusters have been trashed as they overlap variable positions with hetrozygous variant(s) ('+str(misc.percentage(tmp_read_count,self.analysisfolder.results.totalReadCount))+')% of total reads.\n'
@@ -1013,8 +1014,9 @@ class ClusterAllelComparer():
         print 'rci = read counts in individual'
         print ''
         
-        for ind_id, barcode_clusters in ind_ids.iteritems():
-            print 'Individual id "'+str(ind_id)+'" has',len(barcode_clusters),'barcode clusters (',str(misc.percentage( sum([barcode_cluster.readPairCount for barcode_cluster in barcode_clusters]) ,self.analysisfolder.results.totalReadCount)),'% ot total RC):'
+        for ind_id, barcode_clusters, tmp_junk in sorted([(ind_id, barcode_clusters,sum([barcode_cluster.readPairCount for barcode_cluster in barcode_clusters])) for ind_id, barcode_clusters in ind_ids.iteritems()], key=operator.itemgetter(2), reverse=True):
+        #for ind_id, barcode_clusters in ind_ids.iteritems():
+            print 'Individual id "'+str(ind_id)+'" has',len(barcode_clusters),'barcode clusters (',str(misc.percentage( sum([barcode_cluster.readPairCount for barcode_cluster in barcode_clusters]) ,self.analysisfolder.results.totalReadCount)),'% ot total read count):'
             
             
             types_this_individual = {}
@@ -1023,7 +1025,8 @@ class ClusterAllelComparer():
                 except KeyError: types_this_individual[barcode_cluster.in_allele]    =  [barcode_cluster]
             
             print '\t#bc\t%trc\t%bci\t%rci\twhat'
-            for type_of_cluster, list_of_clusters_with_type in types_this_individual.iteritems():
+            for type_of_cluster, list_of_clusters_with_type, tmp_junk in sorted([(type_of_cluster, list_of_clusters_with_type,sum([barcode_cluster.readPairCount for barcode_cluster in list_of_clusters_with_type])) for type_of_cluster, list_of_clusters_with_type in types_this_individual.iteritems()], key=operator.itemgetter(2), reverse=True):
+            #for type_of_cluster, list_of_clusters_with_type in types_this_individual.iteritems():
                 #print '   ',len(list_of_clusters_with_type),'barcode clusters with',type_of_cluster,'(',str(misc.percentage( sum([barcode_cluster.readPairCount for barcode_cluster in list_of_clusters_with_type]) ,self.analysisfolder.results.totalReadCount)),'% of total RC,'+str(misc.percentage( len(list_of_clusters_with_type),len(barcode_clusters)))+'% of bc in ind,',str(misc.percentage( sum([barcode_cluster.readPairCount for barcode_cluster in list_of_clusters_with_type]) ,sum([barcode_cluster.readPairCount for barcode_cluster in barcode_clusters]))),'% of rc in ind)'
                 print '\t',len(list_of_clusters_with_type),'\t',
                 print str(misc.percentage( sum([barcode_cluster.readPairCount for barcode_cluster in list_of_clusters_with_type]),self.analysisfolder.results.totalReadCount)),'\t',
