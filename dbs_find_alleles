@@ -536,40 +536,24 @@ class ClusterAllelComparer():
     def find_individuals_id_in_clusters(self, list_of_cluster_ids):
         """ Functions find the individual's information and reports which individuals have which alleles""" 
         
-        indIds = None
-        
-        from seqdata import BarcodeCluster
-        
+        from seqdata import BarcodeCluster        
         from collections import Counter
         from misc import percentage
+        import operator
         
-        most_interesting_individID = []
+        tmp_dictionary = {}
        
         for idnumber in list_of_cluster_ids:
             
             barcode_cluster = BarcodeCluster (idnumber, self.analysisfolder)
             barcode_cluster.loadClusterInfo()
-            total_id_cluster = sum([count for ind_id_number, count in barcode_cluster.individual_ID_dictionary.iteritems() if ind_id_number != 'other_exon'])
-            #print 'cluster ',barcode_cluster.id,'has',total_id_cluster,'reads with ind id info:::'
-            
-            for ind_id_number, count in barcode_cluster.individual_ID_dictionary.iteritems():
-                if ind_id_number != 'unknown' and ind_id_number != 'other_exon':
-                    if percentage(count,total_id_cluster) >= 90:
-                        most_interesting_individID += ind_id_number
-                        #print '   ',ind_id_number,'has',percentage(count,total_id_cluster),'% and is ok'
-                        #if count >= 10:  ##### I changed this cutoff upp to 30 but did not changes for allele 6!!! It looks only 1 cluster with high number of reads have dominant with some littel diferences with one the 6 other alleles!!! We should check the alleles comparison!!!!
-                    else:
-                        pass#print '   ',ind_id_number,'has',percentage(count,total_id_cluster),'% and is NOT ok'
+            try: tmp_dictionary[ barcode_cluster.individual_id ] += 1
+            except KeyError: tmp_dictionary[ barcode_cluster.individual_id ] = 1
 
-
-                intersting_counted_individID_dic = Counter(most_interesting_individID)
-                intersting_counted_individID_dic.most_common
-                
-        
-        for value, count in intersting_counted_individID_dic.most_common():
-            print 'individual id=',value, 'for this alleles in', count,'cluster have found'
-        
-        return indIds
+        print 'Individual id information in barcode clusters:'
+        print 'clusters\tid'
+        for id_number, count in sorted(tmp_dictionary.iteritems(), key=operator.itemgetter(1),reverse=True):
+            print str(count)+'\t'+str(id_number)
     
     def statistic_position_analysis(self, cluster_list):
         """
