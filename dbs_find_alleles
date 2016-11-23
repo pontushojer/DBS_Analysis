@@ -1000,14 +1000,21 @@ class ClusterAllelComparer():
             try:             ind_ids[ barcode_cluster.individual_id ].append(barcode_cluster)
             except KeyError: ind_ids[ barcode_cluster.individual_id ]    =  [barcode_cluster]
         for allele_cluster in self.allele_clusters.values():
-            for barcode_cluster in allele_cluster['barcode_clusters_in_this_allele_cluster']+allele_cluster['supporting_barcode_clusters']: barcode_cluster.in_allele = allele_cluster['id']
-        for barcode_cluster in self.cluster_trash_bin['matching_more_than_1_allele_cluster'].values(): barcode_cluster.in_allele = 'trashed'
-        for barcode_cluster in self.cluster_trash_bin['No_similarity_to_allele_cluster'].values():barcode_cluster.in_allele = 'trashed'
-        for barcode_cluster in self.cluster_trash_bin['non clonal']['hetro_bases'].values():barcode_cluster.in_allele = 'trashed'
-        for barcode_cluster in self.cluster_trash_bin['Low_read_count'].values():barcode_cluster.in_allele = 'trashed'
+            for barcode_cluster in allele_cluster['barcode_clusters_in_this_allele_cluster']+allele_cluster['supporting_barcode_clusters']: barcode_cluster.in_allele = 'allele '+str(allele_cluster['id'])
+        for barcode_cluster in self.cluster_trash_bin['matching_more_than_1_allele_cluster'].values(): barcode_cluster.in_allele = 'trashed (match many)'
+        for barcode_cluster in self.cluster_trash_bin['No_similarity_to_allele_cluster'].values():barcode_cluster.in_allele = 'trashed (match none)'
+        for barcode_cluster in self.cluster_trash_bin['non clonal']['hetro_bases'].values():barcode_cluster.in_allele = 'trashed (hetro bases)'
+        for barcode_cluster in self.cluster_trash_bin['Low_read_count'].values():barcode_cluster.in_allele = 'trashed (low read count)'
 
+        print 'LEGEND:'
+        print 'trc = total read count'
+        print 'bc = barcode cluster'
+        print 'bci = barcodes cluster in individual'
+        print 'rci = read counts in individual'
+        print ''
+        
         for ind_id, barcode_clusters in ind_ids.iteritems():
-            print 'Individual id', ind_id,'has',len(barcode_clusters),'barcode clusters (',str(misc.percentage( sum([barcode_cluster.readPairCount for barcode_cluster in barcode_clusters]) ,self.analysisfolder.results.totalReadCount)),'% ot total RC):'
+            print 'Individual id "'+str(ind_id)+'" has',len(barcode_clusters),'barcode clusters (',str(misc.percentage( sum([barcode_cluster.readPairCount for barcode_cluster in barcode_clusters]) ,self.analysisfolder.results.totalReadCount)),'% ot total RC):'
             
             
             types_this_individual = {}
@@ -1015,8 +1022,15 @@ class ClusterAllelComparer():
                 try:             types_this_individual[barcode_cluster.in_allele].append(barcode_cluster)
                 except KeyError: types_this_individual[barcode_cluster.in_allele]    =  [barcode_cluster]
             
+            print '\t#bc\t%trc\t%bci\t%rci\twhat'
             for type_of_cluster, list_of_clusters_with_type in types_this_individual.iteritems():
-                print '   ',len(list_of_clusters_with_type),'barcode clusters with',type_of_cluster
+                #print '   ',len(list_of_clusters_with_type),'barcode clusters with',type_of_cluster,'(',str(misc.percentage( sum([barcode_cluster.readPairCount for barcode_cluster in list_of_clusters_with_type]) ,self.analysisfolder.results.totalReadCount)),'% of total RC,'+str(misc.percentage( len(list_of_clusters_with_type),len(barcode_clusters)))+'% of bc in ind,',str(misc.percentage( sum([barcode_cluster.readPairCount for barcode_cluster in list_of_clusters_with_type]) ,sum([barcode_cluster.readPairCount for barcode_cluster in barcode_clusters]))),'% of rc in ind)'
+                print '\t',len(list_of_clusters_with_type),'\t',
+                print str(misc.percentage( sum([barcode_cluster.readPairCount for barcode_cluster in list_of_clusters_with_type]),self.analysisfolder.results.totalReadCount)),'\t',
+                print str(misc.percentage( len(list_of_clusters_with_type),len(barcode_clusters))),'\t',
+                print str(misc.percentage( sum([barcode_cluster.readPairCount for barcode_cluster in list_of_clusters_with_type]) ,sum([barcode_cluster.readPairCount for barcode_cluster in barcode_clusters]))),'\t',
+                print type_of_cluster
+
             
             print ''
 
