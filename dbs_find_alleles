@@ -982,7 +982,7 @@ class ClusterAllelComparer():
         import misc
         
         tmp_read_count = sum([barcode_cluster.readPairCount for barcode_cluster in self.cluster_trash_bin['non clonal']['hetro_bases'].values()])
-        msg = str(len(self.cluster_trash_bin['non clonal']['hetro_bases']))+' barcode_clusters have been trashed as they overlap variable positions with hetrozygous variant(s) ('+str(misc.percentage(tmp_read_count,self.analysisfolder.results.totalReadCount))+')% of total reads.\n'
+        msg = 'In total '+str(len(self.cluster_trash_bin['non clonal']['hetro_bases']))+' barcode_clusters have been trashed as they overlap variable positions with hetrozygous variant(s) ('+str(misc.percentage(tmp_read_count,self.analysisfolder.results.totalReadCount))+')% of total reads.\n'
         self.analysisfolder.logfile.write(msg); sys.stderr.write(msg)
         
         print ''
