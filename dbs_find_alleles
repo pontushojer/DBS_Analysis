@@ -89,7 +89,7 @@ class ClusterAllelComparer():
     def load_all_barcode_clustes_to_memory(self):
 
         msg = 'Loading barcode clusters to memory ...\n'
-        self.analysisfolder.logfile.write(msg); sys.stderr.write(msg)
+        self.analysisfolder.logfile.write(msg); sys.stdout.write(msg)
         
         import misc
         p = misc.Progress(self.analysisfolder.results.barcodeClusterCount-self.analysisfolder.results.singeltonBarcodeClusters, unit='barcode clusters loaded',printint=5)
@@ -117,7 +117,7 @@ class ClusterAllelComparer():
             p.update()
 
         msg = 'barcode clusters loaded.\n'
-        self.analysisfolder.logfile.write(msg); sys.stderr.write(msg)
+        self.analysisfolder.logfile.write(msg); sys.stdout.write(msg)
 
     def get_initial_stats(self):
         """
@@ -361,7 +361,7 @@ class ClusterAllelComparer():
                 if self.analysisfolder.settings.debug: sys.stdout.write('    im a nice and good cluster'+'\n')
 
         msg = str(good_counter)+' barcodel clusters added to seeds and '+str(bad_counter)+' barcode clusters trashed due to presense of hetrozygous variants overlapping known variants.\n'
-        self.analysisfolder.logfile.write(msg); sys.stderr.write(msg)
+        self.analysisfolder.logfile.write(msg); sys.stdout.write(msg)
         sys.stdout.write( str(len(self.cluster_trash_bin['non clonal']['hetro_bases']))+'out of these were'+'classified as non clonal due to presense of hetrozygous bases ('+str(misc.percentage(sum([barcode_cluster.readPairCount for barcode_cluster in self.cluster_trash_bin['non clonal']['hetro_bases'].values()]),self.analysisfolder.results.totalReadCount))+'% of the total read count)\n')
 
     def build_allele_representation_dict_for_seed_barcode_clusters(self,):
@@ -718,7 +718,7 @@ class ClusterAllelComparer():
         import misc
 
         msg = '\nmaking post clustering summary:\n'
-        self.analysisfolder.logfile.write(msg); sys.stderr.write(msg)
+        self.analysisfolder.logfile.write(msg); sys.stdout.write(msg)
 
         self.analysisfolder.database.getConnection()
         tmp_read_counts = sum([barcode_cluster.readPairCount for barcode_cluster in self.barcode_clusters_by_id.values()])+self.analysisfolder.results.singeltonBarcodeClusters
@@ -984,7 +984,7 @@ class ClusterAllelComparer():
         
         tmp_read_count = sum([barcode_cluster.readPairCount for barcode_cluster in self.cluster_trash_bin['non clonal']['hetro_bases'].values()])
         msg = 'In total '+str(len(self.cluster_trash_bin['non clonal']['hetro_bases']))+' barcode_clusters have been trashed as they overlap variable positions with hetrozygous variant(s) ('+str(misc.percentage(tmp_read_count,self.analysisfolder.results.totalReadCount))+')% of total reads.\n'
-        self.analysisfolder.logfile.write(msg); sys.stderr.write(msg)
+        self.analysisfolder.logfile.write(msg); sys.stdout.write(msg)
         
         sys.stdout.write( '\n')
         sys.stdout.write( '######### allele clusters:\n\n')
