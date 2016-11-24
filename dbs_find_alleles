@@ -536,7 +536,7 @@ class ClusterAllelComparer():
                         sys.stdout.write( RED+this_allele['seeding_barcode_cluster'].allele_representation_dict[position]+COLOR_STOP+'\t')
                 except KeyError:
                     sys.stdout.write( '*'+'\t')
-            sys.stdout.write( ','.join([str(tmp_barcode_cluster.id) for tmp_barcode_cluster in this_allele['barcode_clusters']])+'\t')
+            sys.stdout.write( ','.join([str(tmp_barcode_cluster.id) for tmp_barcode_cluster in this_allele['barcode_clusters']])+'\t\n')
         
         sys.stdout.write( str(len(sorted([cluster.id for cluster in set(sorted(allele_cluster['barcode_clusters_in_this_allele_cluster']+allele_cluster['supporting_barcode_clusters']))])))+' barcode clusters, fist 100 => ')
         sys.stdout.write( str(sorted([cluster.id for cluster in set(sorted(allele_cluster['barcode_clusters_in_this_allele_cluster']+allele_cluster['supporting_barcode_clusters']))][0:100]))+'\n')#+'\t'+str([cluster.id for cluster in allele_cluster['supporting_barcode_clusters']])+'\t'
