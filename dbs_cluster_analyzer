@@ -143,7 +143,7 @@ def foreachCluster(cluster):
     #cluster.loadClusterInfo()
     
     # if cluster is not analyzed and meet the req. run the analysis
-    if not cluster.analyzed and cluster.readPairCount >= cluster.analysisfolder.settings.minPairsPerCluster:
+    if not cluster.analyzed and cluster.readPairCount >= int(cluster.analysisfolder.settings.minPairsPerCluster):
         cluster.analyze(createBamIndex=True)
         cluster.findTargetCoverage()
         if cluster.targetInfo != []: cluster.findHetroZygousBasesInTarget(include_hetro=True,include_homo_reference=False,include_homo_non_reference=True)
@@ -155,7 +155,7 @@ def foreachCluster(cluster):
         if cluster.analysisfolder.settings.debug: print cluster.id,'already analyzed'
     
     # flag cluster if below readcount cutof
-    elif cluster.readPairCount < cluster.analysisfolder.settings.minPairsPerCluster:
+    elif cluster.readPairCount < int(cluster.analysisfolder.settings.minPairsPerCluster):
         cluster.analyzed = True;
         cluster.annotations['LowReadCount']=True;
         if cluster.analysisfolder.settings.debug: print cluster.id,' low read count'
