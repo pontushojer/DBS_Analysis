@@ -7,30 +7,29 @@ change sequences here and they will be used throughut the analysis
 #DBS = 'BDHVBDHVBDHVBDHVBDHV'
 #H2 = 'GACAGTTCCAAGAGGTCATG' #H1691
 #H3 = 'TAGGACCAGCGTCTCAGTAT' #H4328
-#ILLI5 = 'AATGATACGGCGACCACCGAGATCTACACTCTTTCCCTACACGACGCTCTTCCGATCT'
-#ILLI7 = 'AGATCGGAAGAGCACACGTCTGAACTCCAGTCACNNNNNNATCTCGTATGCCGTCTTCTGCTTG'
 #################### WFA system ##############################################################################
 
 #################### WFA2 system ##############################################################################
-#H1  = 'CAGTTGATCATCAGCAGGTAATCTGG' #E
-#DBS = 'BDHVBDHVBDHVBDHVBDHV'
-#H2 = 'CTGTCTCTTATACACATCTCATGAGAACGTCGTTGACGATGGACAGTTCCAAGAGGTCATG' #H1691'+H5+TES
-#H3 = 'TAGGACCAGCGTCTCAGTAGAGATGTGTATAAGAGACAG' #H43283'G+TES
-#ILLI5 = 'AATGATACGGCGACCACCGAGATCTACACTCTTTCCCTACACGACGCTCTTCCGATCT'
-#ILLI7 = 'AGATCGGAAGAGCACACGTCTGAACTCCAGTCACNNNNNNATCTCGTATGCCGTCTTCTGCTTG'
+WFA_H1  = 'CAGTTGATCATCAGCAGGTAATCTGG' #E
+WFA_DBS = 'BDHVBDHVBDHVBDHVBDHV'
+WFA_H2 = 'CTGTCTCTTATACACATCTCATGAGAACGTCGTTGACGATGGACAGTTCCAAGAGGTCATG' #H1691'+H5+TES
+WFA_H3 = 'TAGGACCAGCGTCTCAGTAGAGATGTGTATAAGAGACAG' #H43283'G+TES
 #################### WFA system ##############################################################################
 
 #################### HLA system ##############################################################################
 import seqdata
-H1  = 'ACCGAGTGGTGAGTCATAGT'
-DBS = 'BDVHBDVHBDVHBDVHBDVH'
-H2 = seqdata.revcomp('CTAGCTTCACGAGTTCATCG')
-H3 = 'AGATGGCCGTTATGATAGCG'
+HLA_H1  = 'ACCGAGTGGTGAGTCATAGT'
+HLA_DBS = 'BDVHBDVHBDVHBDVHBDVH'
+HLA_H2 = seqdata.revcomp('CTAGCTTCACGAGTTCATCG')
+HLA_H3 = 'AGATGGCCGTTATGATAGCG'
+#################### HLA system ##############################################################################
+
+#################### Universal ##############################################################################
 ILLI5 = 'AATGATACGGCGACCACCGAGATCTACACTCTTTCCCTACACGACGCTCTTCCGATCT'
 ILLI7 = 'AGATCGGAAGAGCACACGTCTGAACTCCAGTCACNNNNNNATCTCGTATGCCGTCTTCTGCTTG'
 IND_HANDLE_1 = 'TTAGTCTCCGACGGCAGGCTTCAAT'
 IND_HANDLE_2 = 'ACGCACCCACCGGGACTCAG'
-#################### HLA system ##############################################################################
+#################### Universal ##############################################################################
 
 def main():
     

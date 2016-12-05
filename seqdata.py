@@ -124,7 +124,8 @@ class ReadPair(object):
     def matchdbs(self,):
         """ this function matches the DBS sequence against the expected pattern """
         
-        import sequences
+        if self.analysisfolder.settings.type == 'HLA':   from sequences import HLA_DBS as DBS
+        elif self.analysisfolder.settings.type == 'WFA': from sequences import WFA_DBS as DBS
 
         if self.dbsPrimaryCoordinates:
             self.dbs = self.dbsPrimaryCoordinates[0][self.dbsPrimaryCoordinates[1]:self.dbsPrimaryCoordinates[2]]
@@ -137,7 +138,7 @@ class ReadPair(object):
             if len(dbsSeq)!=1:dbsSeq = ''
             else: dbsSeq = dbsSeq[0]
 
-            dbsRegex = UIPAC2REGEXP(sequences.DBS)
+            dbsRegex = UIPAC2REGEXP(DBS)
             import re
             
             if dbsSeq:
@@ -361,21 +362,31 @@ class ReadPair(object):
         """ function that uses the matchSequence function to find the handles defined in sequences
         """
         
-        import sequences
+        if self.analysisfolder.settings.type == 'HLA':
+            from sequences import HLA_H1 as H1
+            from sequences import HLA_H2 as H2
+            from sequences import HLA_H3 as H3
+            from sequences import HLA_DBS as DBS
+        elif self.analysisfolder.settings.type == 'WFA':
+            from sequences import WFA_H1 as H1
+            from sequences import WFA_H2 as H2
+            from sequences import WFA_H3 as H3
+            from sequences import WFA_DBS as DBS
+        from sequences import IND_HANDLE_1
+        from sequences import IND_HANDLE_2
 
         # set direction to None (ie. not identified)
         self.direction = None
         
         missmatchesAllowed = self.analysisfolder.settings.maxHandleMissMatches
 
-        
         import re
-        perfect_read_regex = re.compile('^'+sequences.H1+UIPAC2REGEXP(sequences.DBS)+revcomp(sequences.H2)+'[AGTCN]+'+revcomp(sequences.H3)+'$')
+        perfect_read_regex = re.compile('^'+H1+UIPAC2REGEXP(DBS)+revcomp(H2)+'[AGTCN]+'+revcomp(H3)+'$')
         if perfect_read_regex.match(self.r1Seq+revcomp(self.r2Seq)):
             self.direction  = '1 -> 2'
-            self.h1 = [0,len(sequences.H1),0]
-            self.h2 = [len(sequences.H1)+len(sequences.DBS),len(sequences.H1)+len(sequences.DBS)+len(sequences.H2),0]
-            self.h3 = [0,len(sequences.H3),0]
+            self.h1 = [0,len(H1),0]
+            self.h2 = [len(H1)+len(DBS),len(H1)+len(DBS)+len(H2),0]
+            self.h3 = [0,len(H3),0]
             self.dbsPrimaryCoordinates = [self.r1Seq,self.h1[1],self.h2[0],self.r1Qual]
             self.construct = 'constructOK'
             
@@ -387,8 +398,8 @@ class ReadPair(object):
             self.readIntoh3Coordinates = None
             
             if self.analysisfolder.settings.IndexReferenceTsv:
-                self.individual_id_primer = self.matchSequence(self.r1Seq,sequences.IND_HANDLE_1,missmatchesAllowed,breakAtFirstMatch=True)
-                self.fwd_primer           = self.matchSequence(self.r1Seq,sequences.IND_HANDLE_2,missmatchesAllowed,breakAtFirstMatch=True)
+                self.individual_id_primer = self.matchSequence(self.r1Seq,IND_HANDLE_1,missmatchesAllowed,breakAtFirstMatch=True)
+                self.fwd_primer           = self.matchSequence(self.r1Seq,IND_HANDLE_2,missmatchesAllowed,breakAtFirstMatch=True)
                 if self.individual_id_primer[0] and self.fwd_primer[0]: self.individual_id = self.r1Seq[self.individual_id_primer[1]:self.fwd_primer[0]]
                 else: self.individual_id = None
             else:
@@ -399,21 +410,21 @@ class ReadPair(object):
 
 
         # look for h1 in read 1
-        self.h1 = self.matchSequence(self.r1Seq,sequences.H1,missmatchesAllowed,startOfRead=True,breakAtFirstMatch=True)
+        self.h1 = self.matchSequence(self.r1Seq,H1,missmatchesAllowed,startOfRead=True,breakAtFirstMatch=True)
         startPosition,endPosition,missmatches = self.h1
         if startPosition!=None and startPosition <= 2: self.direction = '1 -> 2'
         if startPosition==None: self.h1 = None
         
         # look for H3 in read one
         if not self.direction:
-            self.h3 = self.matchSequence(self.r1Seq,sequences.H3,missmatchesAllowed,startOfRead=True,breakAtFirstMatch=True)
+            self.h3 = self.matchSequence(self.r1Seq,H3,missmatchesAllowed,startOfRead=True,breakAtFirstMatch=True)
             startPosition,endPosition,missmatches = self.h3
             if startPosition!=None and startPosition <= 2: self.direction = '2 -> 1'
             if startPosition==None: self.h3 = None
 
         # look for H3 in read two
         self.h3_in_both_ends = None
-        startPosition,endPosition,missmatches = self.matchSequence(self.r2Seq,sequences.H3,missmatchesAllowed,startOfRead=True,breakAtFirstMatch=True)
+        startPosition,endPosition,missmatches = self.matchSequence(self.r2Seq,H3,missmatchesAllowed,startOfRead=True,breakAtFirstMatch=True)
         if startPosition!=None and startPosition <= 2:
             if self.h3:
                 self.h3_in_both_ends = True
@@ -426,7 +437,7 @@ class ReadPair(object):
         # look for H1 in read 2
         self.h1_in_both_ends = None
         if not (self.h3 and self.direction == '1 -> 2'):
-            startPosition,endPosition,missmatches = self.matchSequence(self.r2Seq,sequences.H1,missmatchesAllowed,startOfRead=True,breakAtFirstMatch=True)
+            startPosition,endPosition,missmatches = self.matchSequence(self.r2Seq,H1,missmatchesAllowed,startOfRead=True,breakAtFirstMatch=True)
             if startPosition!=None and startPosition <= 2:
                 if self.h1:
                     self.h1_in_both_ends = True
@@ -443,7 +454,7 @@ class ReadPair(object):
         if self.direction == '1 -> 2': checkSeq = self.r1Seq
         elif self.direction == '2 -> 1': checkSeq = self.r2Seq
         if checkSeq:
-            startPosition,endPosition,missmatches = self.matchSequence(checkSeq,revcomp(sequences.H3),missmatchesAllowed,breakAtFirstMatch=True)
+            startPosition,endPosition,missmatches = self.matchSequence(checkSeq,revcomp(H3),missmatchesAllowed,breakAtFirstMatch=True)
             if startPosition!=None:
                 self.readIntoh3 = True
                 self.readIntoh3Coordinates = [startPosition,endPosition,missmatches]
@@ -455,25 +466,25 @@ class ReadPair(object):
             
             # find the h2 handle and DBS sequence
             if self.direction == '1 -> 2':
-                self.h2 = self.matchSequence(self.r1Seq,revcomp(sequences.H2),missmatchesAllowed,breakAtFirstMatch=True)
+                self.h2 = self.matchSequence(self.r1Seq,revcomp(H2),missmatchesAllowed,breakAtFirstMatch=True)
                 if not self.h2[0]: self.h2 = None
                 
                 if self.h1 and self.h2:
                     self.dbsPrimaryCoordinates = [self.r1Seq,self.h1[1],self.h2[0],self.r1Qual]
                     
                     # look for individual id
-                    self.individual_id_primer = self.matchSequence(self.r1Seq,sequences.IND_HANDLE_1,missmatchesAllowed,breakAtFirstMatch=True)
-                    self.fwd_primer           = self.matchSequence(self.r1Seq,sequences.IND_HANDLE_2,missmatchesAllowed,breakAtFirstMatch=True)
+                    self.individual_id_primer = self.matchSequence(self.r1Seq,IND_HANDLE_1,missmatchesAllowed,breakAtFirstMatch=True)
+                    self.fwd_primer           = self.matchSequence(self.r1Seq,IND_HANDLE_2,missmatchesAllowed,breakAtFirstMatch=True)
                     if self.individual_id_primer[0] and self.fwd_primer[0]: self.individual_id = self.r1Seq[self.individual_id_primer[1]:self.fwd_primer[0]]
                     else: self.individual_id = None
                 
                 if self.h1_in_both_ends: # find secondary h2
-                    self.annotations['h2_r2_coordinates'] = self.matchSequence(self.r2Seq,revcomp(sequences.H2),missmatchesAllowed,breakAtFirstMatch=True)
+                    self.annotations['h2_r2_coordinates'] = self.matchSequence(self.r2Seq,revcomp(H2),missmatchesAllowed,breakAtFirstMatch=True)
                     if self.h1in2ndReadCoordinates[0]==0 and self.annotations['h2_r2_coordinates'][0] or (self.h1in2ndReadCoordinates[0] and self.annotations['h2_r2_coordinates'][0]):
                         self.annotations['secondary_dbs_coordinates'] = [self.r2Seq,self.h1in2ndReadCoordinates[1],self.annotations['h2_r2_coordinates'][0]]
 
             elif self.direction == '2 -> 1':
-                self.h2 = self.matchSequence(self.r2Seq,revcomp(sequences.H2),missmatchesAllowed,breakAtFirstMatch=True)
+                self.h2 = self.matchSequence(self.r2Seq,revcomp(H2),missmatchesAllowed,breakAtFirstMatch=True)
                 if not self.h2[0]: self.h2 = None
 
                 if self.h1 and self.h2:
@@ -562,7 +573,8 @@ class BarcodeClusterer(object):
         #
         import operator
         import misc
-        from sequences import DBS
+        if self.analysisfolder.settings.type == 'HLA':  from sequences import HLA_DBS as DBS
+        elif self.analysisfolder.settings.type == 'WFA':from sequences import WFA_DBS as DBS
 
         if self.logfile: self.logfile.write('Generating barcode fastq ...\n')
 
@@ -1229,6 +1241,13 @@ class BarcodeCluster(object,):
             r1 = bamfile.next() # get read 1 in pair
             r2 = bamfile.next() # get read 2 in pair
             assert pair.header[1:] == r1.query_name, 'Error: read pair headers dont match '+pair.header[1:]+' == '+r1.query_name+'\n'
+            r1.set_tag('bc',self.id)
+            r2.set_tag('bc',self.id)
+            r1.set_tag('in',self.individual_id)
+            r2.set_tag('in',self.individual_id)
+            if 'in_allele' in self.__dict__:
+                r1.set_tag('al',self.in_allele)
+                r2.set_tag('al',self.in_allele)
             pairs.append([r1,r2])
             
             # add the reads to in memory dict sorted by referencename and coordinate
@@ -1362,6 +1381,51 @@ class BarcodeCluster(object,):
         
         return 0
 
+    def build_individual_ID_dictionary(self,):
+        self.individual_ID_dictionary = {}
+        
+        from misc import hamming_distance
+        
+        for read_pair in self.readPairs:
+                #
+                # add info about the id id found in the read pair to the "cluster-wide" dictionary
+                #
+                try:             self.individual_ID_dictionary[read_pair.individual_id] += 1
+                except KeyError: self.individual_ID_dictionary[read_pair.individual_id]  = 1
+        #
+        # match the index references sequnces with the individual index 
+        #
+        temporary_indIDdict = {}
+        for individual_id_sequence, count in self.individual_ID_dictionary.iteritems():
+            
+            this_is_a_known_id_sequence = None # set flag to None
+            
+            individual_index_missmatches_allowed = int(self.analysisfolder.settings.maxIndividualIndexMissMatches)
+            
+            if individual_id_sequence == None:
+                try: temporary_indIDdict['other_exon'] += count
+                except KeyError: temporary_indIDdict['other_exon'] = count
+                continue
+            
+            # check against known sequences!!!
+            for index_name,index_sequence in self.analysisfolder.individual_id_fasta_sequences_by_id.iteritems():
+                if len(index_sequence) != len(individual_id_sequence): continue
+                mismatch_count = hamming_distance(individual_id_sequence, index_sequence)
+                
+                if mismatch_count <= individual_index_missmatches_allowed:
+                    # we have a match this is a known sequence
+                    this_is_a_known_id_sequence = True
+                    break
+            
+            if this_is_a_known_id_sequence:
+                try: temporary_indIDdict[index_name] += count
+                except KeyError: temporary_indIDdict[index_name] = count
+            else:
+               try: temporary_indIDdict['unknown'] += count
+               except KeyError: temporary_indIDdict['unknown'] = count
+        
+        self.individual_ID_dictionary = temporary_indIDdict
+
     def analyze(self,createBamIndex=False):
         """ analyze and get statisstics about the cluster and how the reads in the cluster map to the reference etc
         """
@@ -1408,6 +1472,7 @@ class BarcodeCluster(object,):
         loadPairsTime = time.time()
         self.loadReadPairs()
         loadPairsTime = time.time() - loadPairsTime
+        self.build_individual_ID_dictionary()
 
         #
         # build the bamfile with read mappings
@@ -1432,7 +1497,7 @@ class BarcodeCluster(object,):
         #
         # Parse the bamfile
         #
-        self.individual_ID_dictionary = {}
+        # # # self.individual_ID_dictionary = {}
         parseBamTime = time.time()
         try:self.analysisfolder.logfile.write('Making reads table forcluster '+str(self.id)+'.\n')
         except ValueError: pass
@@ -1526,8 +1591,8 @@ class BarcodeCluster(object,):
                 #
                 # add info about the id id found in the read pair to the "cluster-wide" dictionary
                 #
-                try: self.individual_ID_dictionary[self.readPairsByHeader['@'+alignedReadRead.qname].individual_id] += 1
-                except KeyError: self.individual_ID_dictionary[self.readPairsByHeader['@'+alignedReadRead.qname].individual_id] = 1
+                # # # try: self.individual_ID_dictionary[self.readPairsByHeader['@'+alignedReadRead.qname].individual_id] += 1
+                # # # except KeyError: self.individual_ID_dictionary[self.readPairsByHeader['@'+alignedReadRead.qname].individual_id] = 1
 
                 #
                 # Save coordinate of reads that mapp in nice pairs
@@ -1556,37 +1621,37 @@ class BarcodeCluster(object,):
         #
         # match the index references sequnces with the individual index 
         #
-        temporary_indIDdict = {}
-        for individual_id_sequence, count in self.individual_ID_dictionary.iteritems():
-            
-            this_is_a_known_id_sequence = None # set flag to None
-            
-            individual_index_missmatches_allowed = int(self.analysisfolder.settings.maxIndividualIndexMissMatches)
-            
-            if individual_id_sequence == None:
-                try: temporary_indIDdict['other_exon'] += count
-                except KeyError: temporary_indIDdict['other_exon'] = count
-                continue
-            
-            # check against known sequences!!!
-            for index_name,index_sequence in self.analysisfolder.individual_id_fasta_sequences_by_id.iteritems():
-                if len(index_sequence) != len(individual_id_sequence): continue
-                mismatch_count = hamming_distance(individual_id_sequence, index_sequence)
-                
-                if mismatch_count <= individual_index_missmatches_allowed:
-                    # we have a match this is a known sequence
-                    this_is_a_known_id_sequence = True
-                    break
-            
-            if this_is_a_known_id_sequence:
-                try: temporary_indIDdict[index_name] += count
-                except KeyError: temporary_indIDdict[index_name] = count
-            else:
-               try: temporary_indIDdict['unknown'] += count
-               except KeyError: temporary_indIDdict['unknown'] = count
-        
-        self.individual_ID_dictionary = temporary_indIDdict
-        #print self.individual_ID_dictionary
+        # # # temporary_indIDdict = {}
+        # # # for individual_id_sequence, count in self.individual_ID_dictionary.iteritems():
+        # # #     
+        # # #     this_is_a_known_id_sequence = None # set flag to None
+        # # #     
+        # # #     individual_index_missmatches_allowed = int(self.analysisfolder.settings.maxIndividualIndexMissMatches)
+        # # #     
+        # # #     if individual_id_sequence == None:
+        # # #         try: temporary_indIDdict['other_exon'] += count
+        # # #         except KeyError: temporary_indIDdict['other_exon'] = count
+        # # #         continue
+        # # #     
+        # # #     # check against known sequences!!!
+        # # #     for index_name,index_sequence in self.analysisfolder.individual_id_fasta_sequences_by_id.iteritems():
+        # # #         if len(index_sequence) != len(individual_id_sequence): continue
+        # # #         mismatch_count = hamming_distance(individual_id_sequence, index_sequence)
+        # # #         
+        # # #         if mismatch_count <= individual_index_missmatches_allowed:
+        # # #             # we have a match this is a known sequence
+        # # #             this_is_a_known_id_sequence = True
+        # # #             break
+        # # #     
+        # # #     if this_is_a_known_id_sequence:
+        # # #         try: temporary_indIDdict[index_name] += count
+        # # #         except KeyError: temporary_indIDdict[index_name] = count
+        # # #     else:
+        # # #        try: temporary_indIDdict['unknown'] += count
+        # # #        except KeyError: temporary_indIDdict['unknown'] = count
+        # # # 
+        # # # self.individual_ID_dictionary = temporary_indIDdict
+        # # # #print self.individual_ID_dictionary
 
         #
         # Make the full html table in one string together with the info about potential u=individual ids/barcodes found
@@ -2090,37 +2155,40 @@ class BarcodeCluster(object,):
     @property
     def individual_id(self,):
         
+        if 'individual_id_mem' in self.__dict__: return self.individual_id_mem
+        #else: print '########################### ind id check started ##############################'
+
         from misc import percentage
         import operator
-        
+                
         if not self.info_loaded: self.loadClusterInfo()
         total_reads_with_id_info = sum([count for ind_id_number, count in self.individual_ID_dictionary.iteritems() if ind_id_number != 'other_exon'])
-        if not total_reads_with_id_info: return 'No info'
+        if not total_reads_with_id_info:
+            self.individual_id_mem = 'No info'
+            return 'No info'
                 
-        if len(self.individual_ID_dictionary) == 2 and 'other_exon' in self.individual_ID_dictionary and 'unknown' in self.individual_ID_dictionary: return 'unknown id'
-        if len(self.individual_ID_dictionary) == 1 and 'unknown' in self.individual_ID_dictionary: return 'unknown id'
+        if len(self.individual_ID_dictionary) == 2 and 'other_exon' in self.individual_ID_dictionary and 'unknown' in self.individual_ID_dictionary:
+            self.individual_id_mem = 'unknown id'
+            return 'unknown id'
+        if len(self.individual_ID_dictionary) == 1 and 'unknown' in self.individual_ID_dictionary:
+            self.individual_id_mem = 'unknown id'
+            return 'unknown id'
 
         number_ids = len([count for ind_id_number, count in self.individual_ID_dictionary.iteritems() if ind_id_number != 'unknown' and ind_id_number != 'other_exon'])
         if number_ids >= 2:
             most_frequent,second_to_most_frequent = sorted([ count for ind_id_number, count in self.individual_ID_dictionary.iteritems() if ind_id_number != 'unknown' and ind_id_number != 'other_exon'],reverse=True)[:2]
-            if second_to_most_frequent >= most_frequent*(2.0/3.0): return 'Non clonal'
+            if second_to_most_frequent >= most_frequent*(2.0/3.0):
+                self.individual_id_mem = 'Non clonal'
+                return 'Non clonal'
         
         most_frequent_id, count = [(ind_id_number, count) for ind_id_number, count in sorted([ (ind_id_number, count) for ind_id_number, count in self.individual_ID_dictionary.iteritems() if ind_id_number != 'unknown' and ind_id_number != 'other_exon'], key=operator.itemgetter(1),reverse=True)][0]
         
         if percentage(count,total_reads_with_id_info) >= 90:
+            self.individual_id_mem = most_frequent_id
             return most_frequent_id
-        else: return 'nosiy signal'
-        
-        #for ind_id_number, count in self.individual_ID_dictionary.iteritems():
-        #    if ind_id_number != 'unknown' and ind_id_number != 'other_exon':
-        #        if percentage(count,total_reads_with_id_info) >= 100.0*2.0/3.0:
-        #            return ind_id_number
-        #            pass#print ind_id_number
-                    #print '   ',ind_id_number,'has',percentage(count,total_id_cluster),'% and is ok'
-                    #if count >= 10:  ##### I changed this cutoff upp to 30 but did not changes for allele 6!!! It looks only 1 cluster with high number of reads have dominant with some littel diferences with one the 6 other alleles!!! We should check the alleles comparison!!!!
-        #        else:
-                    #pass#print '   ',ind_id_number,'has',percentage(count,total_id_cluster),'% and is NOT ok'
-
+        else:
+            self.individual_id_mem = 'nosiy signal'
+            return 'nosiy signal'
 
 def revcomp(string):
     ''' Takes a sequence and reversecomplements it'''

@@ -100,11 +100,13 @@ class ClusterAllelComparer():
         from seqdata import BarcodeCluster
         import sqlite3
         self.analysisfolder.database.getConnection()
-        info = self.analysisfolder.database.c.execute('SELECT clusterId, clusterTotalReadCount, clusterBarcodeSequence, annotations, constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, targetInfo, individual_ID_dictionary, analyzed, hetrozygous_positions, high_quality_cluster FROM barcodeClusters WHERE clusterTotalReadCount>1')
-        for                                                  (clusterId, clusterTotalReadCount, clusterBarcodeSequence, annotations, constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, targetInfo, individual_ID_dictionary, analyzed, hetrozygous_positions, high_quality_cluster) in info:
+        #info = self.analysisfolder.database.c.execute('SELECT clusterId, clusterTotalReadCount, clusterBarcodeSequence, annotations, constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, targetInfo, individual_ID_dictionary, analyzed, hetrozygous_positions, high_quality_cluster FROM barcodeClusters WHERE clusterTotalReadCount>1')
+        info = self.analysisfolder.database.c.execute('SELECT clusterId, clusterTotalReadCount, readPairsList, clusterBarcodeSequence, annotations, constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, targetInfo, individual_ID_dictionary, analyzed, hetrozygous_positions, high_quality_cluster FROM barcodeClusters')
+        for                                                  (clusterId, clusterTotalReadCount, readPairsList, clusterBarcodeSequence, annotations, constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, targetInfo, individual_ID_dictionary, analyzed, hetrozygous_positions, high_quality_cluster) in info:
             readBarcodeIdentitiesList, clusterBarcodeQuality, contigSequencesList, goodReadPairPositions, htmlTable = '[]', None, None, None, None
-            readPairsList = '[]'
+            #readPairsList = '[]'
             if clusterId == None: continue
+            if clusterTotalReadCount == 1: continue
             barcode_cluster = BarcodeCluster(clusterId,self.analysisfolder)
             barcode_cluster.setValues(clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,targetInfo,individual_ID_dictionary,htmlTable,analyzed, hetrozygous_positions, high_quality_cluster)
 
@@ -1043,8 +1045,11 @@ class ClusterAllelComparer():
             barcode_cluster.in_allele = None
             try:             ind_ids[ barcode_cluster.individual_id ].append(barcode_cluster)
             except KeyError: ind_ids[ barcode_cluster.individual_id ]    =  [barcode_cluster]
+
         for allele_cluster in self.allele_clusters.values():
-            for barcode_cluster in allele_cluster['barcode_clusters_in_this_allele_cluster']+allele_cluster['supporting_barcode_clusters']: barcode_cluster.in_allele = 'allele '+str(allele_cluster['id'])
+            for barcode_cluster in allele_cluster['barcode_clusters_in_this_allele_cluster']+allele_cluster['supporting_barcode_clusters']:
+                barcode_cluster.in_allele = 'allele '+str(allele_cluster['id'])
+                if False: barcode_cluster.analyze(createBamIndex=True)
         for barcode_cluster in self.cluster_trash_bin['matching_more_than_1_allele_cluster'].values(): barcode_cluster.in_allele = 'trashed (match many)'
         for barcode_cluster in self.cluster_trash_bin['No_similarity_to_allele_cluster'].values():barcode_cluster.in_allele = 'trashed (match none)'
         for barcode_cluster in self.cluster_trash_bin['non clonal']['hetro_bases'].values():barcode_cluster.in_allele = 'trashed (hetro bases)'

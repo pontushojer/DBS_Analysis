@@ -572,7 +572,7 @@ class Settings(object,):
             'parallelProcesses':multiprocessing.cpu_count(),
             'maxHandleMissMatches':0,
             'maxIndividualIndexMissMatches':0,
-            'barcodeLength':len(sequences.DBS),
+            'barcodeLength':len(sequences.HLA_DBS),
             #'analysisParts':None,
             'barcodeMissmatch':0,
             #'readsPerUmiCutOff':5,
@@ -589,7 +589,8 @@ class Settings(object,):
             'targetRegionBed':None,
             'IndexReferenceTsv':None,
             'temp':None,
-            'port':'random'
+            'port':'random',
+            'type':'HLA'
 
         }
         
@@ -600,7 +601,7 @@ class Settings(object,):
             'debug':'Flag for running the scripts in multiprocessing or as single process run [True/False] (default=False)',
             'uppmaxProject':'Project id used at uppmax for sbatch scripts [bXXXXXXX] (default=b2014005)',
             'parallelProcesses':'Number of process to run when doing multiprocess parts of analysis (defaul=multiprocessing.cpu_count())',
-            'barcodeLength':'The length of the bead barcode (default='+str(len(sequences.DBS))+')',
+            'barcodeLength':'The length of the bead barcode (default='+str(len(sequences.HLA_DBS))+')',
             #'analysisParts':'Parts of the analysis to run specific for each run.',
             'barcodeMissmatch':'Number of missmatches allowed in the barcode sequence',
             'maxHandleMissMatches':'Number of missmatches allowed in the handle sequence',
@@ -619,7 +620,8 @@ class Settings(object,):
             'targetRegionBed':'A bedfile defining regions on the reference that will be used as a targets during analysis such as coverage stats and variant calling (default = None)',
             'IndexReferenceTsv':'A tsv-file of individual index sequnces that will be used as a reference target during analysis of individual index, column 1 should be the name or id and column two should be the sequence (default = None)',
             'temp':'path to temporary folder (used for copying database etc on eg uppmax to increase speed of IO)',
-            'port':'web server port for the web interface eg. 5000 (default value = random)'
+            'port':'web server port for the web interface eg. 5000 (default value = random)',
+            'type':'Specify what type of analysis ie what sequences to use to find barcodes etc (default: HLA)'
         }
         
         #
@@ -654,6 +656,7 @@ class Settings(object,):
         self.IndexReferenceTsv = None
         self.temp = None
         self.port=None
+        self.type=None
         
         # set the default values
         self.setDefaults()
