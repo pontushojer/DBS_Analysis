@@ -1027,6 +1027,7 @@ class ClusterAllelComparer():
         #
         import misc
         import operator
+        import pysam
         
         tmp_read_count = sum([barcode_cluster.readPairCount for barcode_cluster in self.cluster_trash_bin['non clonal']['hetro_bases'].values()])
         msg = 'In total '+str(len(self.cluster_trash_bin['non clonal']['hetro_bases']))+' barcode_clusters have been trashed as they overlap variable positions with hetrozygous variant(s) ('+str(misc.percentage(tmp_read_count,self.analysisfolder.results.totalReadCount))+')% of total reads.\n'
@@ -1046,10 +1047,27 @@ class ClusterAllelComparer():
             try:             ind_ids[ barcode_cluster.individual_id ].append(barcode_cluster)
             except KeyError: ind_ids[ barcode_cluster.individual_id ]    =  [barcode_cluster]
 
+        if True:
+            bamfile =  pysam.Samfile(self.analysisfolder.dataPath+'/mappedInserts.bam')
+            newHeader = bamfile.header 
+            newHeader['HD']['SO']='coordinate'
+            outputBam = pysam.AlignmentFile(self.analysisfolder.dataPath+'/mappedInserts.marked.bam', "wb", header=newHeader)
+
         for allele_cluster in self.allele_clusters.values():
             for barcode_cluster in allele_cluster['barcode_clusters_in_this_allele_cluster']+allele_cluster['supporting_barcode_clusters']:
                 barcode_cluster.in_allele = 'allele '+str(allele_cluster['id'])
-                if False: barcode_cluster.analyze(createBamIndex=True)
+                if True:
+                    #barcode_cluster.analyze(createBamIndex=True)
+                    readsDict = barcode_cluster.createBamFile(return_reads_dict=True)
+                    for referenceName in [ reference['SN'] for reference in bamfile.header['SQ'] ]:
+                        positions = readsDict[referenceName]
+                        for position,readsList in sorted(positions.iteritems(), key=operator.itemgetter(0)):
+                            for read in readsList: outputBam.write(read)
+                    # lastly print the unmapped (missing refID) reads to the bamfile
+                    for read in readsDict['unmapped']: outputBam.write(read)
+        if True:
+            outputBam.close()
+            bamfile.close()
         for barcode_cluster in self.cluster_trash_bin['matching_more_than_1_allele_cluster'].values(): barcode_cluster.in_allele = 'trashed (match many)'
         for barcode_cluster in self.cluster_trash_bin['No_similarity_to_allele_cluster'].values():barcode_cluster.in_allele = 'trashed (match none)'
         for barcode_cluster in self.cluster_trash_bin['non clonal']['hetro_bases'].values():barcode_cluster.in_allele = 'trashed (hetro bases)'

@@ -1200,7 +1200,7 @@ class BarcodeCluster(object,):
         elif count1 > 1 or count2 > 1: return False
         else: return None
 
-    def createBamFile(self,createIndex=False,cigarDummyForDupCheck = True):
+    def createBamFile(self,createIndex=False,cigarDummyForDupCheck = True, return_reads_dict=False):
         """ creates a bamfile with the reads specific for the clusster
         """
 
@@ -1215,6 +1215,15 @@ class BarcodeCluster(object,):
         import os
         import operator
 
+        if not self.readPairs:
+            #
+            # Load the read pairs from database
+            #
+            try: self.analysisfolder.logfile.write('Loading reads for cluster '+str(self.id)+' ... '+'\n')
+            except ValueError: pass
+            self.loadReadPairs()
+            self.build_individual_ID_dictionary()
+
         #
         # get the reads from the original bam file with all reads and write to new cluster specific bamfile
         #
@@ -1223,7 +1232,6 @@ class BarcodeCluster(object,):
         # modify bamfile header to have the correct sort order tag in the cluster specific output bam file
         newHeader = bamfile.header 
         newHeader['HD']['SO']='coordinate'
-        outputBam = pysam.Samfile(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bam',mode='wb',header=newHeader)
         
         # create an dictionary to store the reads in memory
         readsDict = {reference['SN']:{} for reference in bamfile.header['SQ']}
@@ -1354,20 +1362,22 @@ class BarcodeCluster(object,):
         #
         # print the reads to the bamfile in the order specified in bamfile header and coordinate sorted
         #
-        for referenceName in [ reference['SN'] for reference in bamfile.header['SQ'] ]:
-            positions = readsDict[referenceName]
-            for position,readsList in sorted(positions.iteritems(), key=operator.itemgetter(0)):
-                for read in readsList: outputBam.write(read)
-        # lastly print the unmapped (missing refID) reads to the bamfile and close the file
-        for read in readsDict['unmapped']: outputBam.write(read)
-        outputBam.close()
+        if not return_reads_dict:
+            outputBam = pysam.Samfile(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bam',mode='wb',header=newHeader)
+            for referenceName in [ reference['SN'] for reference in bamfile.header['SQ'] ]:
+                positions = readsDict[referenceName]
+                for position,readsList in sorted(positions.iteritems(), key=operator.itemgetter(0)):
+                    for read in readsList: outputBam.write(read)
+            # lastly print the unmapped (missing refID) reads to the bamfile and close the file
+            for read in readsDict['unmapped']: outputBam.write(read)
+            outputBam.close()
         
-        # index the bamfile
-        if createIndex: pysam.index(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bam', self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bai')
-        
-        # keep track of temporary files
-        self.filesCreated.append(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bam')
-        if createIndex: self.filesCreated.append(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bai')
+            # index the bamfile
+            if createIndex: pysam.index(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bam', self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bai')
+            
+            # keep track of temporary files
+            self.filesCreated.append(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bam')
+            if createIndex: self.filesCreated.append(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bai')
         
         # these files will not be created anymore if needed run the picard marking or write a function that creates them
         # self.filesCreated.append(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.metrics.txt')
@@ -1378,6 +1388,8 @@ class BarcodeCluster(object,):
             self.analysisfolder.database.getConnection()
             self.analysisfolder.database.c.executemany('UPDATE reads SET mappingFlagR1=?, mappingFlagR2=? WHERE id=?', updateValues)
             self.analysisfolder.database.commitAndClose()
+        
+        if return_reads_dict: return readsDict
         
         return 0
 

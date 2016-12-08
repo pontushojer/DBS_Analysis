@@ -1,0 +1,74 @@
+#! /usr/bin/env python
+
+import sys
+
+def main(): 
+    #
+    # Imports
+    #
+    import metadata
+    import time
+    from seqdata import BarcodeClusterer
+    from misc import Progress
+    import multiprocessing
+    import sqlite3
+    import json, ast
+    import os
+    import pysam
+
+    #
+    # check input and get commandline args
+    #
+    try:
+        analysisfolder = metadata.AnalysisFolder(sys.argv[1])
+        analysisfolder.readindexTsv()
+        if analysisfolder.settings.temp: analysisfolder.copy_to_temp()
+
+    except IndexError: sys.stderr.write('please supply a commandline on format:\n'+os.path.basename(__file__)+' <analysis-output-folder>\n');sys.exit()
+
+    #
+    # check analysis folder
+    #
+    if not analysisfolder.checkIntegrity() == 'PASS': print analysisfolder.checkIntegrity()+'\nERROR: Now exiting'
+
+    #
+    # create a logfile
+    #
+    logfile = open(analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'_tag_bam.log.txt','w',1)
+    logfile.write('cmd: '+' '.join(sys.argv)+'\n')
+    analysisfolder.logfile = logfile
+
+    #
+    # check if the target region bedfile is defined
+    #
+    if not analysisfolder.settings.targetRegionBed or not os.path.exists(analysisfolder.settings.targetRegionBed):
+        msg = 'WARNING: cant find the target definition bed file!!\n'
+        msg+= '(If run is not targeted you can safely ignore this message).\n'
+        sys.stderr.write(msg);
+        logfile.write(msg)
+     
+    #
+    # Do the work here!!
+    #
+    analysisfolder.database.getConnection()
+    header2cluster = { header:clusterId for header,clusterId in analysisfolder.database.c.execute('SELECT header, clusterId FROM reads') }
+    analysisfolder.database.commitAndClose()
+    bamfile =  pysam.Samfile(analysisfolder.dataPath+'/mappedInserts.bam')
+    # modify bamfile header to have the correct sort order tag in the cluster specific output bam file
+    newHeader = bamfile.header 
+    newHeader['HD']['SO']='coordinate'
+    outputBam = pysam.Samfile(analysisfolder.dataPath+'/mappedInserts.tagged.bam',mode='wb',header=newHeader)
+    for read in bamfile:
+        read.set_tag('bc',header2cluster[str('@'+read.query_name)])
+        outputBam.write(read)
+    outputBam.close()
+    bamfile.close()
+    
+    # sort and index the bamfile
+    #pysam.sort(analysisfolder.dataPath+'/mappedInserts.tagged.bam', analysisfolder.dataPath+'/mappedInserts.tagged.sorted')
+    #pysam.index(analysisfolder.dataPath+'/mappedInserts.tagged.sorted.bam', analysisfolder.dataPath+'/mappedInserts.tagged.sorted.bai')
+    
+    if analysisfolder.database_in_temp: analysisfolder.copy_from_temp()
+    logfile.write('find_alleles FINISHED\n')
+
+if __name__ == "__main__": main()
