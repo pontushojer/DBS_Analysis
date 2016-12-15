@@ -564,6 +564,38 @@ class Settings(object,):
         import sequences
         
         #
+        # the skip list all __dict__ items with the following name will be skipped.
+        #
+        self.skip_list = ['explenations','defaultValues','isDefault','setTime','analysisfolder','skip_list','TypeOfValues']
+        
+        #
+        # Type of values for all settings
+        #
+        self.TypeOfValues = {
+            'debug':'Bool',
+            'uppmaxProject':'string',
+            'parallelProcesses':'integer',
+            'maxHandleMissMatches':'integer',
+            'maxIndividualIndexMissMatches':'integer',
+            'barcodeLength':'integer',
+            'barcodeMissmatch':'integer',
+            'readsPerClusterCutOff':'integer',
+            'bowtie2Reference':'filename',
+            'picardPath':'path',
+            'mapqCutOff':'integer',
+            'minReadDepthForVariantCalling':'integer',
+            'minAlleleFreqForHetrozygousVariant':'float',
+            'minFreqForSeqPosition':'integer',
+            'minPairsPerCluster':'integer',
+            'minBasePhredQuality':'integer',
+            'targetRegionBed':'filename',
+            'IndexReferenceTsv':'filename',
+            'temp':'path',
+            'port':'string',
+            'type':'string'
+        }
+        
+        #
         # Default values for all settings
         #
         self.defaultValues = {
@@ -591,7 +623,6 @@ class Settings(object,):
             'temp':None,
             'port':'random',
             'type':'HLA'
-
         }
         
         #
@@ -758,7 +789,7 @@ class Settings(object,):
         for variableName in self.__dict__:
             
             # if not variable but a known container of other types of info such as explenations or settimes
-            if variableName in ['explenations','defaultValues','isDefault','setTime','analysisfolder']:continue
+            if variableName in self.skip_list:continue
             
             # new sets ie not updates which were already handled above
             if variableName not in alreadyInDb:

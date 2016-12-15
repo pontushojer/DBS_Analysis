@@ -9,6 +9,7 @@ def main():
     import metadata
     import time
     import os
+    from misc import TerminalColors
     
     #
     # check input and get commandline args
@@ -60,7 +61,12 @@ def main():
         longestName = max([len(x) for x in analysisfolder.settings.explenations.keys()])
         sys.stderr.write('VariableName:'+''.join(' ' for i in range(longestName-len('VariableName:')))+'\t'+'Description:'+'\n')
         for variableName, description in analysisfolder.settings.explenations.iteritems():
-            sys.stderr.write(variableName+''.join(' ' for i in range(longestName-len(variableName)))+'\t'+description+' (currentValue='+str(analysisfolder.settings.__dict__[variableName])+')\n')
+            if analysisfolder.settings.TypeOfValues[variableName] == 'filename':
+                if not os.path.isfile( analysisfolder.settings.__dict__[variableName] ):txt_color = TerminalColors.Red
+                else:txt_color = ''
+                sys.stderr.write(txt_color+variableName+TerminalColors.Color_Off+''.join(' ' for i in range(longestName-len(variableName)))+'\t'+description+' ('+txt_color+'currentValue='+str(analysisfolder.settings.__dict__[variableName])+TerminalColors.Color_Off+')\n')
+            else:
+                sys.stderr.write(variableName+''.join(' ' for i in range(longestName-len(variableName)))+'\t'+description+' (currentValue='+str(analysisfolder.settings.__dict__[variableName])+')\n')
  
     logfile.write('dbs_change_settings FINISHED\n')
 
