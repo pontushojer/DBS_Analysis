@@ -408,7 +408,7 @@ class ClusterAllelComparer():
 
         msg = str(good_counter)+' barcodel clusters added to seeds and '+str(bad_counter)+' barcode clusters trashed due to presense of hetrozygous variants overlapping known variants.\n'
         self.analysisfolder.logfile.write(msg); sys.stdout.write(msg)
-        sys.stdout.write( str(len(self.cluster_trash_bin['non clonal']['hetro_bases']))+'out of these were'+'classified as non clonal due to presense of hetrozygous bases ('+str(misc.percentage(sum([barcode_cluster.readPairCount for barcode_cluster in self.cluster_trash_bin['non clonal']['hetro_bases'].values()]),self.analysisfolder.results.totalReadCount))+'% of the total read count)\n')
+        sys.stdout.write( str(len(self.cluster_trash_bin['non clonal']['hetro_bases']))+' out of these were'+'classified as non clonal due to presense of hetrozygous bases ('+str(misc.percentage(sum([barcode_cluster.readPairCount for barcode_cluster in self.cluster_trash_bin['non clonal']['hetro_bases'].values()]),self.analysisfolder.results.totalReadCount))+'% of the total read count)\n')
 
     def build_allele_representation_dict_for_seed_barcode_clusters(self,):
         """ Function find the high quality cluster information"""
@@ -871,8 +871,8 @@ class ClusterAllelComparer():
         sys.stdout.write( str(len(cluster_junk))+' out of '+str(len(clusters_with_hetro_with_missing+clusters_not_hetro_with_missing))+' could not be placed ('+str(misc.percentage(len(cluster_junk),len(clusters_with_hetro_with_missing+clusters_not_hetro_with_missing)))+'%) '+str(junk_sum)+' reads ie '+str(misc.percentage(junk_sum,self.analysisfolder.results.totalReadCount))+'% of the total read count\n')
         sys.stdout.write( str(len(current_trash['matching_more_than_1_allele_cluster']))+' out of these were '+'matching more than one allele_cluster ('+str(misc.percentage(sum([barcode_cluster.readPairCount for barcode_cluster in current_trash['matching_more_than_1_allele_cluster'].values()]),self.analysisfolder.results.totalReadCount))+'% of the total read count)\n')
         sys.stdout.write( str(len(current_trash['No_similarity_to_allele_cluster']))+     ' out of these had '+'to little similarity to any allele cluster ('+                    str(misc.percentage(sum([barcode_cluster.readPairCount for barcode_cluster in current_trash['No_similarity_to_allele_cluster'].values()]),self.analysisfolder.results.totalReadCount))+'% of the total read count)\n')
-        sys.stdout.write( str(len(current_trash['non clonal']['hetro_bases']))+           'out of these were '+'classified as non clonal due to presense of hetrozygous bases ('+str(misc.percentage(sum([barcode_cluster.readPairCount for barcode_cluster in current_trash['non clonal']['hetro_bases'].values()]),self.analysisfolder.results.totalReadCount))+'% of the total read count)\n')
-        sys.stdout.write( str(len(current_trash['Low_read_count']))+                      'out of these were '+'Low_read_count barcode clusters ('+                              str(misc.percentage(sum([barcode_cluster.readPairCount for barcode_cluster in current_trash['Low_read_count'].values()]),self.analysisfolder.results.totalReadCount))+'% of the total read count)\n')
+        sys.stdout.write( str(len(current_trash['non clonal']['hetro_bases']))+           ' out of these were '+'classified as non clonal due to presense of hetrozygous bases ('+str(misc.percentage(sum([barcode_cluster.readPairCount for barcode_cluster in current_trash['non clonal']['hetro_bases'].values()]),self.analysisfolder.results.totalReadCount))+'% of the total read count)\n')
+        sys.stdout.write( str(len(current_trash['Low_read_count']))+                      ' out of these were '+'Low_read_count barcode clusters ('+                              str(misc.percentage(sum([barcode_cluster.readPairCount for barcode_cluster in current_trash['Low_read_count'].values()]),self.analysisfolder.results.totalReadCount))+'% of the total read count)\n')
  
         sys.stdout.write( '\n')
         sys.stdout.write( '# NOW:\n')
@@ -1047,27 +1047,12 @@ class ClusterAllelComparer():
             try:             ind_ids[ barcode_cluster.individual_id ].append(barcode_cluster)
             except KeyError: ind_ids[ barcode_cluster.individual_id ]    =  [barcode_cluster]
 
-        if True:
-            bamfile =  pysam.Samfile(self.analysisfolder.dataPath+'/mappedInserts.bam')
-            newHeader = bamfile.header 
-            newHeader['HD']['SO']='coordinate'
-            outputBam = pysam.AlignmentFile(self.analysisfolder.dataPath+'/mappedInserts.marked.bam', "wb", header=newHeader)
-
+        total = 0
         for allele_cluster in self.allele_clusters.values():
             for barcode_cluster in allele_cluster['barcode_clusters_in_this_allele_cluster']+allele_cluster['supporting_barcode_clusters']:
                 barcode_cluster.in_allele = 'allele '+str(allele_cluster['id'])
-                if True:
-                    #barcode_cluster.analyze(createBamIndex=True)
-                    readsDict = barcode_cluster.createBamFile(return_reads_dict=True)
-                    for referenceName in [ reference['SN'] for reference in bamfile.header['SQ'] ]:
-                        positions = readsDict[referenceName]
-                        for position,readsList in sorted(positions.iteritems(), key=operator.itemgetter(0)):
-                            for read in readsList: outputBam.write(read)
-                    # lastly print the unmapped (missing refID) reads to the bamfile
-                    for read in readsDict['unmapped']: outputBam.write(read)
-        if True:
-            outputBam.close()
-            bamfile.close()
+                total += 1
+        
         for barcode_cluster in self.cluster_trash_bin['matching_more_than_1_allele_cluster'].values(): barcode_cluster.in_allele = 'trashed (match many)'
         for barcode_cluster in self.cluster_trash_bin['No_similarity_to_allele_cluster'].values():barcode_cluster.in_allele = 'trashed (match none)'
         for barcode_cluster in self.cluster_trash_bin['non clonal']['hetro_bases'].values():barcode_cluster.in_allele = 'trashed (hetro bases)'
@@ -1086,9 +1071,12 @@ class ClusterAllelComparer():
             
             
             types_this_individual = {}
+            types_this_individual_less = {}
             for barcode_cluster in barcode_clusters:
                 try:             types_this_individual[barcode_cluster.in_allele].append(barcode_cluster)
                 except KeyError: types_this_individual[barcode_cluster.in_allele]    =  [barcode_cluster]
+                try:             types_this_individual_less[barcode_cluster.in_allele].append(barcode_cluster.readPairCount)
+                except KeyError: types_this_individual_less[barcode_cluster.in_allele]    =  [barcode_cluster.readPairCount]
             
             sys.stdout.write( '\t#bc:\t%trc:\t%bci:\t%rci:\twhat:\n')
             for type_of_cluster, list_of_clusters_with_type, tmp_junk in sorted([(type_of_cluster, list_of_clusters_with_type,sum([barcode_cluster.readPairCount for barcode_cluster in list_of_clusters_with_type])) for type_of_cluster, list_of_clusters_with_type in types_this_individual.iteritems()], key=operator.itemgetter(2), reverse=True):
@@ -1101,5 +1089,38 @@ class ClusterAllelComparer():
                 sys.stdout.write(str( type_of_cluster)+'\n')
 
             sys.stdout.write( '\n')
+
+        sys.stderr.write('Making bam files for alleles ... \n')
+        if True:
+            p = misc.Progress(total, unit='barcodes processed',printint=5, logfile=sys.stderr)
+            bamfile =  pysam.Samfile(self.analysisfolder.dataPath+'/mappedInserts.bam')
+            newHeader = bamfile.header 
+            newHeader['HD']['SO']='coordinate'
+            outputBam = pysam.AlignmentFile(self.analysisfolder.dataPath+'/mappedInserts.marked.bam', "wb", header=newHeader)
+            output_allele_Bams = {allele_cluster['id']:pysam.AlignmentFile(self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.bam', "wb", header=newHeader) for allele_cluster in self.allele_clusters.values()}
+
+            for allele_cluster in self.allele_clusters.values():
+                for barcode_cluster in allele_cluster['barcode_clusters_in_this_allele_cluster']+allele_cluster['supporting_barcode_clusters']:
+                    barcode_cluster.in_allele = 'allele '+str(allele_cluster['id'])
+                    
+                    #
+                    # NEED TO FIX THIS PROGRESS IS NOT LOGGED LATER ON CAUSE THE LOGFILE BECOMES ANNOYINGLY LARGE...
+                    #
+                    readsDict = barcode_cluster.createBamFile(return_reads_dict=True)
+                    
+                    for referenceName in [ reference['SN'] for reference in bamfile.header['SQ'] ]:
+                        positions = readsDict[referenceName]
+                        for position,readsList in sorted(positions.iteritems(), key=operator.itemgetter(0)):
+                            for read in readsList: outputBam.write(read)
+                    # lastly print the unmapped (missing refID) reads to the bamfile
+                    for read in readsDict['unmapped']:
+                        outputBam.write(read)
+                        output_allele_Bams[allele_cluster['id']].write(read)
+                    p.update()
+
+            outputBam.close()
+            bamfile.close()
+            for file_object in output_allele_Bams.values(): file_object.close()
+        sys.stderr.write('Done.\n')
 
 if __name__ == "__main__": main()
