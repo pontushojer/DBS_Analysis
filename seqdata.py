@@ -156,9 +156,17 @@ class ReadPair(object):
     def matchSequence(self, readsequence, matchsequence, maxDistance, matchfunk=misc.hamming_distance, startOfRead=False,breakAtFirstMatch=False):
         """" function for finding sequenc motifs in the read sequence returns a list with [startcoordinate, endcoordinate, number of missmatches]"""
         
+        #
+        # Imports
+        #
         import re
         import misc
-        # matchfunk = hamming_distance
+        # matchfunk = hamming_distance        
+        try:
+            from hamming_cython_solution import hamming_loop
+            matchfunk = hamming_loop
+            import hamming_cython_solution
+        except ImportError: pass
         
         startPosition = None
         endPosition   = None
@@ -186,9 +194,9 @@ class ReadPair(object):
                 
                 if i+len(matchsequence) <= len(readsequence): dist = matchfunk(matchsequence,readsequence[i:i+len(matchsequence)])
                 else: dist = 10001
-                if breakAtFirstMatch and matchfunk == misc.hamming_distance:
-                    if dist >= maxDistance:
-                        return [i,i+len(matchsequence),dist]
+                # if breakAtFirstMatch and (matchfunk == misc.hamming_distance or matchfunk == hamming_cython_solution.hamming_loop):
+                #     if dist >= maxDistance:
+                #         return [i,i+len(matchsequence),dist]
                 
                 if dist < mindist[0]: mindist =[dist,i]
             
@@ -1397,6 +1405,8 @@ class BarcodeCluster(object,):
         self.individual_ID_dictionary = {}
         
         from misc import hamming_distance
+        try: from hamming_cython_solution import hamming_loop as hamming_distance
+        except ImportError: pass
         
         for read_pair in self.readPairs:
                 #
@@ -1447,6 +1457,8 @@ class BarcodeCluster(object,):
         #
         import time
         from misc import hamming_distance
+        try: from hamming_cython_solution import hamming_loop as hamming_distance
+        except ImportError: pass
         from misc import thousandString
         from misc import percentage
         import pysam
