@@ -1117,7 +1117,7 @@ class BarcodeCluster(object,):
 
         return 0
 
-    def loadReadPairs(self, ):
+    def loadReadPairs(self, log=True):
         """ function for loading the readpairs from the database for the specific barcode cluster
         """
 
@@ -1142,14 +1142,15 @@ class BarcodeCluster(object,):
         #
         # get the reads from the database and add the readobjects to the appropriate containers
         #
-        p = Progress(self.readPairCount, logfile=self.analysisfolder.logfile,unit='cluster_'+str(self.id)+'_reads', mem=True)
+        if log: p = Progress(self.readPairCount, logfile=self.analysisfolder.logfile,unit='cluster_'+str(self.id)+'_reads', mem=True)
         if not self.analysisfolder.database.datadropped:
             for readPair in self.analysisfolder.database.getReadPairs(self.readPairIdsList):
                 self.readPairs.append(readPair)
                 self.readPairsById[readPair.id] = readPair
                 self.readPairsByHeader[readPair.header] = readPair
-                try : p.update()
-                except ValueError: pass
+                if log:
+                    try : p.update()
+                    except ValueError: pass
             self.reads_loaded = True
 #	  except sqlite3.OperationalError: print 'ERROR: BarcodeCluster.loadReadPairs() is giving a sqlite3.OperationalError!!'
         # else: # THIS PART SHOULD BE OK TO REMOVE NOT USED ANYMORE!
@@ -1208,7 +1209,7 @@ class BarcodeCluster(object,):
         elif count1 > 1 or count2 > 1: return False
         else: return None
 
-    def createBamFile(self,createIndex=False,cigarDummyForDupCheck = True, return_reads_dict=False):
+    def createBamFile(self,createIndex=False,cigarDummyForDupCheck = True, return_reads_dict=False, log=True):
         """ creates a bamfile with the reads specific for the clusster
         """
 
@@ -1227,9 +1228,10 @@ class BarcodeCluster(object,):
             #
             # Load the read pairs from database
             #
-            try: self.analysisfolder.logfile.write('Loading reads for cluster '+str(self.id)+' ... '+'\n')
-            except ValueError: pass
-            self.loadReadPairs()
+            if log:
+                try: self.analysisfolder.logfile.write('Loading reads for cluster '+str(self.id)+' ... '+'\n')
+                except ValueError: pass
+            self.loadReadPairs(log=log)
             self.build_individual_ID_dictionary()
 
         #

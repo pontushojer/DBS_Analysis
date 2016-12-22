@@ -36,7 +36,8 @@ def create_links():
         'dbs_insert_mapper',
         'dbs_web_interface_server',
         'dbs_find_alleles',
-        'viewLogfiles'
+        'viewLogfiles',
+        'dbs_tag_bam'
         ]
     
     for program_name in program_names: update_link(program_name)
