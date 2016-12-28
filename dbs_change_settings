@@ -62,7 +62,7 @@ def main():
         sys.stderr.write('VariableName:'+''.join(' ' for i in range(longestName-len('VariableName:')))+'\t'+'Description:'+'\n')
         for variableName, description in analysisfolder.settings.explenations.iteritems():
             if analysisfolder.settings.TypeOfValues[variableName] == 'filename':
-                if not os.path.isfile( analysisfolder.settings.__dict__[variableName] ):txt_color = TerminalColors.Red
+                if analysisfolder.settings.__dict__[variableName]==None or not os.path.isfile( analysisfolder.settings.__dict__[variableName] ):txt_color = TerminalColors.Red
                 else:txt_color = ''
                 sys.stderr.write(txt_color+variableName+TerminalColors.Color_Off+''.join(' ' for i in range(longestName-len(variableName)))+'\t'+description+' ('+txt_color+'currentValue='+str(analysisfolder.settings.__dict__[variableName])+TerminalColors.Color_Off+')\n')
             else:

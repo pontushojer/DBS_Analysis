@@ -607,7 +607,8 @@ class Settings(object,):
             'IndexReferenceTsv':'filename',
             'temp':'path',
             'port':'string',
-            'type':'string'
+            'type':'string',
+            'known_hla_types':'filename'
         }
         
         #
@@ -637,7 +638,8 @@ class Settings(object,):
             'IndexReferenceTsv':None,
             'temp':None,
             'port':'random',
-            'type':'HLA'
+            'type':'HLA',
+            'known_hla_types':None
         }
         
         #
@@ -667,7 +669,8 @@ class Settings(object,):
             'IndexReferenceTsv':'A tsv-file of individual index sequnces that will be used as a reference target during analysis of individual index, column 1 should be the name or id and column two should be the sequence (default = None)',
             'temp':'path to temporary folder (used for copying database etc on eg uppmax to increase speed of IO)',
             'port':'web server port for the web interface eg. 5000 (default value = random)',
-            'type':'Specify what type of analysis ie what sequences to use to find barcodes etc (default: HLA)'
+            'type':'Specify what type of analysis ie what sequences to use to find barcodes etc (default: HLA)',
+            'known_hla_types':'fasta file with known HLA types that the consensus sequences will be matched towards (full description in fasta header will be used as identifier for the HLA sequence)'
         }
         
         #
@@ -703,6 +706,7 @@ class Settings(object,):
         self.temp = None
         self.port=None
         self.type=None
+        self.known_hla_types=None
         
         # set the default values
         self.setDefaults()
