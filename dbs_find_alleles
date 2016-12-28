@@ -1029,7 +1029,7 @@ class ClusterAllelComparer():
         return 0
 
     def report(self, ):
-        """ Report the machine resultes in the terminal for primary information"""
+        """ Report the machine resultes in the terminal for primary information""" # FIX THIS DESCRIPTION TO SOMETHING THAT SAYS SOMETHING
         
         #
         # import
@@ -1037,6 +1037,8 @@ class ClusterAllelComparer():
         import misc
         import operator
         import pysam
+        import subprocess
+        import time
         
         tmp_read_count = sum([barcode_cluster.readPairCount for barcode_cluster in self.cluster_trash_bin['non clonal']['hetro_bases'].values()])
         msg = 'In total '+str(len(self.cluster_trash_bin['non clonal']['hetro_bases']))+' barcode_clusters have been trashed as they overlap variable positions with hetrozygous variant(s) ('+str(misc.percentage(tmp_read_count,self.analysisfolder.results.totalReadCount))+')% of total reads.\n'
@@ -1112,29 +1114,67 @@ class ClusterAllelComparer():
             newHeader['HD']['SO']='coordinate'
             outputBam = pysam.AlignmentFile(self.analysisfolder.dataPath+'/mappedInserts.marked.bam', "wb", header=newHeader)
             output_allele_Bams = {allele_cluster['id']:pysam.AlignmentFile(self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.bam', "wb", header=newHeader) for allele_cluster in self.allele_clusters.values()}
-
+            
             for allele_cluster in self.allele_clusters.values():
                 for barcode_cluster in allele_cluster['barcode_clusters_in_this_allele_cluster']+allele_cluster['supporting_barcode_clusters']:
-                    barcode_cluster.in_allele = 'allele '+str(allele_cluster['id'])
                     
-                    #
-                    # NEED TO FIX THIS PROGRESS IS NOT LOGGED LATER ON CAUSE THE LOGFILE BECOMES ANNOYINGLY LARGE...
-                    #
                     readsDict = barcode_cluster.createBamFile(return_reads_dict=True,log=False)
                     
                     for referenceName in [ reference['SN'] for reference in bamfile.header['SQ'] ]:
                         positions = readsDict[referenceName]
                         for position,readsList in sorted(positions.iteritems(), key=operator.itemgetter(0)):
-                            for read in readsList: outputBam.write(read)
+                            for read in readsList:
+                                outputBam.write(read)
+                                output_allele_Bams[allele_cluster['id']].write(read)
                     # lastly print the unmapped (missing refID) reads to the bamfile
                     for read in readsDict['unmapped']:
                         outputBam.write(read)
                         output_allele_Bams[allele_cluster['id']].write(read)
                     p.update()
-
+            
             outputBam.close()
             bamfile.close()
             for file_object in output_allele_Bams.values(): file_object.close()
+            picards = {}
+            for allele_cluster in self.allele_clusters.values():
+                bamfilename = self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.bam'
+                picardLogfile = open(self.analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'picardSortSam.allele_'+str(allele_cluster['id'])+'.log.txt','w')
+                command2 = ['java',
+                          '-Xmx5g',
+                          '-jar',self.analysisfolder.settings.picardPath+'/SortSam.jar',
+                          'MAX_RECORDS_IN_RAM=2500000',
+                          'SORT_ORDER=coordinate',
+                          'INPUT='+ self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.bam',
+                          'OUTPUT='+self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.sorted.bam'
+                          ]
+                picards[allele_cluster['id']] = {'p':subprocess.Popen(command2,stdout=subprocess.PIPE,stderr=picardLogfile),'command':command2,'logfile':picardLogfile}
+        
+        allreadsPicardLogfile = open(self.analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'picardSortSam.mappedmarked.log.txt','w')
+        allreads_command = ['java',
+                  '-Xmx5g',
+                  '-jar',self.analysisfolder.settings.picardPath+'/SortSam.jar',
+                  'MAX_RECORDS_IN_RAM=2500000',
+                  'SORT_ORDER=coordinate',
+                  'INPUT='+ self.analysisfolder.dataPath+'/mappedInserts.marked.bam',
+                  'OUTPUT='+self.analysisfolder.dataPath+'/mappedInserts.marked.sorted.bam'
+                  ]
+        allreadsPicard = subprocess.Popen(allreads_command,stdout=subprocess.PIPE,stderr=allreadsPicardLogfile)
+        
+        for id_number,picard in picards.iteritems(): picard['errdata'] = picard['p'].communicate()
+        errdata = allreadsPicard.communicate()
+
+        for id_number,picard in picards.iteritems():
+            if picard['p'].returncode != 0:
+                print '#\n# cmd: '+' '.join( picard['command'] )+'\n#'
+                print 'picard view Error code', picard['p'].returncode, picard['errdata'], open(picard['logfile'].name).read()
+            else:
+                pysam.index(self.analysisfolder.dataPath+'/'+'allele_'+str(id_number)+'.marked.sorted.bam',self.analysisfolder.dataPath+'/'+'allele_'+str(id_number)+'.marked.sorted.bai')
+        if allreadsPicard.returncode != 0:
+            print '#\n# cmd: '+' '.join( allreads_command )+'\n#'
+            print 'picard view Error code', allreadsPicard.returncode, errdata, open(allreadsPicardLogfile.name).read()
+        else:
+            pysam.index(self.analysisfolder.dataPath+'/mappedInserts.marked.sorted.bam',self.analysisfolder.dataPath+'/mappedInserts.marked.sorted.bai')
+
         sys.stderr.write('Done.\n')
 
 if __name__ == "__main__": main()

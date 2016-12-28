@@ -1129,9 +1129,11 @@ class BarcodeCluster(object,):
         starttime = time.time()
 #	  try:
         from misc import Progress
+        import sys
+        #sys.stderr.write('now ion readpairs loader for cluster '+str(self.id)+'\n')
         
         # wait for acces to the database
-        while self.analysisfolder.database.writeInProgress.value: time.sleep(0.1)
+        #while self.analysisfolder.database.writeInProgress.value: time.sleep(0.1)
         
         #
         # reset if already loaded
@@ -1142,16 +1144,24 @@ class BarcodeCluster(object,):
         #
         # get the reads from the database and add the readobjects to the appropriate containers
         #
+        #p = Progress(self.readPairCount, logfile=sys.stderr,unit='cluster_'+str(self.id)+'_reads', mem=True)
         if log: p = Progress(self.readPairCount, logfile=self.analysisfolder.logfile,unit='cluster_'+str(self.id)+'_reads', mem=True)
+        #sys.stderr.write('progress init? for cluster '+str(self.id)+'\n')
+        #sys.stderr.write('dropped='+str(self.analysisfolder.database.datadropped)+' '+str(self.id)+'\n')
         if not self.analysisfolder.database.datadropped:
+            #sys.stderr.write('one step more cluster '+str(self.id)+'\n')
             for readPair in self.analysisfolder.database.getReadPairs(self.readPairIdsList):
                 self.readPairs.append(readPair)
                 self.readPairsById[readPair.id] = readPair
                 self.readPairsByHeader[readPair.header] = readPair
+                #p.update()
                 if log:
                     try : p.update()
                     except ValueError: pass
             self.reads_loaded = True
+        else:
+            sys.stderr.write('data is dropped can not load read pair information cluster '+str(self.id)+'.\n')
+            #sys.stderr.write('one step less cluster '+str(self.id)+'\n')
 #	  except sqlite3.OperationalError: print 'ERROR: BarcodeCluster.loadReadPairs() is giving a sqlite3.OperationalError!!'
         # else: # THIS PART SHOULD BE OK TO REMOVE NOT USED ANYMORE!
         #     for readPair in self.analysisfolder.readsdb.getClusterReadPairs(self.id):
@@ -1356,16 +1366,18 @@ class BarcodeCluster(object,):
                                     # for all but the highest scoring mark the reads as duplicates
                                     for (pairBaseQualitySum,pairList) in pairsSortedbyqSum[:-1]:
                                         for r1,r2 in pairList:
-                                            r1.is_duplicate = True
-                                            r2.is_duplicate  = True
+                                            if self.analysisfolder.settings.type != 'HLA':
+                                                r1.is_duplicate = True
+                                                r2.is_duplicate  = True
                                             r1.set_tag('cd',1)
                                             r2.set_tag('cd',1)
                                     
                                     # get all the pairs with the highest score and mark all but one as duplicate no sorting just what happens to be last in list
                                     pairBaseQualitySum,pairList = pairsSortedbyqSum[-1]
                                     for r1,r2 in pairList[:-1]:
-                                        r1.is_duplicate = True
-                                        r2.is_duplicate = True
+                                        if self.analysisfolder.settings.type != 'HLA':
+                                            r1.is_duplicate = True
+                                            r2.is_duplicate = True
                                         r1.set_tag('cd',1)
                                         r2.set_tag('cd',1)
             
@@ -1474,6 +1486,7 @@ class BarcodeCluster(object,):
         if self.analysisfolder.settings.debug: print 'Analyzing data in cluster '+str(self.id)
         try: self.analysisfolder.logfile.write('Analyzing data in cluster '+str(self.id)+' ... '+'\n')
         except ValueError:
+            #sys.stderr.write('Analyzing data in cluster '+str(self.id)+' ... '+'\n')
             #self.analysisfolder.logfile = open(self.analysisfolder.logfile.name,'a')
             #self.analysisfolder.logfile.write('Analyzing data in cluster '+str(self.id)+' ... '+'\n')
             pass
@@ -1494,22 +1507,29 @@ class BarcodeCluster(object,):
         # Load the read pairs from database
         #
         try: self.analysisfolder.logfile.write('Loading reads for cluster '+str(self.id)+' ... '+'\n')
-        except ValueError: pass
+        except ValueError:
+            #sys.stderr.write('Loading reads for cluster '+str(self.id)+' ... '+'\n')
+            pass
         loadPairsTime = time.time()
         self.loadReadPairs()
         loadPairsTime = time.time() - loadPairsTime
         self.build_individual_ID_dictionary()
+        #sys.stderr.write('reads loaded for cluster '+str(self.id)+' ...  in '+str(loadPairsTime)+'s\n')
 
         #
         # build the bamfile with read mappings
         #
         try:self.analysisfolder.logfile.write('Creating bamfiles for cluster_'+str(self.id)+' ... '+'\n')
-        except ValueError: pass
+        except ValueError:
+            #sys.stderr.write('Creating bamfiles for cluster_'+str(self.id)+' ... '+'\n')
+            pass
         createBamTime = time.time()
         self.createBamFile(createIndex=createBamIndex)
         createBamTime = time.time() - createBamTime
         try:self.analysisfolder.logfile.write('Bamfiles ready for cluster_'+str(self.id)+'.'+'\n')
-        except ValueError: pass
+        except ValueError:
+            #sys.stderr.write('Bamfiles ready for cluster_'+str(self.id)+'.'+'\n')
+            pass
         bamfile = pysam.Samfile(self.analysisfolder.temp+'/cluster_'+str(self.id)+'.markedDuplicates.bam')
 
         #
@@ -1526,7 +1546,9 @@ class BarcodeCluster(object,):
         # # # self.individual_ID_dictionary = {}
         parseBamTime = time.time()
         try:self.analysisfolder.logfile.write('Making reads table forcluster '+str(self.id)+'.\n')
-        except ValueError: pass
+        except ValueError:
+            #sys.stderr.write('Making reads table forcluster '+str(self.id)+'.\n')
+            pass
         last_pair_chrom = None
         position_of_last_pair = None
         self.annotations['percentage_of_pairs_close_to_other'] = 0
@@ -1711,7 +1733,9 @@ class BarcodeCluster(object,):
         self.goodReadPairPositions = goodReadPairPositions
 
         try:self.analysisfolder.logfile.write('Cluster '+str(self.id)+' analyzed in '+str(round(time.time()-starttime,2))+' seconds '+'\n')
-        except ValueError: pass
+        except ValueError:
+            #sys.stderr.write('Cluster '+str(self.id)+' analyzed in '+str(round(time.time()-starttime,2))+' seconds '+'\n')
+            pass
         self.analyzed = True
         if self.analysisfolder.settings.debug: sys.stdout.write(str(self.id)+'\t'+str(self.readPairCount)+'\t'+str(time.time()-starttime)+'\t'+str(loadPairsTime)+'\t'+str(createBamTime)+'\t'+str(parseBamTime)+'\n')
 

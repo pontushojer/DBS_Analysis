@@ -21,11 +21,19 @@ class Database(object):
         #
         # Create database and set
         #
-        try: self.conn = sqlite3.connect(self.path)
+        #sys.stderr.write('connect 1\n')
+        try:
+            #sys.stderr.write('connect 2\n')
+            self.conn = sqlite3.connect(self.path)
+            #sys.stderr.write('connect 3\n')
+
         except sqlite3.OperationalError:
+            #sys.stderr.write('connect ALTERNATICE\n')
             print 'ERROR: Trouble with the database, plase check your commandline.'
             sys.exit()
+        #sys.stderr.write('connect 4\n')
         self.c = self.conn.cursor()
+        #sys.stderr.write('connect 5\n')
     
     def commitAndClose(self,):
         #
@@ -247,7 +255,9 @@ class Database(object):
                 
                 self.commitAndClose()
                 inMem = True
-            except sqlite3.OperationalError: time.sleep(1)
+            except sqlite3.OperationalError as err:
+                sys.stderr.write('database pid='+str(os.getpid())+', read loading failed will retry in 1s.\n')
+                time.sleep(1)
  
     def getRuns(self, runTypes):
         
@@ -271,10 +281,15 @@ class Database(object):
         import sys
         import seqdata
         
+        #sys.stderr.write('dropp 1\n')
         self.getConnection()
+        #sys.stderr.write('dropp 2\n')
         self.c.execute('SELECT * FROM reads')
+        #sys.stderr.write('dropp 3\n')
         self.commitAndClose()
+        #sys.stderr.write('dropp 4\n')
         columns = self.c.description
+        #sys.stderr.write('dropp 5\n')
 
         #cursor.execute(query)
         #columns = cursor.description

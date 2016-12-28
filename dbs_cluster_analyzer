@@ -92,6 +92,8 @@ def reAnalyze(analysisfolder):
 def forResultingCluster(progress,cluster,updateChunk):
     """ post analysis processing for each cluster """
     
+    import sys
+    import os
     #
     # add the info to the cunk of clusters to be updated
     #
@@ -101,10 +103,13 @@ def forResultingCluster(progress,cluster,updateChunk):
     #
     # if the chunk is more than 1000 clusters update the database table
     #
+    # sys.stderr.write('forResultingCluster pid='+str(os.getpid())+', adding cluster '+str(cluster.id)+' to chunk and updating if needed (now at '+str(len(updateChunk))+').\n')
+    #sys.stderr.write(str(len(updateChunk))+' '+str(cluster.id)+'\n')
     if len(updateChunk) >= 1000:
         updateClusterChunk(cluster.analysisfolder,updateChunk)
         updateChunk = []
-    
+    # sys.stderr.write('forResultingCluster pid='+str(os.getpid())+', work done with cluster '+str(cluster.id)+' returning to processing loop.\n')
+
     # pass the chuck on to the next cluster
     return updateChunk
 
@@ -114,16 +119,19 @@ def cluster_generator(analysisfolder):
     from seqdata import BarcodeCluster
     from seqdata import BarcodeClusterer
     import sys
+    import os
     
     barcodeClusterer = BarcodeClusterer(analysisfolder)
-    
+    # sys.stderr.write('cluster_generator initiated in process '+str(os.getpid())+'.\n')
     cluster_ids = None
     for arg in sys.argv:
         if arg.split('=')[0] in ['clusterid','clusterId','clusterID']:
+            # sys.stderr.write('cluster_generator in '+str(os.getpid())+', loading predefinde cluster ids.\n')
             cluster_ids = [int(arg.split('=')[1])]
             cluster_ids = [ BarcodeCluster(int(cluster_id), analysisfolder) for cluster_id in cluster_ids ]
             for cluster in cluster_ids: cluster.loadClusterInfo()
     if not cluster_ids:
+        # sys.stderr.write('cluster_generator in '+str(os.getpid())+', loading all clusters.\n')
         #cluster_ids = barcodeClusterer.getBarcodeClusterIds(shuffle=True,byMixedClusterReadCount=True)
         analysisfolder.database.getConnection()
         cluster_ids = list(analysisfolder.database.getAllClustersLoaded(analysisfolder))
@@ -133,41 +141,56 @@ def cluster_generator(analysisfolder):
     # for cluster_id in cluster_ids:
     #     cluster = BarcodeCluster(int(cluster_id), analysisfolder)
     #     cluster.loadClusterInfo()
+    # sys.stderr.write('cluster_generator in '+str(os.getpid())+', clusters in memory, yielding to worker(s).\n')
     for cluster in cluster_ids:
         yield cluster
 
 def foreachCluster(cluster):
     """ functions to be run to analyze each of the clusters """
+    import sys
+    import os
     
     #load info from the database
     #cluster.loadClusterInfo()
+    #sys.stderr.write('foreachCluster pid='+str(os.getpid())+', now processing cluster '+str(cluster.id)+'.\n')
     
     # if cluster is not analyzed and meet the req. run the analysis
     if not cluster.analyzed and cluster.readPairCount >= int(cluster.analysisfolder.settings.minPairsPerCluster):
+        #sys.stderr.write('foreachCluster pid='+str(os.getpid())+', analyzing cluster '+str(cluster.id)+'.\n')
         cluster.analyze(createBamIndex=True)
+        #sys.stderr.write('foreachCluster pid='+str(os.getpid())+', target coverage cluster '+str(cluster.id)+'.\n')
         cluster.findTargetCoverage()
+        #sys.stderr.write('foreachCluster pid='+str(os.getpid())+', looking for hetrozygosity cluster '+str(cluster.id)+'.\n')
         if cluster.targetInfo != []: cluster.findHetroZygousBasesInTarget(include_hetro=True,include_homo_reference=False,include_homo_non_reference=True)
+        #sys.stderr.write('foreachCluster pid='+str(os.getpid())+', removing tmp '+str(cluster.id)+'.\n')
         cluster.removeAllFiles()
     
     # if already analyzed move on
     elif cluster.analyzed:
         cluster.analyzed = False;
+        #sys.stderr.write('foreachCluster pid='+str(os.getpid())+', already analyzed cluster '+str(cluster.id)+'.\n')
         if cluster.analysisfolder.settings.debug: print cluster.id,'already analyzed'
     
     # flag cluster if below readcount cutof
     elif cluster.readPairCount < int(cluster.analysisfolder.settings.minPairsPerCluster):
         cluster.analyzed = True;
         cluster.annotations['LowReadCount']=True;
+        #sys.stderr.write('foreachCluster pid='+str(os.getpid())+', low read cluster '+str(cluster.id)+'.\n')
         if cluster.analysisfolder.settings.debug: print cluster.id,' low read count'
     
+    #sys.stderr.write('foreachCluster pid='+str(os.getpid())+', returning cluster '+str(cluster.id)+'.\n')
     return cluster
 
 def updateClusterChunk(analysisfolder,chunk):
     """ function for updating the information for a chunk of clusters in the database """
+    import sys
+    import os
     
     # Note that the parts with lock does not function properly due to the use of sqllite3 which only allows one conection to the database at a time
-
+    # sys.stderr.write('updateClusterChunk pid='+str(os.getpid())+', aquiring database lock.\n')
     with analysisfolder.database.lock:
+        # sys.stderr.write('updateClusterChunk pid='+str(os.getpid())+', database lock aquiered.\n')
+
         analysisfolder.database.writeInProgress.value = True
         
         #
@@ -178,7 +201,8 @@ def updateClusterChunk(analysisfolder,chunk):
         
         #set initial flag
         updated = False
-        
+        # sys.stderr.write('updateClusterChunk pid='+str(os.getpid())+', entering update loop.\n')
+
         while not updated: # try to update until sucess
             try: 
                 
@@ -222,6 +246,7 @@ def updateClusterChunk(analysisfolder,chunk):
         
                 print 'updated ',len(chunk),'clusters', updated,'(',','.join([str(x[-1]) for x in chunk]),')'
                 time.sleep(1)
+                # sys.stderr.write('updateClusterChunk pid='+str(os.getpid())+', update done.\n')
                 
             except sqlite3.OperationalError as err:
                 import sys
@@ -229,5 +254,6 @@ def updateClusterChunk(analysisfolder,chunk):
                 sys.stderr.write(msg)
                 #analysisfolder.logfile.write(msg)
                 time.sleep(1) # will be executed if database is blocked
+    # sys.stderr.write('updateClusterChunk pid='+str(os.getpid())+', lock released returning.\n')
 
 if __name__ == "__main__": main()
