@@ -1108,7 +1108,7 @@ class ClusterAllelComparer():
 
         with open(self.analysisfolder.dataPath+'/allele_types_dict','w') as out_file: out_file.write(str(all_ind_types))
         
-        if False:
+        if True:
             sys.stderr.write('Making bam files for alleles ... \n')
             p = misc.Progress(total, unit='barcodes processed',printint=5, logfile=sys.stderr)
             bamfile =  pysam.Samfile(self.analysisfolder.dataPath+'/mappedInserts.bam')
