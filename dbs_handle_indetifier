@@ -375,7 +375,7 @@ class FastqReader(object):
         
         # set up the pool of processes to run the analysis for each read pair
         poolOfProcesses = multiprocessing.Pool(int(self.analysisfolder.settings.parallelProcesses),maxtasksperchild=100000000)
-        self.parallelResults = poolOfProcesses.imap_unordered(foreachRead,self.readPairGenerator(),chunksize=1000)
+        self.parallelResults = poolOfProcesses.imap_unordered(foreachRead,self.readPairGenerator(),chunksize=10000)
         
         #
         # Parse through files and add to database in chunks of "self.appendChunkSize" reads
