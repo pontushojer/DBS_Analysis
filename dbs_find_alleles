@@ -1043,7 +1043,7 @@ class ClusterAllelComparer():
         
         return 0
 
-    def report(self, ): # this function needs to be renamed and split up to make more sense!
+    def report(self, ):
         """ Report the machine resultes in the terminal for primary information""" # FIX THIS DESCRIPTION TO SOMETHING THAT SAYS SOMETHING
         
         #
@@ -1127,23 +1127,25 @@ class ClusterAllelComparer():
             newHeader = bamfile.header 
             newHeader['HD']['SO']='coordinate'
             outputBam = pysam.AlignmentFile(self.analysisfolder.dataPath+'/mappedInserts.marked.bam', "wb", header=newHeader)
-            output_allele_Bams = {allele_cluster['id']:pysam.AlignmentFile(self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.bam', "wb", header=newHeader) for allele_cluster in self.allele_clusters.values()}
-            
+            picards = {}
+
             for allele_cluster in self.allele_clusters.values():
+                output_allele_Bam = pysam.AlignmentFile(self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.bam', "wb", header=newHeader)
                 for barcode_cluster in allele_cluster['barcode_clusters_in_this_allele_cluster']+allele_cluster['supporting_barcode_clusters']:
                     
-                    readsDict = barcode_cluster.createBamFile(return_reads_dict=True,log=False)
+                    #readsDict = barcode_cluster.createBamFile(return_reads_dict=True,log=False)
+                    readsDict = barcodecluster2readsdict(barcode_cluster)
                     
                     for referenceName in [ reference['SN'] for reference in bamfile.header['SQ'] ]:
                         positions = readsDict[referenceName]
                         for position,readsList in sorted(positions.iteritems(), key=operator.itemgetter(0)):
                             for read in readsList:
                                 outputBam.write(read)
-                                output_allele_Bams[allele_cluster['id']].write(read)
+                                output_allele_Bam.write(read)
                     # lastly print the unmapped (missing refID) reads to the bamfile
                     for read in readsDict['unmapped']:
                         outputBam.write(read)
-                        output_allele_Bams[allele_cluster['id']].write(read)
+                        output_allele_Bam.write(read)
                     p.update()
                     
                     # reset the barcode to read pairs connections to free some memory
@@ -1151,13 +1153,8 @@ class ClusterAllelComparer():
                     barcode_cluster.readPairsById = {}
                     barcode_cluster.readPairsByHeader = {}
                     barcode_cluster.reads_loaded = False
-            
-            outputBam.close()
-            bamfile.close()
-            for file_object in output_allele_Bams.values(): file_object.close()
-            picards = {}
-            for allele_cluster in self.allele_clusters.values():
-                bamfilename = self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.bam'
+
+                output_allele_Bam.close()
                 picardLogfile = open(self.analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'picardSortSam.allele_'+str(allele_cluster['id'])+'.log.txt','w')
                 command2 = ['java',
                           '-Xmx5g',
@@ -1168,6 +1165,22 @@ class ClusterAllelComparer():
                           'OUTPUT='+self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.sorted.bam'
                           ]
                 picards[allele_cluster['id']] = {'p':subprocess.Popen(command2,stdout=subprocess.PIPE,stderr=picardLogfile),'command':command2,'logfile':picardLogfile}
+            
+            outputBam.close()
+            bamfile.close()
+
+            # for allele_cluster in self.allele_clusters.values():
+            #     bamfilename = self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.bam'
+            #     picardLogfile = open(self.analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'picardSortSam.allele_'+str(allele_cluster['id'])+'.log.txt','w')
+            #     command2 = ['java',
+            #               '-Xmx5g',
+            #               '-jar',self.analysisfolder.settings.picardPath+'/SortSam.jar',
+            #               'MAX_RECORDS_IN_RAM=2500000',
+            #               'SORT_ORDER=coordinate',
+            #               'INPUT='+ self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.bam',
+            #               'OUTPUT='+self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.sorted.bam'
+            #               ]
+            #     picards[allele_cluster['id']] = {'p':subprocess.Popen(command2,stdout=subprocess.PIPE,stderr=picardLogfile),'command':command2,'logfile':picardLogfile}
         
             allreadsPicardLogfile = open(self.analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'picardSortSam.mappedmarked.log.txt','w')
             allreads_command = ['java',
@@ -1376,5 +1389,9 @@ class ClusterAllelComparer():
                     print match,'matched by', targetlist
                     allele_cluster['all_targets_matches'][match] = targetlist
             
+
+def barcodecluster2readsdict(barcode_cluster):
+    readsDict = barcode_cluster.createBamFile(return_reads_dict=True,log=False)
+    return readsDict
 
 if __name__ == "__main__": main()
