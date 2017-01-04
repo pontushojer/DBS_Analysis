@@ -1133,7 +1133,7 @@ class BarcodeCluster(object,):
         #sys.stderr.write('now ion readpairs loader for cluster '+str(self.id)+'\n')
         
         # wait for acces to the database
-        #while self.analysisfolder.database.writeInProgress.value: time.sleep(0.1)
+        while self.analysisfolder.database.writeInProgress.value: time.sleep(0.1)
         
         #
         # reset if already loaded
