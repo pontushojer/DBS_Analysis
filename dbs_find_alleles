@@ -205,6 +205,7 @@ class ClusterAllelComparer():
         self.find_support_for_alleles()
         self.report()
         self.statistic_graph_report(self.variable_position_info, output_name=self.analysisfolder.dataPath+'/all_clusters_with_more_than_20_reads.pdf')
+        self.create_bam_files()
         self.match_alleles()
 
     def find_variable_positions(self, cluster_list=None, min_read_count=None):
@@ -1107,6 +1108,17 @@ class ClusterAllelComparer():
             all_ind_types[ind_id] = types_this_individual_less
         with open(self.analysisfolder.dataPath+'/allele_types_dict','w') as out_file: out_file.write(str(all_ind_types))
         
+    def create_bam_files(self,):
+
+        #
+        # import
+        #
+        import misc
+        import operator
+        import pysam
+        import subprocess
+        import time
+        import os
         
         if True: # create bam files for alleles, this should be a function of its own
             sys.stderr.write('Making bam files for alleles ... \n')
@@ -1177,6 +1189,7 @@ class ClusterAllelComparer():
                     print 'picard view Error code', picard['p'].returncode, picard['errdata'], open(picard['logfile'].name).read()
                 else:
                     pysam.index(self.analysisfolder.dataPath+'/'+'allele_'+str(id_number)+'.marked.sorted.bam',self.analysisfolder.dataPath+'/'+'allele_'+str(id_number)+'.marked.sorted.bai')
+                    os.remove(self.analysisfolder.dataPath+'/'+'allele_'+str(id_number)+'.marked.bam')
             if allreadsPicard.returncode != 0:
                 print '#\n# cmd: '+' '.join( allreads_command )+'\n#'
                 print 'picard view Error code', allreadsPicard.returncode, errdata, open(allreadsPicardLogfile.name).read()
