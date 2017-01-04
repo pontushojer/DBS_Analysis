@@ -109,6 +109,7 @@ class ClusterAllelComparer():
             if clusterTotalReadCount == 1: continue
             barcode_cluster = BarcodeCluster(clusterId,self.analysisfolder)
             barcode_cluster.setValues(clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,targetInfo,individual_ID_dictionary,htmlTable,analyzed, hetrozygous_positions, high_quality_cluster)
+            barcode_cluster.in_allele = None # set the new "in_alle" flag to default value none, will be used later to keep track of barcode_cluster/allele/individual connections
 
             if barcode_cluster.readPairCount > self.read_count_cut_off:
                 self.barcode_clusters_by_id[barcode_cluster.id] = barcode_cluster
@@ -204,6 +205,7 @@ class ClusterAllelComparer():
         self.find_support_for_alleles()
         self.report()
         self.statistic_graph_report(self.variable_position_info, output_name=self.analysisfolder.dataPath+'/all_clusters_with_more_than_20_reads.pdf')
+        self.create_bam_files()
         self.match_alleles()
 
     def find_variable_positions(self, cluster_list=None, min_read_count=None):
@@ -877,6 +879,18 @@ class ClusterAllelComparer():
         sys.stdout.write( str(len(current_trash['No_similarity_to_allele_cluster']))+     ' out of these had '+'to little similarity to any allele cluster ('+                    str(misc.percentage(sum([barcode_cluster.readPairCount for barcode_cluster in current_trash['No_similarity_to_allele_cluster'].values()]),self.analysisfolder.results.totalReadCount))+'% of the total read count)\n')
         sys.stdout.write( str(len(current_trash['non clonal']['hetro_bases']))+           ' out of these were '+'classified as non clonal due to presense of hetrozygous bases ('+str(misc.percentage(sum([barcode_cluster.readPairCount for barcode_cluster in current_trash['non clonal']['hetro_bases'].values()]),self.analysisfolder.results.totalReadCount))+'% of the total read count)\n')
         sys.stdout.write( str(len(current_trash['Low_read_count']))+                      ' out of these were '+'Low_read_count barcode clusters ('+                              str(misc.percentage(sum([barcode_cluster.readPairCount for barcode_cluster in current_trash['Low_read_count'].values()]),self.analysisfolder.results.totalReadCount))+'% of the total read count)\n')
+
+        # add the "in_allele" flag
+        self.total_number_of_barcode_clusters_in_allele_clusters = 0 # and get the total amount of barcode_clusters in allele_clusters
+        for allele_cluster in self.allele_clusters.values():
+            for barcode_cluster in allele_cluster['barcode_clusters_in_this_allele_cluster']+allele_cluster['supporting_barcode_clusters']:
+                barcode_cluster.in_allele = 'allele '+str(allele_cluster['id'])
+                self.total_number_of_barcode_clusters_in_allele_clusters += 1
+        # also set the "in_allele" flag for trashed barcode_clusters
+        for barcode_cluster in self.cluster_trash_bin['matching_more_than_1_allele_cluster'].values(): barcode_cluster.in_allele = 'trashed (match many)'
+        for barcode_cluster in self.cluster_trash_bin['No_similarity_to_allele_cluster'].values():barcode_cluster.in_allele = 'trashed (match none)'
+        for barcode_cluster in self.cluster_trash_bin['non clonal']['hetro_bases'].values():barcode_cluster.in_allele = 'trashed (hetro bases)'
+        for barcode_cluster in self.cluster_trash_bin['Low_read_count'].values():barcode_cluster.in_allele = 'trashed (low read count)'
  
         sys.stdout.write( '\n')
         sys.stdout.write( '# NOW:\n')
@@ -1029,7 +1043,7 @@ class ClusterAllelComparer():
         
         return 0
 
-    def report(self, ): # this function needs to be renamed and split up to make more sense!
+    def report(self, ):
         """ Report the machine resultes in the terminal for primary information""" # FIX THIS DESCRIPTION TO SOMETHING THAT SAYS SOMETHING
         
         #
@@ -1047,42 +1061,29 @@ class ClusterAllelComparer():
         
         sys.stdout.write( '\n')
         sys.stdout.write( '######### allele clusters:\n\n')
-        
         for allele_cluster in self.allele_clusters.values():
             self.print_allele_cluster_details(allele_cluster)
 
+        # print header and legend for the individual id centered summary table
         sys.stdout.write( '######### by individual:\n\n')
-
-        ind_ids = {}
-        for barcode_cluster in self.barcode_clusters_by_id.values():
-            barcode_cluster.in_allele = None
-            try:             ind_ids[ barcode_cluster.individual_id ].append(barcode_cluster)
-            except KeyError: ind_ids[ barcode_cluster.individual_id ]    =  [barcode_cluster]
-
-        total = 0
-        for allele_cluster in self.allele_clusters.values():
-            for barcode_cluster in allele_cluster['barcode_clusters_in_this_allele_cluster']+allele_cluster['supporting_barcode_clusters']:
-                barcode_cluster.in_allele = 'allele '+str(allele_cluster['id'])
-                total += 1
-        
-        for barcode_cluster in self.cluster_trash_bin['matching_more_than_1_allele_cluster'].values(): barcode_cluster.in_allele = 'trashed (match many)'
-        for barcode_cluster in self.cluster_trash_bin['No_similarity_to_allele_cluster'].values():barcode_cluster.in_allele = 'trashed (match none)'
-        for barcode_cluster in self.cluster_trash_bin['non clonal']['hetro_bases'].values():barcode_cluster.in_allele = 'trashed (hetro bases)'
-        for barcode_cluster in self.cluster_trash_bin['Low_read_count'].values():barcode_cluster.in_allele = 'trashed (low read count)'
-
         sys.stdout.write( 'LEGEND:\n')
         sys.stdout.write( 'trc = total read count\n')
         sys.stdout.write( 'bc = barcode cluster\n')
         sys.stdout.write( 'bci = barcodes cluster in individual\n')
         sys.stdout.write( 'rci = read counts in individual\n')
         sys.stdout.write( '\n')
+
+        # sort thebarcode clusters by individual id
+        ind_ids = {}
+        for barcode_cluster in self.barcode_clusters_by_id.values():
+            try:             ind_ids[ barcode_cluster.individual_id ].append(barcode_cluster)
+            except KeyError: ind_ids[ barcode_cluster.individual_id ]    =  [barcode_cluster]
         
         all_ind_types = {}
+        # go through the individual ids found, start with highest read count
         for ind_id, barcode_clusters, tmp_junk in sorted([(ind_id, barcode_clusters,sum([barcode_cluster.readPairCount for barcode_cluster in barcode_clusters])) for ind_id, barcode_clusters in ind_ids.iteritems()], key=operator.itemgetter(2), reverse=True):
-        #for ind_id, barcode_clusters in ind_ids.iteritems():
-            sys.stdout.write( 'Individual id "'+str(ind_id)+'" has '+str(len(barcode_clusters))+' barcode clusters ('+str(misc.percentage( sum([barcode_cluster.readPairCount for barcode_cluster in barcode_clusters]) ,self.analysisfolder.results.totalReadCount))+'% ot total read count):\n')
             
-            
+            # summarize the "in_allele" flags found for this individual
             types_this_individual = {}
             types_this_individual_less = {}
             for barcode_cluster in barcode_clusters:
@@ -1091,55 +1092,69 @@ class ClusterAllelComparer():
                 try:             types_this_individual_less[barcode_cluster.in_allele].append(barcode_cluster.readPairCount)
                 except KeyError: types_this_individual_less[barcode_cluster.in_allele]    =  [barcode_cluster.readPairCount]
             
+            # print the info to stdout
+            sys.stdout.write( 'Individual id "'+str(ind_id)+'" has '+str(len(barcode_clusters))+' barcode clusters ('+str(misc.percentage( sum([barcode_cluster.readPairCount for barcode_cluster in barcode_clusters]) ,self.analysisfolder.results.totalReadCount))+'% ot total read count):\n')
             sys.stdout.write( '\t#bc:\t%trc:\t%bci:\t%rci:\twhat:\n')
             for type_of_cluster, list_of_clusters_with_type, tmp_junk in sorted([(type_of_cluster, list_of_clusters_with_type,sum([barcode_cluster.readPairCount for barcode_cluster in list_of_clusters_with_type])) for type_of_cluster, list_of_clusters_with_type in types_this_individual.iteritems()], key=operator.itemgetter(2), reverse=True):
-            #for type_of_cluster, list_of_clusters_with_type in types_this_individual.iteritems():
-                #print '   ',len(list_of_clusters_with_type),'barcode clusters with',type_of_cluster,'(',str(misc.percentage( sum([barcode_cluster.readPairCount for barcode_cluster in list_of_clusters_with_type]) ,self.analysisfolder.results.totalReadCount)),'% of total RC,'+str(misc.percentage( len(list_of_clusters_with_type),len(barcode_clusters)))+'% of bc in ind,',str(misc.percentage( sum([barcode_cluster.readPairCount for barcode_cluster in list_of_clusters_with_type]) ,sum([barcode_cluster.readPairCount for barcode_cluster in barcode_clusters]))),'% of rc in ind)'
                 sys.stdout.write( '\t'+str(len(list_of_clusters_with_type))+'\t')
                 sys.stdout.write( str(misc.percentage( sum([barcode_cluster.readPairCount for barcode_cluster in list_of_clusters_with_type]),self.analysisfolder.results.totalReadCount))+'\t')
                 sys.stdout.write( str(misc.percentage( len(list_of_clusters_with_type),len(barcode_clusters)))+'\t')
                 sys.stdout.write( str(misc.percentage( sum([barcode_cluster.readPairCount for barcode_cluster in list_of_clusters_with_type]) ,sum([barcode_cluster.readPairCount for barcode_cluster in barcode_clusters])))+'\t')
                 sys.stdout.write(str( type_of_cluster)+'\n')
                 self.statistic_graph_report(self.find_variable_positions(cluster_list=list_of_clusters_with_type),output_name=str(self.analysisfolder.dataPath+'/individual_id_'+str(ind_id)+'.'+str(type_of_cluster)+'.'+str(len(list_of_clusters_with_type))+'_clusters.'+str(misc.percentage( sum([barcode_cluster.readPairCount for barcode_cluster in list_of_clusters_with_type]),self.analysisfolder.results.totalReadCount))+'_poftotrc.pdf').replace(' ','_'))
-
             sys.stdout.write( '\n')
+            
+            # add the reduced information set to be able to print a small data summary to disk for use in other programs such as web interface
             all_ind_types[ind_id] = types_this_individual_less
-        
-
         with open(self.analysisfolder.dataPath+'/allele_types_dict','w') as out_file: out_file.write(str(all_ind_types))
         
-        if True:
+    def create_bam_files(self,):
+
+        #
+        # import
+        #
+        import misc
+        import operator
+        import pysam
+        import subprocess
+        import time
+        import os
+        
+        if True: # create bam files for alleles, this should be a function of its own
             sys.stderr.write('Making bam files for alleles ... \n')
-            p = misc.Progress(total, unit='barcodes processed',printint=5, logfile=sys.stderr)
+            p = misc.Progress(self.total_number_of_barcode_clusters_in_allele_clusters, unit='barcodes processed',printint=1, logfile=sys.stderr)
             bamfile =  pysam.Samfile(self.analysisfolder.dataPath+'/mappedInserts.bam')
             newHeader = bamfile.header 
             newHeader['HD']['SO']='coordinate'
             outputBam = pysam.AlignmentFile(self.analysisfolder.dataPath+'/mappedInserts.marked.bam', "wb", header=newHeader)
-            output_allele_Bams = {allele_cluster['id']:pysam.AlignmentFile(self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.bam', "wb", header=newHeader) for allele_cluster in self.allele_clusters.values()}
-            
+            picards = {}
+
             for allele_cluster in self.allele_clusters.values():
+                output_allele_Bam = pysam.AlignmentFile(self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.bam', "wb", header=newHeader)
                 for barcode_cluster in allele_cluster['barcode_clusters_in_this_allele_cluster']+allele_cluster['supporting_barcode_clusters']:
                     
-                    readsDict = barcode_cluster.createBamFile(return_reads_dict=True,log=False)
+                    #readsDict = barcode_cluster.createBamFile(return_reads_dict=True,log=False)
+                    readsDict = barcodecluster2readsdict(barcode_cluster)
                     
                     for referenceName in [ reference['SN'] for reference in bamfile.header['SQ'] ]:
                         positions = readsDict[referenceName]
                         for position,readsList in sorted(positions.iteritems(), key=operator.itemgetter(0)):
                             for read in readsList:
                                 outputBam.write(read)
-                                output_allele_Bams[allele_cluster['id']].write(read)
+                                output_allele_Bam.write(read)
                     # lastly print the unmapped (missing refID) reads to the bamfile
                     for read in readsDict['unmapped']:
                         outputBam.write(read)
-                        output_allele_Bams[allele_cluster['id']].write(read)
+                        output_allele_Bam.write(read)
                     p.update()
-            
-            outputBam.close()
-            bamfile.close()
-            for file_object in output_allele_Bams.values(): file_object.close()
-            picards = {}
-            for allele_cluster in self.allele_clusters.values():
-                bamfilename = self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.bam'
+                    
+                    # reset the barcode to read pairs connections to free some memory
+                    barcode_cluster.readPairs = []
+                    barcode_cluster.readPairsById = {}
+                    barcode_cluster.readPairsByHeader = {}
+                    barcode_cluster.reads_loaded = False
+
+                output_allele_Bam.close()
                 picardLogfile = open(self.analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'picardSortSam.allele_'+str(allele_cluster['id'])+'.log.txt','w')
                 command2 = ['java',
                           '-Xmx5g',
@@ -1150,6 +1165,22 @@ class ClusterAllelComparer():
                           'OUTPUT='+self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.sorted.bam'
                           ]
                 picards[allele_cluster['id']] = {'p':subprocess.Popen(command2,stdout=subprocess.PIPE,stderr=picardLogfile),'command':command2,'logfile':picardLogfile}
+            
+            outputBam.close()
+            bamfile.close()
+
+            # for allele_cluster in self.allele_clusters.values():
+            #     bamfilename = self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.bam'
+            #     picardLogfile = open(self.analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'picardSortSam.allele_'+str(allele_cluster['id'])+'.log.txt','w')
+            #     command2 = ['java',
+            #               '-Xmx5g',
+            #               '-jar',self.analysisfolder.settings.picardPath+'/SortSam.jar',
+            #               'MAX_RECORDS_IN_RAM=2500000',
+            #               'SORT_ORDER=coordinate',
+            #               'INPUT='+ self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.bam',
+            #               'OUTPUT='+self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.sorted.bam'
+            #               ]
+            #     picards[allele_cluster['id']] = {'p':subprocess.Popen(command2,stdout=subprocess.PIPE,stderr=picardLogfile),'command':command2,'logfile':picardLogfile}
         
             allreadsPicardLogfile = open(self.analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'picardSortSam.mappedmarked.log.txt','w')
             allreads_command = ['java',
@@ -1171,6 +1202,7 @@ class ClusterAllelComparer():
                     print 'picard view Error code', picard['p'].returncode, picard['errdata'], open(picard['logfile'].name).read()
                 else:
                     pysam.index(self.analysisfolder.dataPath+'/'+'allele_'+str(id_number)+'.marked.sorted.bam',self.analysisfolder.dataPath+'/'+'allele_'+str(id_number)+'.marked.sorted.bai')
+                    os.remove(self.analysisfolder.dataPath+'/'+'allele_'+str(id_number)+'.marked.bam')
             if allreadsPicard.returncode != 0:
                 print '#\n# cmd: '+' '.join( allreads_command )+'\n#'
                 print 'picard view Error code', allreadsPicard.returncode, errdata, open(allreadsPicardLogfile.name).read()
@@ -1348,11 +1380,18 @@ class ClusterAllelComparer():
         #count which hla types that match the best ie all regions match! (perfectly!)    
         for allele_cluster in self.allele_clusters.values():
             print 'allele_'+str(allele_cluster['id'])
-            for match, exonlist in allele_cluster['id_matches'].iteritems():
+            allele_cluster['all_targets_matches'] = {}
+            for match, targetlist in allele_cluster['id_matches'].iteritems():
                 all_in = True
                 for entry_name in [entry['entry_name'] for entry in allele_cluster['targetInfo']]:
-                    if entry_name not in exonlist: all_in = False
+                    if entry_name not in targetlist: all_in = False
                 if all_in:
-                    print match,'matched by', exonlist
+                    print match,'matched by', targetlist
+                    allele_cluster['all_targets_matches'][match] = targetlist
+            
+
+def barcodecluster2readsdict(barcode_cluster):
+    readsDict = barcode_cluster.createBamFile(return_reads_dict=True,log=False)
+    return readsDict
 
 if __name__ == "__main__": main()
