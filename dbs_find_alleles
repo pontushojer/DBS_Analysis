@@ -1063,22 +1063,23 @@ class ClusterAllelComparer():
         for allele_cluster in self.allele_clusters.values():
             self.print_allele_cluster_details(allele_cluster)
 
+        # print header and legend for the individual id centered summary table
         sys.stdout.write( '######### by individual:\n\n')
-        ind_ids = {}
-        for barcode_cluster in self.barcode_clusters_by_id.values():
-            try:             ind_ids[ barcode_cluster.individual_id ].append(barcode_cluster)
-            except KeyError: ind_ids[ barcode_cluster.individual_id ]    =  [barcode_cluster]
-
-        # print legend for the summary table
         sys.stdout.write( 'LEGEND:\n')
         sys.stdout.write( 'trc = total read count\n')
         sys.stdout.write( 'bc = barcode cluster\n')
         sys.stdout.write( 'bci = barcodes cluster in individual\n')
         sys.stdout.write( 'rci = read counts in individual\n')
         sys.stdout.write( '\n')
+
+        # sort thebarcode clusters by individual id
+        ind_ids = {}
+        for barcode_cluster in self.barcode_clusters_by_id.values():
+            try:             ind_ids[ barcode_cluster.individual_id ].append(barcode_cluster)
+            except KeyError: ind_ids[ barcode_cluster.individual_id ]    =  [barcode_cluster]
         
         all_ind_types = {}
-        # go through the individuals found, start with highest read count
+        # go through the individual ids found, start with highest read count
         for ind_id, barcode_clusters, tmp_junk in sorted([(ind_id, barcode_clusters,sum([barcode_cluster.readPairCount for barcode_cluster in barcode_clusters])) for ind_id, barcode_clusters in ind_ids.iteritems()], key=operator.itemgetter(2), reverse=True):
             
             # summarize the "in_allele" flags found for this individual
