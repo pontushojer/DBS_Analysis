@@ -1,0 +1,288 @@
+#! /usr/bin/env python
+
+#
+# Imports
+#
+from flask import Flask
+from flask import render_template
+from flask import json
+from flask import Response
+import metadata
+import sys
+import time
+import os
+from flask import request
+
+#
+# initiate the flask application
+#
+static_folder_path = '/'.join(os.path.realpath(__file__).split('/')[:-1])+'/web_interface_static/'
+app = Flask(
+    __name__,
+    static_folder   = static_folder_path,
+    static_url_path = '/static'
+    )
+
+#
+# check input and get commandline args
+#
+try:
+    analysisfolder = metadata.AnalysisFolder(sys.argv[1])
+    analysisfolder.readindexTsv()
+except IndexError: sys.stderr.write('please supply a commandline on format:\n'+os.path.basename(__file__)+' <analysis-output-folder>\n');sys.exit()
+app.analysisfolder = analysisfolder
+app.analysisfolder.settings.mapqCutOff = int(app.analysisfolder.settings.mapqCutOff)
+
+#
+# check analysis folder
+#
+if not analysisfolder.checkIntegrity() == 'PASS': print analysisfolder.checkIntegrity()+'\nERROR: Now exiting'
+
+#
+# create a logfile
+#
+logfile = open(analysisfolder.logpath+'/dbs_hla_server.log.txt','a',1)
+logfile.write(time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'\n')
+logfile.write('cmd: '+' '.join(sys.argv)+'\n')
+analysisfolder.logfile = logfile
+
+@app.route("/")
+def start():
+    """ initial page does nothing but redirecting the user to the index.html route """
+    
+    page =  """<!DOCTYPE HTML>
+        <html lang="en-US">
+        <head>
+            <meta charset="UTF-8">
+            <meta http-equiv="refresh" content="1;url=index.html">
+            <script type="text/javascript">
+              window.location.href = "index.html"
+            </script>
+            <title>Page Redirection</title>
+        </head>
+        <body>
+            If you are not redirected automatically, follow <a href='index.html'>this link</a>
+        </body>
+      </html>"""
+    
+    return page
+
+@app.route("/index.html")
+def index():
+    """ function that builds the index page of the webinterface """
+    return render_template('index.html')
+
+@app.route("/read_pairs")
+def read_pairs():
+    from misc import thousandString
+    from sequences import HLA_DBS as DBS
+    from sequences import HLA_H1 as H1
+    from sequences import HLA_H2 as H2
+    from sequences import HLA_H3 as H3
+    # from seqdata import revcomp
+    # from misc import HtmlColors
+    # layout_html = HtmlColors.BlueIntense+H1+HtmlColors.Color_Off+'-'+HtmlColors.CyanIntense+DBS+HtmlColors.Color_Off+'-'+HtmlColors.PurpleIntense+revcomp(H2)+HtmlColors.Color_Off+HtmlColors.BlackIntense+'- DNA Sequence Of Targeted Amplicon -'+HtmlColors.Color_Off+HtmlColors.YellowIntense+revcomp(H3)+HtmlColors.Color_Off
+    return render_template('read_pairs.html',total_read_pairs=thousandString(app.analysisfolder.results.totalReadCount),h1=H1,h2=H2,h3=H3,dbs=DBS,bt2=str(app.analysisfolder.results.bt2AlignmentRate),bt2q20=str(app.analysisfolder.results.alignmentRateQ20))
+
+@app.route("/barcode_clusters")
+def barcode_clusters():
+    return render_template('index.html')
+
+@app.route("/alleles")
+def alleles():
+    return render_template('index.html')
+
+@app.route("/individuals")
+def individuals():
+    return render_template('index.html')
+
+@app.route("/dbs_match.json")
+def make_dbs_match_json():
+    
+    from misc import percentage
+    
+    if app.analysisfolder.results.readsWithDbsPatternMatch:
+        tmp = eval(app.analysisfolder.results.readsWithDbsPatternMatch)
+        if False not in tmp: tmp[False] = 0
+        total = app.analysisfolder.results.totalReadCount
+    else: tmp = {False:0, True:0, None:0}
+
+    json  ='     {"name": "Total read pairs", "children": ['
+    json +='        {"name": "'+str(percentage(tmp[None],total))+'%'+' Barcode not found", "size": '+str(tmp[None])+'},'
+    json +='        {"name": "'+str(percentage(tmp[True]+tmp[False],total))+'%'+' Barcode found", "children": ['
+    json +='            {"name": "'+str(percentage(tmp[True],total))+'%'+' Barcode match pattern", "size": '+str(tmp[True])+'},'
+    json +='            {"name": "'+str(percentage(tmp[False],total))+'%'+' Barcode don\'t match pattern", "size": '+str(tmp[False])+'}'
+    json +='        ] }'
+    json +='     ] }'
+    return json
+
+@app.route("/handles.json")
+def makehandlejson():
+    """ gets the handle content information and dums it to json """
+    
+    import operator
+    from misc import percentage
+    from misc import thousandString
+    constructOK = 0
+    missing_h3 = 0
+    missing_h2 = 0
+    missing_h3_h2 = 0
+    missing_h1_h2_h3 = 0
+    missing_h1_h2 = 0
+    missing_h1 = 0
+    missing_h1_h3 = 0
+    if app.analysisfolder.results.constructTypes:
+        tmpDict = eval(app.analysisfolder.results.constructTypes)
+        for what, count in sorted(eval(app.analysisfolder.results.constructTypes).iteritems(), key=operator.itemgetter(1))[::-1]:
+            what = what.split(' ')
+#            print ' '+str(what)+' => '+str(percentage(count,app.analysisfolder.results.totalReadCount))+'%, ('+thousandString(count)+')'
+            if what == ['constructOK']: constructOK = count
+            elif 'h1' in what:
+                if 'h2' in what:
+                    if 'h3' in what: missing_h1_h2_h3 = count
+                    else: missing_h1_h2 = count
+                elif 'h3' in what: missing_h1_h3 = count
+                else: missing_h1 = count
+            elif 'h2' in what:
+                if 'h3' in what: missing_h3_h2 = count
+                else: missing_h2 = count
+            elif 'h3' in what: missing_h3 = count
+            else: print 'unexpected', what
+        total = constructOK +missing_h3 +missing_h2 +missing_h3_h2 +missing_h1_h2_h3 +missing_h1_h2 +missing_h1 +missing_h1_h3
+    else: total = 0
+
+    json  ='     {"name": "Total read pairs", "children": ['
+    json +='        {"name": "'+str(percentage(constructOK+missing_h3+missing_h2+missing_h3_h2,total))+'%'+' Has h1", "children": ['
+    json +='            {"name": "'+str(percentage(constructOK+missing_h3,total))+'%'+' Has h1 and h2", "children": ['
+    json +='                {"name": "'+str(percentage(constructOK,total))+'%'+' Has h1, h2 and h3", "size": '+str(constructOK)+'},'
+    json +='                {"name": "'+str(percentage(missing_h3,total))+'%'+' Has h1, h2 and miss h3", "size": '+str(missing_h3)+'}   '
+    json +='            ] },'
+    json +='            {"name": "'+str(percentage(missing_h2+missing_h3_h2,total))+'%'+' Has h1 and miss h2", "children": ['
+    json +='                {"name": "'+str(percentage(missing_h2,total))+'%'+' Has h1, miss h2 and has h3", "size": '+str(missing_h2)+'},  '
+    json +='                {"name": "'+str(percentage(missing_h3_h2,total))+'%'+' Has h1, miss h2 and miss h3", "size": '+str(missing_h3_h2)+'}'    
+    json +='            ] }'
+    json +='        ] },'
+    json +='        {"name": "'+str(percentage(missing_h1_h2_h3+missing_h1_h2+missing_h1+missing_h1_h3,total))+'%'+' Miss h1", "children": ['
+    json +='            {"name": "'+str(percentage(missing_h1_h2_h3+missing_h1_h2,total))+'%'+' Miss h1 and h2", "children": ['
+    json +='                {"name": "'+str(percentage(missing_h1_h2_h3,total))+'%'+' Miss h1, h2 and h3", "size": '+str(missing_h1_h2_h3)+'},         '
+    json +='                {"name": "'+str(percentage(missing_h1_h2,total))+'%'+' Miss h1, miss h2 and has h3", "size": '+str(missing_h1_h2)+'}   '
+    json +='            ] },'
+    json +='            {"name": "'+str(percentage(missing_h1+missing_h1_h3,total))+'%'+' Miss h1 and has h2", "children": ['
+    json +='                {"name": "'+str(percentage(missing_h1,total))+'%'+' Miss h1, has h2 and h3", "size": '+str(missing_h1)+'},      '
+    json +='                {"name": "'+str(percentage(missing_h1_h3,total))+'%'+' Miss h1, has h2 and miss h3", "size": '+str(missing_h1_h3)+'}     '
+    json +='            ] }'
+    json +='        ] }'
+    json +='     ] }'
+
+    return json
+
+def get_bootstrap(static_folder_path):
+    
+    import sys
+    
+    sys.stderr.write('Looking for bootstrap files ... \n')
+    if not os.path.isfile(static_folder_path+'js/bootstrap.js'):
+        sys.stderr.write('bootstrap not found downloading ... \n')
+        import urllib2
+        url = 'https://github.com/twbs/bootstrap/releases/download/v3.3.7/bootstrap-3.3.7-dist.zip'
+        hdr = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11',
+           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+           'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.3',
+           'Accept-Encoding': 'none',
+           'Accept-Language': 'en-US,en;q=0.8',
+           'Connection': 'keep-alive'}
+        req = urllib2.Request(url, headers=hdr)
+        response = urllib2.urlopen(req)
+        data = response.read()
+        zip_file_name = static_folder_path+'bootstrap-3.3.7-dist.zip'
+        with open(zip_file_name,'w') as outfile: outfile.write(data)
+        sys.stderr.write('download complete, unzipping ... \n')
+        import zipfile
+        zip_ref = zipfile.ZipFile(zip_file_name, 'r')
+        zip_ref.extractall(static_folder_path)
+        zip_ref.close()
+        sys.stderr.write('extraction complete, installing ... \n')
+        for folder in ['css','fonts','js']:
+            if not os.path.isdir(static_folder_path+folder): os.mkdir(static_folder_path+folder)
+        for tmp in [
+                'css/bootstrap-theme.css',
+                'css/bootstrap-theme.css.map',
+                'css/bootstrap-theme.min.css',
+                'css/bootstrap-theme.min.css.map',
+                'css/bootstrap.css',
+                'css/bootstrap.css.map',
+                'css/bootstrap.min.css',
+                'css/bootstrap.min.css.map',
+                'fonts/glyphicons-halflings-regular.eot',
+                'fonts/glyphicons-halflings-regular.svg',
+                'fonts/glyphicons-halflings-regular.ttf',
+                'fonts/glyphicons-halflings-regular.woff',
+                'fonts/glyphicons-halflings-regular.woff2',
+                'js/bootstrap.js',
+                'js/bootstrap.min.js',
+                'js/npm.js']:
+            src = static_folder_path+'bootstrap-3.3.7-dist/'+tmp
+            dst = static_folder_path+tmp
+            os.rename(src,dst)
+        sys.stderr.write('installation complete, removing temporary files ... \n')
+        for folder in ['css','fonts','js']: os.rmdir(static_folder_path+'bootstrap-3.3.7-dist/'+folder)
+        os.rmdir(static_folder_path+'bootstrap-3.3.7-dist/')
+        os.remove(zip_file_name)
+        sys.stderr.write('bootstrap now present in '+static_folder_path+'.\n')
+    else:
+        sys.stderr.write('bootstrap files found in '+static_folder_path+'.\n')
+
+    sys.stderr.write('Looking for jquery files ... \n')
+    if not os.path.isfile(static_folder_path+'js/jquery-3.1.1.js'):
+        sys.stderr.write('jquery not found downloading ... \n')
+        import urllib2
+        url = 'https://code.jquery.com/jquery-3.1.1.js'
+        hdr = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11',
+           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+           'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.3',
+           'Accept-Encoding': 'none',
+           'Accept-Language': 'en-US,en;q=0.8',
+           'Connection': 'keep-alive'}
+        req = urllib2.Request(url, headers=hdr)
+        response = urllib2.urlopen(req)
+        data = response.read()
+        zip_file_name = static_folder_path+'js/jquery-3.1.1.js'
+        with open(zip_file_name,'w') as outfile: outfile.write(data)
+        sys.stderr.write('download complete.\n')
+    else:
+        sys.stderr.write('jquery files found in '+static_folder_path+'js/jquery-3.1.1.js .\n')
+        
+    sys.stderr.write('Looking for d3 files ... \n')
+    if not os.path.isfile(static_folder_path+'js/d3.v3.js'):
+        sys.stderr.write('d3 not found downloading ... \n')
+        import urllib2
+        url = 'http://d3js.org/d3.v3.js'
+        # https://github.com/d3/d3/releases/download/v4.4.0/d3.zip
+        hdr = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11',
+           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+           'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.3',
+           'Accept-Encoding': 'none',
+           'Accept-Language': 'en-US,en;q=0.8',
+           'Connection': 'keep-alive'}
+        req = urllib2.Request(url, headers=hdr)
+        response = urllib2.urlopen(req)
+        data = response.read()
+        zip_file_name = static_folder_path+'js/d3.v3.js'
+        with open(zip_file_name,'w') as outfile: outfile.write(data)
+        sys.stderr.write('download complete.\n')
+    else:
+        sys.stderr.write('d3 files found in '+static_folder_path+'js/d3.v3.js .\n')
+
+
+if __name__ == "__main__":
+
+    import random
+    import platform
+    import subprocess
+
+    get_bootstrap(static_folder_path)
+
+    if app.analysisfolder.settings.port == 'random':
+        app.run(host='0.0.0.0',port=random.randint(1000,9999),debug=True)
+    else:
+        app.run(host='0.0.0.0',port=int(app.analysisfolder.settings.port),debug=True)

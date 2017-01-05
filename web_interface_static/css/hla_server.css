@@ -1,0 +1,14 @@
+body {
+  padding-top: 75px;
+}
+/*@media (max-width: 979px) {
+  body {
+    padding-top: 0px;
+  }
+}*/
+
+path {
+    stroke: #000;
+    /*stroke-width: 2;*/
+    fill: none;
+}
