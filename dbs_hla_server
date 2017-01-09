@@ -75,6 +75,7 @@ def index():
 @app.route("/read_pairs")
 def read_pairs():
     from misc import thousandString
+    from seqdata import revcomp
     from sequences import HLA_DBS as DBS
     from sequences import HLA_H1 as H1
     from sequences import HLA_H2 as H2
@@ -82,11 +83,11 @@ def read_pairs():
     # from seqdata import revcomp
     # from misc import HtmlColors
     # layout_html = HtmlColors.BlueIntense+H1+HtmlColors.Color_Off+'-'+HtmlColors.CyanIntense+DBS+HtmlColors.Color_Off+'-'+HtmlColors.PurpleIntense+revcomp(H2)+HtmlColors.Color_Off+HtmlColors.BlackIntense+'- DNA Sequence Of Targeted Amplicon -'+HtmlColors.Color_Off+HtmlColors.YellowIntense+revcomp(H3)+HtmlColors.Color_Off
-    return render_template('read_pairs.html',total_read_pairs=thousandString(app.analysisfolder.results.totalReadCount),h1=H1,h2=H2,h3=H3,dbs=DBS,bt2=str(app.analysisfolder.results.bt2AlignmentRate),bt2q20=str(app.analysisfolder.results.alignmentRateQ20))
+    return render_template('read_pairs.html',total_read_pairs=thousandString(app.analysisfolder.results.totalReadCount),h1=H1,h2=revcomp(H2),h3=H3,dbs=DBS,bt2=str(app.analysisfolder.results.bt2AlignmentRate),bt2q20=str(app.analysisfolder.results.alignmentRateQ20))
 
 @app.route("/barcode_clusters")
 def barcode_clusters():
-    return render_template('index.html')
+    return render_template('barcode_clusters.html')
 
 @app.route("/alleles")
 def alleles():
