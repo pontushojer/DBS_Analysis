@@ -1,14 +1,15 @@
-//var opts = {
-//  lines: 9, // The number of lines to draw
-//  length: 9, // The length of each line
-//  width: 5, // The line thickness
-//  radius: 14, // The radius of the inner circle
-//  color: '#EEEEEE', // #rgb or #rrggbb or array of colors
-//  speed: 1.9, // Rounds per second
-//  trail: 40, // Afterglow percentage
-//  className: 'spinner', // The CSS class to assign to the spinner
-//};
-//var spinner = new Spinner(opts).spin(document.getElementById('#dbs_match_sunburst'));
+var opts = {
+  lines: 9, // The number of lines to draw
+  length: 9, // The length of each line
+  width: 5, // The line thickness
+  radius: 14, // The radius of the inner circle
+  color: '#999999', // #rgb or #rrggbb or array of colors
+  speed: 1.9, // Rounds per second
+  trail: 40, // Afterglow percentage
+  className: 'spinner', // The CSS class to assign to the spinner
+};
+var target = document.getElementById('dbs_match_sunburst')
+var spinner = new Spinner(opts).spin(target);
 
 var width = 250,
     height = 250,
@@ -23,7 +24,7 @@ var y2 = d3.scale.sqrt()
     .range([0, radius]);
 
 var color3 = {
-  'undefined':"#999966",
+  'undefined':"#EEEEEE",
   'Barcode found':"#879942",
   'Barcode match pattern':"#669900",
   'Barcode not found':"#EB4714",
@@ -49,7 +50,7 @@ var svg2 = d3.select("#dbs_match_sunburst").append("svg")
 
 d3.json("dbs_match.json", function(error, root) {
   
-  //spinner.stop();
+  spinner.stop();
   
   if (error) throw error;
 

@@ -97,9 +97,67 @@ def alleles():
 def individuals():
     return render_template('index.html')
 
+@app.route("/mapping_stats.json")
+def make_mapping_stats_json():
+    #pattern="""(?P<totalReads>\d+) reads; of these:\n\s+(?P<pairedReads>\d+) \(\d+.\d+\%\) were paired; of these:\n\s+(?P<notPropMapedPair>\d+) \(\d+.\d+\%\) aligned concordantly 0 times\n\s+(?P<properPairs>\d+) \(\d+.\d+\%\) aligned concordantly exactly 1 time\n\s+(?P<properPairsMultiMap>\d+) \(\d+.\d+\%\) aligned concordantly >1 times\n\s+----\n\s+(?P<notPropMapedPair2>\d+) pairs aligned concordantly 0 times; of these:\n\s+(?P<discordantPairs>\d+) \(\d+.\d+\%\) aligned discordantly 1 time\n\s+----\n\s+(?P<unMappedPair>\d+) pairs aligned 0 times concordantly or discordantly; of these:\n\s+(?P<possibleSingletons>\d+) mates make up the pairs; of these:\n\s+(?P<unMappedReads>\d+) \(\d+.\d+\%\) aligned 0 times\n\s+(?P<singleSingleMap>\d+) \(\d+.\d+\%\) aligned exactly 1 time\n\s+(?P<singleMultiMap>\d+) \(\d+.\d+\%\) aligned >1 times\n(?P<overallAlignmentRate>\d+.\d+)\% overall alignment rate"""
+    pattern="""(?P<totalReads>\d+) reads; of these:
+\s+(?P<pairedReads>\d+) \(\d+.\d+\%\) were paired; of these:
+\s+(?P<notPropMapedPair>\d+) \(\d+.\d+\%\) aligned concordantly 0 times
+\s+(?P<properPairs>\d+) \(\d+.\d+\%\) aligned concordantly exactly 1 time
+\s+(?P<properPairsMultiMap>\d+) \(\d+.\d+\%\) aligned concordantly >1 times
+\s+----
+\s+(?P<notPropMapedPair2>\d+) pairs aligned concordantly 0 times; of these:
+\s+(?P<discordantPairs>\d+) \(\d+.\d+\%\) aligned discordantly 1 time
+\s+----
+\s+(?P<unMappedPair>\d+) pairs aligned 0 times concordantly or discordantly; of these:
+\s+(?P<possibleSingletons>\d+) mates make up the pairs; of these:
+\s+(?P<unMappedReads>\d+) \(\d+.\d+\%\) aligned 0 times
+\s+(?P<singleSingleMap>\d+) \(\d+.\d+\%\) aligned exactly 1 time
+\s+(?P<singleMultiMap>\d+) \(\d+.\d+\%\) aligned >1 times
+(?P<overallAlignmentRate>\d+.\d+)\% overall alignment rate"""
+    import re
+    from misc import percentage
+    with open(app.analysisfolder.dataPath+'/bt2.stat.txt') as infile:
+        data = infile.read()
+        p = re.compile(pattern)
+        m = p.search(data)
+        m.groupdict()['overallAlignmentRate'] #m.groupdict()['']
+        
+        total = int(app.analysisfolder.results.totalReadCount)*2
+        not_in_bam = int(app.analysisfolder.results.totalReadCount)*2 - int(m.groupdict()['pairedReads'])*2
+        
+        # mapped
+        proper_pair = int(m.groupdict()['properPairs'])*2
+        proper_pair_mulit = int(m.groupdict()['properPairsMultiMap'])*2
+        not_pp_aligned = int(m.groupdict()['discordantPairs'])*2
+        mapped_SE_reads = int(m.groupdict()['singleSingleMap'])
+        multim_SE_reads = int(m.groupdict()['singleMultiMap'])
+        mapped_total = sum([proper_pair,proper_pair_mulit,not_pp_aligned,mapped_SE_reads,multim_SE_reads])
+        
+        # not mapped
+        unmapped_SE_reads = int(m.groupdict()['unMappedReads'])
+        
+        in_bam = sum([proper_pair,proper_pair_mulit,not_pp_aligned,mapped_SE_reads,multim_SE_reads,unmapped_SE_reads])
+    
+    json  ='     {"name": "Total SE reads ", "children": ['
+    json +='        {"name": "'+str(percentage(not_in_bam,total))+'%'+' not in bam", "size": '+str(not_in_bam)+'},'
+    json +='        {"name": "'+str(percentage(in_bam,total))+'%'+' in bam", "children": ['
+    json +='            {"name": "'+str(percentage(unmapped_SE_reads,total))+'%'+' unMapped", "size": '+str(unmapped_SE_reads)+'},'
+#    json +='            {"name": "'+str(percentage(mapped_total,total))+'%'+' mapped concordantly", "size": '+str(mapped_total)+'}'
+    json +='            {"name": "'+str(percentage(mapped_total,total))+'%'+' Mapped", "children": ['
+    json +='                {"name": "'+str(percentage(proper_pair,total))+'%'+' Mapped as Proper Pair", "size": '+str(proper_pair)+'},'
+    json +='                {"name": "'+str(percentage(proper_pair_mulit,total))+'%'+' multi mapped pair", "size": '+str(proper_pair_mulit)+'},'
+    json +='                {"name": "'+str(percentage(not_pp_aligned,total))+'%'+' mapped discordantly", "size": '+str(not_pp_aligned)+'},'
+    json +='                {"name": "'+str(percentage(mapped_SE_reads,total))+'%'+' mapped single end", "size": '+str(mapped_SE_reads)+'},'
+    json +='                {"name": "'+str(percentage(multim_SE_reads,total))+'%'+' multi mapped single end", "size": '+str(multim_SE_reads)+'}'
+    json +='            ] }'
+    json +='        ] }'
+    json +='     ] }'
+    return json
+
 @app.route("/dbs_match.json")
 def make_dbs_match_json():
-    
+    import time
     from misc import percentage
     
     if app.analysisfolder.results.readsWithDbsPatternMatch:
@@ -180,18 +238,18 @@ def makehandlejson():
 def get_bootstrap(static_folder_path):
     
     import sys
+    import urllib2
+    hdr = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11',
+       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+       'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.3',
+       'Accept-Encoding': 'none',
+       'Accept-Language': 'en-US,en;q=0.8',
+       'Connection': 'keep-alive'}
     
     sys.stderr.write('Looking for bootstrap files ... \n')
     if not os.path.isfile(static_folder_path+'js/bootstrap.js'):
         sys.stderr.write('bootstrap not found downloading ... \n')
-        import urllib2
         url = 'https://github.com/twbs/bootstrap/releases/download/v3.3.7/bootstrap-3.3.7-dist.zip'
-        hdr = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11',
-           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-           'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.3',
-           'Accept-Encoding': 'none',
-           'Accept-Language': 'en-US,en;q=0.8',
-           'Connection': 'keep-alive'}
         req = urllib2.Request(url, headers=hdr)
         response = urllib2.urlopen(req)
         data = response.read()
@@ -236,14 +294,7 @@ def get_bootstrap(static_folder_path):
     sys.stderr.write('Looking for jquery files ... \n')
     if not os.path.isfile(static_folder_path+'js/jquery-3.1.1.js'):
         sys.stderr.write('jquery not found downloading ... \n')
-        import urllib2
         url = 'https://code.jquery.com/jquery-3.1.1.js'
-        hdr = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11',
-           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-           'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.3',
-           'Accept-Encoding': 'none',
-           'Accept-Language': 'en-US,en;q=0.8',
-           'Connection': 'keep-alive'}
         req = urllib2.Request(url, headers=hdr)
         response = urllib2.urlopen(req)
         data = response.read()
@@ -256,15 +307,8 @@ def get_bootstrap(static_folder_path):
     sys.stderr.write('Looking for d3 files ... \n')
     if not os.path.isfile(static_folder_path+'js/d3.v3.js'):
         sys.stderr.write('d3 not found downloading ... \n')
-        import urllib2
         url = 'http://d3js.org/d3.v3.js'
         # https://github.com/d3/d3/releases/download/v4.4.0/d3.zip
-        hdr = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11',
-           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-           'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.3',
-           'Accept-Encoding': 'none',
-           'Accept-Language': 'en-US,en;q=0.8',
-           'Connection': 'keep-alive'}
         req = urllib2.Request(url, headers=hdr)
         response = urllib2.urlopen(req)
         data = response.read()
@@ -273,6 +317,20 @@ def get_bootstrap(static_folder_path):
         sys.stderr.write('download complete.\n')
     else:
         sys.stderr.write('d3 files found in '+static_folder_path+'js/d3.v3.js .\n')
+
+    sys.stderr.write('Looking for spin.js files ... \n')
+    if not os.path.isfile(static_folder_path+'js/spin.js'):
+        sys.stderr.write('spin.js not found downloading ... \n')
+        url = 'http://spin.js.org/spin.js'
+        # https://github.com/d3/d3/releases/download/v4.4.0/d3.zip
+        req = urllib2.Request(url, headers=hdr)
+        response = urllib2.urlopen(req)
+        data = response.read()
+        zip_file_name = static_folder_path+'js/spin.js'
+        with open(zip_file_name,'w') as outfile: outfile.write(data)
+        sys.stderr.write('download complete.\n')
+    else:
+        sys.stderr.write('spin.js files found in '+static_folder_path+'js/spin.js .\n')
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@
   
   <div class="jumbotron">
     <h1>Read Pairs</h1>
-    <p>There were {{total_read_pairs}} read pairs loaded to the analysis from fastq files. Below you can find some statistics about these pairs. </p>
+    <p>There were <strong>{{total_read_pairs}}</strong> read pairs loaded to the analysis from fastq files. Below you can find some statistics about these pairs.</p>
   </div>
   
   <div class="row">
@@ -15,13 +15,13 @@
     </div>
     <div class="col-md-4" align="center">
       <h2>Mapping stats:</h2>
-      <div style='height: 15px'></div>
-      <h3>Mapped:</h3>
-      <h1>{{bt2}}%</h1>
-      <h3>with mapq >= 20:</h3>
-      <h1>{{bt2q20}}%</h1>
-      <div style='height: 15px'></div>
-      <div id="mapping_stats_sunburst"></div><strong><span id="mapping_info">NOTE: not percentege of total read pairs.</span></strong>
+      <!--<div style='height: 15px'></div>-->
+      <!--<h3>Mapped:</h3>-->
+      <!--<h1>{{bt2}}%</h1>-->
+      <!--<h3>with mapq >= 20:</h3>-->
+      <!--<h1>{{bt2q20}}%</h1>-->
+      <!--<div style='height: 15px'></div>-->
+      <div id="mapping_stats_sunburst"></div><strong><span id="mapping_info">NOTE: not % of read pairs but single end reads.</span></strong>
     </div>
   </div>
 
@@ -38,7 +38,7 @@
       <tr>
         <td>
           <nobr>
-          <span class="label label-success">H1:{{h1}})</span>
+          <span class="label label-success">H1:{{h1}}</span>
           <span class="label label-warning">Barcode:{{dbs}}</span>
           <span class="label label-success">H2:{{h2}}</span>
           <span class="label label-primary" style="padding-right: 100px; padding-left: 100px">Target Amplicon Sequence</span>
@@ -55,8 +55,9 @@
   </div>
 
   <script src="/static/js/d3.v3.js"></script>
-  <!--<script src="http://spin.js.org/spin.js"></script>-->
+  <script src="/static/js/spin.js"></script>
   <script src="/static/js/handlesSunburst.js"></script>
   <script src="/static/js/dbs_match_sunburst.js"></script>
+  <script src="/static/js/mapping_stats_sunburst.js"></script>
 
 {% endblock %}
