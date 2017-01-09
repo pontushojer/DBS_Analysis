@@ -224,6 +224,7 @@ class Database(object):
         import seqdata
         import sqlite3
         import time
+        import os
           
         inMem = False
         while not inMem:
@@ -257,6 +258,7 @@ class Database(object):
                 inMem = True
             except sqlite3.OperationalError as err:
                 sys.stderr.write('database pid='+str(os.getpid())+', read loading failed will retry in 1s.\n')
+                print err
                 time.sleep(1)
  
     def getRuns(self, runTypes):
@@ -436,7 +438,9 @@ class Results(object,):
             'readsWithDbsPatternMatch':None,
             'constructTypes':None,
             'bt2AlignmentRate':None,
-            'alignmentRateQ20':None
+            'alignmentRateQ20':None,
+            'alignmentCountQ20':None,
+            'alignmentCount':None
         }
         self.explenations = {
             'totalReadCount':'The number of reads totally included in the analysis.',
@@ -450,7 +454,9 @@ class Results(object,):
             'readsWithDbsPatternMatch':'dictrionary holding the counts for the dbs matching statistics of the reapopulation',
             'constructTypes':'dictionary holding infromation of all the different types of constructs found in the read populations',
             'bt2AlignmentRate':'the observed rate of aligned reads',
-            'alignmentRateQ20':'rate of SE reads with mappingQ >= 20'
+            'alignmentRateQ20':'rate of SE reads with mappingQ >= 20',
+            'alignmentCountQ20':'number of reads with mappingQ >= 20',
+            'alignmentCount':'number read pairs in bamfile both mapped and unmapped'
         }
         self.isDefault = {}
         self.setTime = {}
@@ -467,6 +473,8 @@ class Results(object,):
         self.constructTypes = None
         self.bt2AlignmentRate = None
         self.alignmentRateQ20 = None
+        self.alignmentCountQ20 = None
+        self.alignmentCount = None
   
         self.setDefaults()
 
