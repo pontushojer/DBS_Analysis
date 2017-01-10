@@ -189,6 +189,7 @@ d3.json("barcode_clusters.json", function(error, data) {
     d3.select("#p_low").text( 2);
     d3.select("#p_high").text(d3.max(x_data_1));
     d3.select("#p_of_reads").text(100);
+    d3.select("#p_num_clusters").text(data.length);
     d3.select("#p_of_clusters").text(100);
     d3.select("#p_average").text(Math.round(total_read_count/total_cluster_count));
     d3.select("#p_median").text(data[parseInt(Math.round(data.length/2))].total);
@@ -288,7 +289,7 @@ d3.json("barcode_clusters.json", function(error, data) {
             .attr("height", 300)
             .attr("fill", "#EAEAEA");
 
-    function tabulate(data, columns) {
+    function tabulate(data, columns, header_text) {
       d3.select('#graph_container_3').html('')
       var table = d3.select('#graph_container_3').append('table')
       table.attr("class","table")
@@ -300,7 +301,7 @@ d3.json("barcode_clusters.json", function(error, data) {
         .selectAll('th')
         .data(columns).enter()
         .append('th')
-          .text(function (column) { return column; });
+          .text(function (column) { return header_text[column]; });
 
       // create a row for each object in the data
       var rows = tbody.selectAll('tr')
@@ -340,6 +341,7 @@ d3.json("barcode_clusters.json", function(error, data) {
         d3.select("#p_high").text(d3.max(x_data_1));
       }
       d3.select("#p_of_reads").text(   Math.round(tmp_percentage*10000)/100);
+      d3.select("#p_num_clusters").text(filtered_data.length);
       d3.select("#p_of_clusters").text(Math.round(tmp_percentage2*10000)/100);
       d3.select("#p_average").text(Math.round(filtered_data.map( function (i) { return i.total; } ).reduce(add, 0)/filtered_data.length));
       if ( filtered_data.length > 2  ) {
@@ -350,7 +352,7 @@ d3.json("barcode_clusters.json", function(error, data) {
       redraw(brush.extent())
 
 	// render the table(s)
-	tabulate(filtered_data, ['id', 'total','inbam','mapped'])
+	tabulate(filtered_data, ['id', 'total','inbam','mapped'], {'id':'Cluster Id', 'total':'Read Pairs in cluster','inbam':'SE Read in bam','mapped':'SE Reads Mapped'})
       
     };
  
