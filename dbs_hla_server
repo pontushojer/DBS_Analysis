@@ -33,6 +33,7 @@ except IndexError: sys.stderr.write('please supply a commandline on format:\n'+o
 app.analysisfolder = analysisfolder
 app.analysisfolder.settings.mapqCutOff = int(app.analysisfolder.settings.mapqCutOff)
 
+
 #
 # check analysis folder
 #
@@ -83,11 +84,11 @@ def read_pairs():
     # from seqdata import revcomp
     # from misc import HtmlColors
     # layout_html = HtmlColors.BlueIntense+H1+HtmlColors.Color_Off+'-'+HtmlColors.CyanIntense+DBS+HtmlColors.Color_Off+'-'+HtmlColors.PurpleIntense+revcomp(H2)+HtmlColors.Color_Off+HtmlColors.BlackIntense+'- DNA Sequence Of Targeted Amplicon -'+HtmlColors.Color_Off+HtmlColors.YellowIntense+revcomp(H3)+HtmlColors.Color_Off
-    return render_template('read_pairs.html',total_read_pairs=thousandString(app.analysisfolder.results.totalReadCount),h1=H1,h2=revcomp(H2),h3=H3,dbs=DBS,bt2=str(app.analysisfolder.results.bt2AlignmentRate),bt2q20=str(app.analysisfolder.results.alignmentRateQ20))
+    return render_template('read_pairs.html',total_read_pairs=thousandString(app.analysisfolder.results.totalReadCount),h1=H1,h2=revcomp(H2),h3=revcomp(H3),dbs=DBS,bt2=str(app.analysisfolder.results.bt2AlignmentRate),bt2q20=str(app.analysisfolder.results.alignmentRateQ20))
 
 @app.route("/barcode_clusters")
 def barcode_clusters():
-    return render_template('barcode_clusters.html')
+    return render_template('barcode_clusters.html', non_singleton_clusters=app.analysisfolder.results.barcodeClusterCount-app.analysisfolder.results.singeltonBarcodeClusters)
 
 @app.route("/alleles")
 def alleles():
@@ -96,6 +97,11 @@ def alleles():
 @app.route("/individuals")
 def individuals():
     return render_template('index.html')
+
+@app.route("/barcode_clusters.json")
+def barcode_clusters_json():
+    import json
+    with open(app.analysisfolder.dataPath+'/barcode_cluster.json') as infile: return infile.read()
 
 @app.route("/mapping_stats.json")
 def make_mapping_stats_json():
@@ -332,6 +338,32 @@ def get_bootstrap(static_folder_path):
     else:
         sys.stderr.write('spin.js files found in '+static_folder_path+'js/spin.js .\n')
 
+def make_cluster_stats_json(analysisfolder):
+    
+    import operator
+    import json
+    
+    analysisfolder.database.getConnection()
+    data = analysisfolder.database.c.execute('SELECT clusterId, clusterTotalReadCount, readPairsInBamFile, mappedSEReads, targetInfo FROM barcodeClusters WHERE clusterTotalReadCount > 1').fetchall()
+    tmp_list = [{'id':item[0],'total':item[1],'inbam':item[2]*2,'mapped':item[3],'ti':[{'name':entry['entry_name'],'ard':entry['averageReadDepth']} for entry in eval(item[4])] } for item in data ]
+    # analysisfolder.results.totalReadCount
+    # analysisfolder.results.singeltonBarcodeClusters
+    # analysisfolder.results.barcodeClusterCount
+
+    barcode_cluster_jsons = []
+    sort_dict = {}    
+    for item in tmp_list:
+        try:
+            sort_dict[ item['total'] ].append( item )
+        except KeyError:
+            sort_dict[ item['total'] ] = [ item ]
+    for count, sort_list in sorted(sort_dict.iteritems(), key=operator.itemgetter(0), reverse=True):
+        for item in sort_list: barcode_cluster_jsons.append( item )
+
+    #print '\n'.join( [ str(item['total'])+':'+str(item) for item in barcode_cluster_jsons ] )
+    #print json.dumps(barcode_cluster_jsons)
+
+    with open(analysisfolder.dataPath+'/barcode_cluster.json','w') as outfile: json.dump(barcode_cluster_jsons, outfile)
 
 if __name__ == "__main__":
 
@@ -340,6 +372,7 @@ if __name__ == "__main__":
     import subprocess
 
     get_bootstrap(static_folder_path)
+    make_cluster_stats_json(app.analysisfolder)
 
     if app.analysisfolder.settings.port == 'random':
         app.run(host='0.0.0.0',port=random.randint(1000,9999),debug=True)

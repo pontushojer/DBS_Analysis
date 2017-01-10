@@ -12,3 +12,22 @@ path {
     /*stroke-width: 2;*/
     fill: none;
 }
+
+.extent {
+    fill: grey;
+    fill-opacity: 0.3;
+    shape-rendering: crispEdges;
+    stroke: grey;
+  }
+  
+  #cluster_line_1 {
+      stroke: red;
+      stroke-width: 1;
+      fill: none;
+  }
+
+  #cluster_line_2 {
+      stroke: blue;
+      stroke-width: 1;
+      fill: none;
+  }
