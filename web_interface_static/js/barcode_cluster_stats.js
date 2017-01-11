@@ -135,6 +135,22 @@ d3.json("barcode_clusters.json", function(error, data) {
         //.on('mouseover', tip.show)
         //.on('mouseout', tip.hide);
 
+    hist_canvas.append("text")
+        .attr("class", "h4")
+        .attr("text-anchor", "middle")
+        .attr("x", width/2)
+        .attr("y", height + 40)
+        .text("Read Pairs per Barcode Cluster");
+    
+    hist_canvas.append("text")
+        .attr("class", "h4")
+        .attr("text-anchor", "middle")
+        .attr("x", -height/2)
+        .attr("y", -move_left+15)
+        .attr("dy", ".75em")
+        .attr("transform", "rotate(-90)")
+        .text("Number of Barcode Clusters");
+        
     function redraw(extent) {
       
         if ( brush.extent()[0] !=  brush.extent()[1]  ) {
