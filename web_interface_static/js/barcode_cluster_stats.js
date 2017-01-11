@@ -74,7 +74,7 @@ d3.json("barcode_clusters.json", function(error, data) {
     var hist_xAxis = d3.svg.axis()
         .scale(hist_x)
         .orient("bottom")
-        .ticks(10, ",.0s")
+        .ticks(10, ",.1s")
         .tickSize(6, 0);
 
     var hist_yAxis = d3.svg.axis()
@@ -136,46 +136,55 @@ d3.json("barcode_clusters.json", function(error, data) {
         //.on('mouseout', tip.hide);
 
     function redraw(extent) {
+      
+        if ( brush.extent()[0] !=  brush.extent()[1]  ) {
+          extent = [parseInt(Math.round(extent[0]-1)),parseInt(Math.round(extent[1]+1))]
+        }else{
+          extent = [0,d3.max(data.map( function (i) { return i.total; } ))]
+        }
 
-        filtered_data = brushFilter(data,extent)
+        filtered_data = brushFilter(data,extent);
 
         // filter all the integers based on the defined cutof
-        var hist_map_filt = filtered_data.map( function (i) { return i.total; } )
+        var hist_map = filtered_data.map( function (i) { return i.total; } );
 
-        //var bin_width_filt = (d3.max(hist_map_filt)-d3.min(hist_map_filt)) / 100
-        //var bins_filt = []
-        //for (var i = d3.min(hist_map_filt); i < d3.max(hist_map_filt)+1; i=i+bin_width_filt) {
-        //    bins_filt.push(i);
-        //}
-        
+        var bin_width = (extent[1]-extent[0])/100;
+        var bins = [];
+        for (var i = extent[0]; i < extent[1]+1; i=i+bin_width) {
+            bins.push(i);
+        }
+        console.log('bins '+bins)
+
         // get the histogram data
-        var histogram_filt = d3.layout.histogram()
+        var histogram = d3.layout.histogram()
             .bins(bins)
-            (hist_map_filt)
-            
+            (hist_map);
+        console.log(histogram);
+        console.log('max y '+d3.max(histogram.map( function (i) { return i.length; } ) ));
         // update the axes max values
-        hist_y.domain([0, d3.max(histogram_filt.map( function (i) { return i.length; } ) )])
-        hist_x.domain([0, d3.max(hist_map)]) // shouldn't change currently only have a lower cutoff
-        //hist_x.domain([d3.min(hist_map_filt), d3.max(hist_map_filt)]) // shouldn't change currently only have a lower cutoff
 
-        //hist_group.transition()
-        //    .duration(1000)
-        //    .call(hist_xAxis);
+        hist_y.domain([0, d3.max(histogram.map( function (i) { return i.length; } ) )]);
+        hist_x.domain([extent[0], extent[1]]);
+
+        // repaint the bars with the new histogram data
+        hist_canvas.selectAll("rect")
+                .data(histogram)
+            .transition()
+                .duration(1000)
+                .attr("x", function (d) { return hist_x(d.x)} )
+                .attr("y", function (d) { return hist_y(d.y) } )
+                .attr("width", function (d) { return hist_x(d.dx)-hist_x(0) } )
+                .attr("height", function (d) { return hist_y(0) - hist_y(d.y) } );
+
+        hist_group.transition()
+            .duration(1000)
+            .call(hist_xAxis);
 
         // make the y axis transition
         hist_group2.transition()
             .duration(1000)
             .call(hist_yAxis);
-        
-        // repaint the bars with the new histogram data
-        hist_canvas.selectAll("rect")
-                .data(histogram_filt)
-            .transition()
-                .duration(1000)
-                .attr("x", function (d) { return hist_x(d.x) } )
-                .attr("y", function (d) { return hist_y(d.y) } )
-                .attr("width", function (d) { return hist_x(d.dx) } )
-                .attr("height", function (d) { return hist_y(0) - hist_y(d.y) } )
+
     }
 //TO HERE
   
@@ -324,13 +333,12 @@ d3.json("barcode_clusters.json", function(error, data) {
     }
             
     function brushed() {
-    //redraw(age_chart_info.brush.extent(),nSexCutoff)
-    //update()
-      console.log(brush.extent().map( function (i) { return parseInt(i)}))
+
+      //console.log(brush.extent().map( function (i) { return parseInt(i)}))
       filtered_data = brushFilter(data,brush.extent())
       tmp_percentage = filtered_data.map( function (i) { return i.total; } ).reduce(add, 0) / total_read_count
       tmp_percentage2 = filtered_data.length / total_cluster_count
-      console.log( tmp_percentage  )
+      //console.log( tmp_percentage  )
       //d3.select("#info_lable_1").html(Math.round(tmp_percentage*10000)/100 + "% of reads<br>"+Math.round(tmp_percentage2*10000)/100 + "% of clusters");
       //d3.select("#info_lable_2").text(Math.round(tmp_percentage2*10000)/100 + "%");
       if ( brush.extent()[0] !=  brush.extent()[1]  ) {
