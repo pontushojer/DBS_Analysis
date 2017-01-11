@@ -153,14 +153,11 @@ d3.json("barcode_clusters.json", function(error, data) {
         for (var i = extent[0]; i < extent[1]+1; i=i+bin_width) {
             bins.push(i);
         }
-        console.log('bins '+bins)
 
         // get the histogram data
         var histogram = d3.layout.histogram()
             .bins(bins)
             (hist_map);
-        console.log(histogram);
-        console.log('max y '+d3.max(histogram.map( function (i) { return i.length; } ) ));
         // update the axes max values
 
         hist_y.domain([0, d3.max(histogram.map( function (i) { return i.length; } ) )]);
@@ -202,10 +199,6 @@ d3.json("barcode_clusters.json", function(error, data) {
     d3.select("#p_of_clusters").text(100);
     d3.select("#p_average").text(Math.round(total_read_count/total_cluster_count));
     d3.select("#p_median").text(data[parseInt(Math.round(data.length/2))].total);
-
-    //console.log( y_data_1 )
-    //console.log( y_data_2 )
-    //console.log( x_data_1 )
 
     // create the scales for the x and y axes
     var lines_y = d3.scale.linear()
@@ -334,11 +327,9 @@ d3.json("barcode_clusters.json", function(error, data) {
             
     function brushed() {
 
-      //console.log(brush.extent().map( function (i) { return parseInt(i)}))
       filtered_data = brushFilter(data,brush.extent())
       tmp_percentage = filtered_data.map( function (i) { return i.total; } ).reduce(add, 0) / total_read_count
       tmp_percentage2 = filtered_data.length / total_cluster_count
-      //console.log( tmp_percentage  )
       //d3.select("#info_lable_1").html(Math.round(tmp_percentage*10000)/100 + "% of reads<br>"+Math.round(tmp_percentage2*10000)/100 + "% of clusters");
       //d3.select("#info_lable_2").text(Math.round(tmp_percentage2*10000)/100 + "%");
       if ( brush.extent()[0] !=  brush.extent()[1]  ) {
