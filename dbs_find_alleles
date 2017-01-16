@@ -1132,8 +1132,12 @@ class ClusterAllelComparer():
 
             for allele_cluster in self.allele_clusters.values():
                 output_allele_Bam = pysam.AlignmentFile(self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.bam', "wb", header=newHeader)
+                sys.stderr.write('Now creating '+'allele_'+str(allele_cluster['id'])+'.marked.bam'+' ...\n')
                 for barcode_cluster in allele_cluster['barcode_clusters_in_this_allele_cluster']+allele_cluster['supporting_barcode_clusters']:
                     
+                    # if barcode_cluster.readPairCount > 1000:
+                    #     p.update()
+                    #     continue
                     #readsDict = barcode_cluster.createBamFile(return_reads_dict=True,log=False)
                     readsDict = barcodecluster2readsdict(barcode_cluster)
                     
@@ -1156,16 +1160,23 @@ class ClusterAllelComparer():
                     barcode_cluster.reads_loaded = False
 
                 output_allele_Bam.close()
+                sys.stderr.write('Starting sorting of '+'allele_'+str(allele_cluster['id'])+'.marked.bam'+' ...\n')
                 picardLogfile = open(self.analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'picardSortSam.allele_'+str(allele_cluster['id'])+'.log.txt','w')
                 command2 = ['java',
-                          '-Xmx5g',
+                          '-Xmx10g',
                           '-jar',self.analysisfolder.settings.picardPath+'/SortSam.jar',
-                          'MAX_RECORDS_IN_RAM=2500000',
+                          'MAX_RECORDS_IN_RAM=500000',
                           'SORT_ORDER=coordinate',
                           'INPUT='+ self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.bam',
                           'OUTPUT='+self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.sorted.bam'
                           ]
                 picards[allele_cluster['id']] = {'p':subprocess.Popen(command2,stdout=subprocess.PIPE,stderr=picardLogfile),'command':command2,'logfile':picardLogfile}
+                
+                for id_number,picard in picards.iteritems():
+                    if picard['p'].poll() != None:
+                        if 'errdata' not in picard:
+                            sys.stderr.write('Sorting process completed for '+'allele_'+str(id_number)+'.\n')
+                            picard['errdata'] = picard['p'].communicate()
             
             outputBam.close()
             bamfile.close()
@@ -1183,6 +1194,9 @@ class ClusterAllelComparer():
             #               ]
             #     picards[allele_cluster['id']] = {'p':subprocess.Popen(command2,stdout=subprocess.PIPE,stderr=picardLogfile),'command':command2,'logfile':picardLogfile}
         
+            for id_number,picard in picards.iteritems():
+                if 'errdata' not in picard: picard['errdata'] = picard['p'].communicate()
+            
             allreadsPicardLogfile = open(self.analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'picardSortSam.mappedmarked.log.txt','w')
             allreads_command = ['java',
                       '-Xmx5g',
@@ -1193,17 +1207,19 @@ class ClusterAllelComparer():
                       'OUTPUT='+self.analysisfolder.dataPath+'/mappedInserts.marked.sorted.bam'
                       ]
             allreadsPicard = subprocess.Popen(allreads_command,stdout=subprocess.PIPE,stderr=allreadsPicardLogfile)
-            
-            for id_number,picard in picards.iteritems(): picard['errdata'] = picard['p'].communicate()
-            errdata = allreadsPicard.communicate()
-    
+
+            sys.stderr.write('Checking bam file sorting processes and inndexing if sucessfull.\n')
             for id_number,picard in picards.iteritems():
                 if picard['p'].returncode != 0:
                     print '#\n# cmd: '+' '.join( picard['command'] )+'\n#'
                     print 'picard view Error code', picard['p'].returncode, picard['errdata'], open(picard['logfile'].name).read()
                 else:
+                    sys.stderr.write('Sorting sucessfull for '+'allele_'+str(id_number)+', now indexing bam ...\n')
                     pysam.index(self.analysisfolder.dataPath+'/'+'allele_'+str(id_number)+'.marked.sorted.bam',self.analysisfolder.dataPath+'/'+'allele_'+str(id_number)+'.marked.sorted.bai')
                     os.remove(self.analysisfolder.dataPath+'/'+'allele_'+str(id_number)+'.marked.bam')
+                    sys.stderr.write('Bamfile for '+'allele_'+str(id_number)+' now sorted and indexed.\n')
+
+            errdata = allreadsPicard.communicate()
             if allreadsPicard.returncode != 0:
                 print '#\n# cmd: '+' '.join( allreads_command )+'\n#'
                 print 'picard view Error code', allreadsPicard.returncode, errdata, open(allreadsPicardLogfile.name).read()
@@ -1390,7 +1406,6 @@ class ClusterAllelComparer():
                     print match,'matched by', targetlist
                     allele_cluster['all_targets_matches'][match] = targetlist
             
-
 def barcodecluster2readsdict(barcode_cluster):
     readsDict = barcode_cluster.createBamFile(return_reads_dict=True,log=False)
     return readsDict
