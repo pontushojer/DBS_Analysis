@@ -818,7 +818,7 @@ class ClusterAllelComparer():
             'No_similarity_to_allele_cluster':{},
             'matching_more_than_1_allele_cluster':{},
         }
-        #p = misc.Progress(len(clusters_not_hetro_with_missing),unit='clusters')
+        p = misc.Progress(len(clusters_with_hetro_with_missing+clusters_not_hetro_with_missing),unit='clusters')
         cluster_junk = []
         
         sys.stdout.write( "comparing barcode with missing data clusters to allele_clusters\n" )
@@ -833,6 +833,7 @@ class ClusterAllelComparer():
                 cluster_junk.append(barcode_cluster)
                 bad_counter += 1
                 if self.analysisfolder.settings.debug:print 'the cluster is non clonal overlaps hetro bases'
+                p.update()
                 continue
             elif not overlap:
                 good_counter += 1
@@ -844,7 +845,7 @@ class ClusterAllelComparer():
                 cluster_junk.append(barcode_cluster)
                 self.cluster_trash_bin['Low_read_count'][barcode_cluster.id] = barcode_cluster
                 current_trash['Low_read_count'][barcode_cluster.id] = barcode_cluster
-                #p.update()
+                p.update()
                 continue
             self.build_allele_representation_dict_for_barcode_cluster(barcode_cluster,reanalyze=False)
             matchin_count = 0
@@ -872,7 +873,7 @@ class ClusterAllelComparer():
                 cluster_junk.append(barcode_cluster)
                 self.cluster_trash_bin['matching_more_than_1_allele_cluster'][barcode_cluster.id] = barcode_cluster
                 current_trash['matching_more_than_1_allele_cluster'][barcode_cluster.id] = barcode_cluster
-            #p.update()
+            p.update()
         junk_sum = sum([barcode_cluster.readPairCount for barcode_cluster in cluster_junk])
         sys.stdout.write( str(len(cluster_junk))+' out of '+str(len(clusters_with_hetro_with_missing+clusters_not_hetro_with_missing))+' could not be placed ('+str(misc.percentage(len(cluster_junk),len(clusters_with_hetro_with_missing+clusters_not_hetro_with_missing)))+'%) '+str(junk_sum)+' reads ie '+str(misc.percentage(junk_sum,self.analysisfolder.results.totalReadCount))+'% of the total read count\n')
         sys.stdout.write( str(len(current_trash['matching_more_than_1_allele_cluster']))+' out of these were '+'matching more than one allele_cluster ('+str(misc.percentage(sum([barcode_cluster.readPairCount for barcode_cluster in current_trash['matching_more_than_1_allele_cluster'].values()]),self.analysisfolder.results.totalReadCount))+'% of the total read count)\n')
