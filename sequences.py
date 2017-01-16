@@ -31,21 +31,42 @@ IND_HANDLE_1 = 'TTAGTCTCCGACGGCAGGCTTCAAT'
 IND_HANDLE_2 = 'ACGCACCCACCGGGACTCAG'
 #################### Universal ##############################################################################
 
-def main():
-    
+def sequence_layout(layout='HLA'):
+
+    if layout == 'HLA':
+        H1 = HLA_H1
+        H2 = HLA_H2
+        H3 = HLA_H3
+        DBS= HLA_DBS
+    elif layout == 'WFA':
+        H1 = WFA_H1
+        H2 = WFA_H2
+        H3 = WFA_H3
+        DBS= WFA_DBS
+    else:
+        print 'Error: No layout specified.'
+        return 1
+
     import seqdata
     
-    print '#  '
-    print '#  The expected layout of inserts should be:'
-    print '#  '
-    print '#  H1-DBS-revcomp(H2)-someDNA-revcomp(H3)'
-    print '#  '
-    print '#  Using the currently defined sequences this should be:'
-    print '#  '+H1+'-'+DBS+'-'+seqdata.revcomp(H2)+'-someDNA-'+seqdata.revcomp(H3)
-    print '#  '
-    print '#  '+'With illumina handles this will be:'
-    print '#  '+ILLI5+'-'+H1+'-'+DBS+'-'+seqdata.revcomp(H2)+'-someDNA-'+seqdata.revcomp(H3)+'-'+ILLI7
-    print '#  '+'or if ligated the other direction might also occur:'
-    print '#  '+ILLI5+'-'+H3+'-someDNA-'+H2+'-'+seqdata.revcomp(DBS)+'-'+seqdata.revcomp(H1)+'-'+ILLI7
+    output  = '#  \n'
+    output += '#  The expected layout of inserts should be:\n'
+    output += '#  \n'
+    output += '#  H1-DBS-revcomp(H2)-someDNA-revcomp(H3)\n'
+    output += '#  \n'
+    output += '#  Using the currently defined sequences this should be:\n'
+    output += '#  '+H1+'-'+DBS+'-'+seqdata.revcomp(H2)+'-someDNA-'+seqdata.revcomp(H3)+'\n'
+    output += '#  '+'\n'
+    output += '#  '+'With illumina handles this will be:'+'\n'
+    output += '#  '+ILLI5+'-'+H1+'-'+DBS+'-'+seqdata.revcomp(H2)+'-someDNA-'+seqdata.revcomp(H3)+'-'+ILLI7+'\n'
+    output += '#  '+'or if ligated the other direction might also occur:'+'\n'
+    output += '#  '+ILLI5+'-'+H3+'-someDNA-'+H2+'-'+seqdata.revcomp(DBS)+'-'+seqdata.revcomp(H1)+'-'+ILLI7+'\n'
+    
+    return output
+
+def main():
+    print sequence_layout(layout='HLA')
+    print sequence_layout(layout='WFA')
+
 
 if __name__ == "__main__": main()

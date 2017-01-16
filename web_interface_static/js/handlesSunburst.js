@@ -1,3 +1,16 @@
+var opts = {
+  lines: 9, // The number of lines to draw
+  length: 9, // The length of each line
+  width: 5, // The line thickness
+  radius: 14, // The radius of the inner circle
+  color: '#999999', // #rgb or #rrggbb or array of colors
+  speed: 1.9, // Rounds per second
+  trail: 40, // Afterglow percentage
+  className: 'spinner', // The CSS class to assign to the spinner
+};
+var target = document.getElementById('handlesunburst')
+var handle_spinner = new Spinner(opts).spin(target);
+
 var width = 250,
     height = 250,
     radius = (Math.min(width, height) / 2) - 10;
@@ -13,7 +26,7 @@ var y = d3.scale.sqrt()
 var color = d3.scale.category20c();
 
 var color2 = {
-  'undefined':"#999966",
+  'undefined':"#EEEEEE",
   'Has h1':"#879942",
   'Has h1 and h2':"#789924",
   'Has h1, h2 and h3':"#669900",
@@ -51,6 +64,9 @@ var svg = d3.select("#handlesunburst").append("svg")
     .attr("transform", "translate(" + width / 2 + "," + (height / 2) + ")");
 
 d3.json("handles.json", function(error, root) {
+  
+  handle_spinner.stop()
+  
   if (error) throw error;
 
   svg.selectAll("path")

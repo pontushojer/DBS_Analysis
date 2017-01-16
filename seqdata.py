@@ -1140,6 +1140,7 @@ class BarcodeCluster(object,):
         #
         self.readPairs = []
         self.readPairsByHeader = {}
+        self.readPairsById = {}
         
         #
         # get the reads from the database and add the readobjects to the appropriate containers

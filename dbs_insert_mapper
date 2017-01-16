@@ -122,6 +122,7 @@ class ReadPairAligner(object):
             m = p.search(data)
             self.analysisfolder.results.setResult('bt2AlignmentRate',m.groupdict()['overallAlignmentRate'])
             self.analysisfolder.results.saveToDb()
+            with open(self.analysisfolder.dataPath+'/bt2.stat.txt','w') as outfile: outfile.write( data )
   
         return 'COMPLETE'
 
@@ -268,6 +269,8 @@ class ReadPairAligner(object):
   
         print misc.percentage(mappedReadCountQ20,mappedReadCount*2),'% nice mappings (',mappedReadCountQ20,') in ',mappedReadCount,'read pairs'
         self.analysisfolder.results.setResult('alignmentRateQ20',misc.percentage(mappedReadCountQ20,mappedReadCount*2))
+        self.analysisfolder.results.setResult('alignmentCountQ20',mappedReadCountQ20/2)
+        self.analysisfolder.results.setResult('alignmentCount',mappedReadCount)
         self.analysisfolder.results.saveToDb()
         
         return 'COMPLETE'

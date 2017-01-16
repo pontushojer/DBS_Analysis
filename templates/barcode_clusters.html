@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+
+  <div class="jumbotron">
+    <h1>Barcode Clusters</h1>
+    <p>All read pairs with barcodes that mathced the expected pattern were clustered based on similarity of the barcode sequence. This procedure resulted in <strong>{{non_singleton_clusters}}</strong> groups of read pairs called Barcode Clusters (consisting of a total of <strong id="total_read_count"></strong> Read Pairs). Below you can find some statistics about these Barcode Clusters.</p>
+  </div>
+
+  <h2>Cumulative Read Pair Count:</h2>
+  <div class="row">
+    <div class="col-md-8" align="center">
+      <div id="graph_container_1"></div><h1></h1>
+    </div>
+    <div class="col-md-4">
+      <div class="well" >
+        Lower boundry <strong id="p_low">2</strong> reads per cluster.<br>
+        Upper boundry <strong id="p_high">NA</strong> reads per cluster.<br>
+        <strong id="p_of_reads"></strong>% of Read Pairs in Barcode Clusters.<br>
+        <strong id="p_num_clusters"></strong> Barcode Clusters.<br>
+        <strong id="p_of_clusters"></strong>% of total Barcode Clusters.<br>
+        <strong id="p_average">NA</strong> reads per cluster on average.<br>
+        <strong id="p_median">NA</strong> reads per cluster median.<br>
+      </div>
+    </div>
+  </div>
+  <h2>Read Pairs per Barcode Cluster Histogram:</h2><div id="graph_container_2"></div>
+  <h2>Barcode Cluster Table:</h2>
+  <div id="graph_container_3">
+    <table class="table">
+      <th>Empty Table</th>
+      <tr>
+        <td>Please select a range in the first graph to show some data in this table.</td>
+      </tr>
+    </table>
+  </div>
+  <script src="/static/js/d3.v3.js"></script>
+  <script src="/static/js/spin.js"></script>
+  <script src="/static/js/barcode_cluster_stats.js"></script>
+  
+{% endblock %}
