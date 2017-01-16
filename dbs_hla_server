@@ -92,7 +92,7 @@ def barcode_clusters():
 
 @app.route("/alleles")
 def alleles():
-    return render_template('index.html')
+    return render_template('alleles.html', reference_id='HLA-A', allele_ids=[1,2])
 
 @app.route("/individuals")
 def individuals():
@@ -100,8 +100,106 @@ def individuals():
 
 @app.route("/barcode_clusters.json")
 def barcode_clusters_json():
-    import json
     with open(app.analysisfolder.dataPath+'/barcode_cluster.json') as infile: return infile.read()
+
+@app.route("/reference.fasta.fai")
+def reference_fasta_fai():
+   with open(app.analysisfolder.settings.bowtie2Reference+'.fai') as infile: return infile.read()
+
+@app.route("/reference.fasta")
+def reference_fasta():
+#   with open(app.analysisfolder.settings.bowtie2Reference) as infile: return infile.read()
+    
+    import os
+    import sys
+    import re
+    from flask import request, send_from_directory
+
+    full_path = os.path.abspath(os.path.join(app.analysisfolder.settings.bowtie2Reference, app.analysisfolder.settings.bowtie2Reference))
+    print full_path
+
+    # security check - only files under READ_VIZ_DIR should be accsessible
+    if not full_path.startswith(app.analysisfolder.settings.bowtie2Reference):
+        return "Invalid path: %s" % app.analysisfolder.settings.bowtie2Reference
+
+    # handle igv.js Range header which it uses to request a subset of a .bam
+    range_header = request.headers.get('Range', None)
+    if not range_header:
+        return send_from_directory(app.analysisfolder.settings.bowtie2Reference, app.analysisfolder.settings.bowtie2Reference)
+
+    m = re.search('(\d+)-(\d*)', range_header)
+    if not m:
+        error_msg = "ERROR: unexpected range header syntax: %s" % range_header
+        sys.stderr.write(error_msg+'\n')
+        return error_msg
+
+    size = os.path.getsize(full_path)
+    offset = int(m.group(1))
+    length = int(m.group(2) or size) - offset
+
+    data = None
+    with open(full_path, 'rb') as f:
+        f.seek(offset)
+        data = f.read(length)
+
+    rv = Response(data, 206, mimetype="application/octet-stream", direct_passthrough=True)
+    rv.headers.add('Content-Range', 'bytes {0}-{1}/{2}'.format(offset, offset + length - 1, size))
+
+    sys.stderr.write("readviz: range request: %s-%s %s" % (m.group(1), m.group(2), full_path)+'\n')
+    return rv
+
+@app.route("/target_regions.bed")
+def target_regions_bed():
+    with open(app.analysisfolder.settings.targetRegionBed) as infile: return infile.read()
+
+@app.route('/read_viz/<path:path>')
+def read_viz_files(path):
+    
+    import os
+    import sys
+    import re
+    from flask import request, send_from_directory
+
+    full_path = os.path.abspath(os.path.join(app.analysisfolder.dataPath, path))
+
+    # security check - only files under READ_VIZ_DIR should be accsessible
+    if not full_path.startswith(app.analysisfolder.dataPath): return "Invalid path: %s" % path
+
+    # handle igv.js Range header which it uses to request a subset of a .bam
+    range_header = request.headers.get('Range', None)
+    if not range_header: return send_from_directory(app.analysisfolder.dataPath, path)
+
+    m = re.search('(\d+)-(\d*)', range_header)
+#    print 'range_header=',range_header
+    if not m:
+        error_msg = "ERROR: unexpected range header syntax: %s" % range_header
+        sys.stderr.write(error_msg+'\n')
+        return error_msg
+
+    size = os.path.getsize(full_path)
+    offset = int(m.group(1))
+    length = int(m.group(2) or size) - offset
+#    print 'offset=',offset
+#   print 'length=',length
+#    if length == size: print 'whole file requested!'
+
+    data = None
+    with open(full_path, 'rb') as f:
+        f.seek(offset)
+        data = f.read(length)
+
+    rv = Response(data, 206, mimetype="application/octet-stream", direct_passthrough=True)
+    rv.headers.add('Content-Range', 'bytes {0}-{1}/{2}'.format(offset, offset + length - 1, size))
+    rv.headers.add('Content-Transfer-Encoding','binary')
+    rv.headers.add('Accept-Ranges','bytes')
+    
+    sys.stderr.write("readviz: range request: %s-%s %s" % (m.group(1), m.group(2), full_path)+'\n')
+
+    print "\n\n-request-"
+    print request.headers
+    print "-response-"
+    print rv.headers
+    return rv
 
 @app.route("/mapping_stats.json")
 def make_mapping_stats_json():
@@ -338,32 +436,71 @@ def get_bootstrap(static_folder_path):
     else:
         sys.stderr.write('spin.js files found in '+static_folder_path+'js/spin.js .\n')
 
-def make_cluster_stats_json(analysisfolder):
+    # https://igv.org/web/release/1.0.6/
+    # [TXT]	igv-1.0.6.css	22-Dec-2016 13:37	25K	 
+    # [TXT]	igv-1.0.6.js	22-Dec-2016 13:37	813K	 
+    # [TXT]	igv-1.0.6.min.js	22-Dec-2016 13:37	381K	 
+    # [   ]	igv-1.0.6.min.map	22-Dec-2016 13:37	414K	 
+    # [DIR]	img/	22-Dec-2016 13:37	-
+    #      [IMG]	cursor_logo.png	22-Dec-2016 13:37	5.3K	 
+    #      [IMG]	cursor_logo.svg	22-Dec-2016 13:37	3.7K	 
+    #      [IMG]	igv_logo_letters_paths.svg	22-Dec-2016 13:37	2.8K	  
+
+    sys.stderr.write('Looking for igv.js and dependancies ... \n')
+    for filename, web_folder,local_folder in [
+        ('igv-1.0.6.js','https://igv.org/web/release/1.0.6/','js/'),
+        ('igv-1.0.6.css','https://igv.org/web/release/1.0.6/','css/'),
+        ('igv-1.0.6.min.js','https://igv.org/web/release/1.0.6/','js/'),
+        ('igv-1.0.6.min.map','https://igv.org/web/release/1.0.6/','js/'),
+        ('cursor_logo.png','https://igv.org/web/release/1.0.6/img/','img/'),
+        ('cursor_logo.svg','https://igv.org/web/release/1.0.6/img/','img/'),
+        ('igv_logo_letters_paths.svg','https://igv.org/web/release/1.0.6/img/','img/'),
+        ('jquery-ui.css','https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/themes/smoothness/','css/'),
+        ('font-awesome.min.css','https://maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/','css/'),
+        ('jquery-ui.min.js','https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/','js/'),
+        ('fontawesome-webfont.ttf','https://maxcdn.bootstrapcdn.com/font-awesome/4.2.0/fonts/','fonts/'),
+        ('fontawesome-webfont.woff','https://maxcdn.bootstrapcdn.com/font-awesome/4.2.0/fonts/','fonts/'),
+        ('jquery.min.js','https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/','js/')]:
+        if not os.path.isfile(static_folder_path+local_folder+filename):
+            sys.stderr.write(filename +' not found downloading ... \n')
+            url = web_folder+filename
+            req = urllib2.Request(url, headers=hdr)
+            response = urllib2.urlopen(req)
+            data = response.read()
+            outfile_name = static_folder_path+local_folder+filename
+            with open(outfile_name,'w') as outfile: outfile.write(data)
+            sys.stderr.write(url+' => '+outfile_name+' ... downloaded.\n')
+    sys.stderr.write('all files present.\n')
+
+def make_cluster_stats_json(analysisfolder, update=False):
     
     import operator
     import json
+    import os
     
-    analysisfolder.database.getConnection()
-    data = analysisfolder.database.c.execute('SELECT clusterId, clusterTotalReadCount, readPairsInBamFile, mappedSEReads, targetInfo FROM barcodeClusters WHERE clusterTotalReadCount > 1').fetchall()
-    tmp_list = [{'id':item[0],'total':item[1],'inbam':item[2]*2,'mapped':item[3],'ti':[{'name':entry['entry_name'],'ard':entry['averageReadDepth']} for entry in eval(item[4])] } for item in data ]
-    # analysisfolder.results.totalReadCount
-    # analysisfolder.results.singeltonBarcodeClusters
-    # analysisfolder.results.barcodeClusterCount
-
-    barcode_cluster_jsons = []
-    sort_dict = {}    
-    for item in tmp_list:
-        try:
-            sort_dict[ item['total'] ].append( item )
-        except KeyError:
-            sort_dict[ item['total'] ] = [ item ]
-    for count, sort_list in sorted(sort_dict.iteritems(), key=operator.itemgetter(0), reverse=True):
-        for item in sort_list: barcode_cluster_jsons.append( item )
-
-    #print '\n'.join( [ str(item['total'])+':'+str(item) for item in barcode_cluster_jsons ] )
-    #print json.dumps(barcode_cluster_jsons)
-
-    with open(analysisfolder.dataPath+'/barcode_cluster.json','w') as outfile: json.dump(barcode_cluster_jsons, outfile)
+    if not os.path.isfile(analysisfolder.dataPath+'/barcode_cluster.json') or update:
+    
+        analysisfolder.database.getConnection()
+        data = analysisfolder.database.c.execute('SELECT clusterId, clusterTotalReadCount, readPairsInBamFile, mappedSEReads, targetInfo FROM barcodeClusters WHERE clusterTotalReadCount > 1').fetchall()
+        tmp_list = [{'id':item[0],'total':item[1],'inbam':item[2]*2,'mapped':item[3],'ti':[{'name':entry['entry_name'],'ard':entry['averageReadDepth']} for entry in eval(item[4])] } for item in data ]
+        # analysisfolder.results.totalReadCount
+        # analysisfolder.results.singeltonBarcodeClusters
+        # analysisfolder.results.barcodeClusterCount
+    
+        barcode_cluster_jsons = []
+        sort_dict = {}    
+        for item in tmp_list:
+            try:
+                sort_dict[ item['total'] ].append( item )
+            except KeyError:
+                sort_dict[ item['total'] ] = [ item ]
+        for count, sort_list in sorted(sort_dict.iteritems(), key=operator.itemgetter(0), reverse=True):
+            for item in sort_list: barcode_cluster_jsons.append( item )
+    
+        #print '\n'.join( [ str(item['total'])+':'+str(item) for item in barcode_cluster_jsons ] )
+        #print json.dumps(barcode_cluster_jsons)
+    
+        with open(analysisfolder.dataPath+'/barcode_cluster.json','w') as outfile: json.dump(barcode_cluster_jsons, outfile)
 
 if __name__ == "__main__":
 
@@ -375,6 +512,6 @@ if __name__ == "__main__":
     make_cluster_stats_json(app.analysisfolder)
 
     if app.analysisfolder.settings.port == 'random':
-        app.run(host='0.0.0.0',port=random.randint(1000,9999),debug=True)
+        app.run(host='0.0.0.0',port=random.randint(1000,9999),debug=False)
     else:
-        app.run(host='0.0.0.0',port=int(app.analysisfolder.settings.port),debug=True)
+        app.run(host='0.0.0.0',port=int(app.analysisfolder.settings.port),debug=False)

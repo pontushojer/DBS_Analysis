@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block content %}
+
+  <div class="jumbotron">
+    <h1>Alleles</h1>
+    <p> test test test <strong></strong> test test test (test test test <strong id="total_read_count"></strong> ). test test test test test test.</p>
+  </div>
+
+  <div id="igv-container"></div>
+
+  <link rel="stylesheet" type="text/css" href="static/css/jquery-ui.css"/>
+  <link rel="stylesheet" type="text/css" href="static/css/font-awesome.min.css">
+  <link rel="stylesheet" type="text/css" href="static/css/igv-1.0.6.css">
+  <script type="text/javascript" src="static/js/jquery.min.js"></script>
+  <script type="text/javascript" src="static/js/jquery-ui.min.js"></script>
+  <script type="text/javascript" src="static/js/igv-1.0.6.js"></script>
+  
+  <script type="text/javascript">
+    var options = {
+      showCommandBar: true,
+      palette: ["#00A0B0", "#6A4A3C", "#CC333F", "#EB6841"],
+      locus: "hg19_dna:2686-6686",
+      reference: {
+          fastaURL: "reference.fasta",
+        },
+      trackDefaults: {
+          bam: {
+              coverageThreshold: 0.2,
+              coverageQualityWeight: true
+          }
+        },
+      tracks: [
+        {% for allele_id in allele_ids %}
+          {
+              name: "Allele_{{allele_id}}",
+              indexURL: "read_viz/allele_{{allele_id}}.marked.sorted.bai",
+              url: "read_viz/allele_{{allele_id}}.marked.sorted.bam",
+              samplingWindowSize:100,
+              samplingDepth:100,
+              alignmentRowHeight:1,
+              viewAsPairs:true
+          },
+        {% endfor %}
+        {
+          name: "Target Regions",
+          url: "target_regions.bed",
+          displayMode: "EXPANDED",
+          indexed:false,
+          height:35
+        }
+      ]
+    };
+    var div = $("#igv-container")[0]
+    igv.createBrowser(div, options);
+  </script>
+  
+{% endblock %}
