@@ -63,6 +63,7 @@ class ClusterAllelComparer():
         
         # set conectionn to the analysisfolder
         self.analysisfolder = analysisfolder
+        self.outfile = open(analysisfolder.dataPath+'find_alleles_output.txt','w',1)
         
         # define initial values for variables to be used later
         self.high_qualitty_cluster_ids = None # list for holding the ids of high quality clusters
@@ -207,6 +208,7 @@ class ClusterAllelComparer():
         self.statistic_graph_report(self.variable_position_info, output_name=self.analysisfolder.dataPath+'/all_clusters_with_more_than_20_reads.pdf')
         self.create_bam_files()
         self.match_alleles()
+        self.outfile.close
 
     def find_variable_positions(self, cluster_list=None, min_read_count=None):
         """
@@ -649,7 +651,7 @@ class ClusterAllelComparer():
                     recruiters = allele_cluster['new_clusters_since_last_iteration']
                     allele_cluster['new_clusters_since_last_iteration'] = []
                     if self.analysisfolder.settings.debug: print '|------Starting iteration',allele_cluster['iteration'],'for allele cluster',allele_cluster['id'],'using alleles',','.join([str(recruiter['id']) for recruiter in recruiters]),'as recruiters'
-                    if allele_cluster['iteration'] >= 5: sys.stderr.write( 'WARNING!!!! now starting iteration '+str(allele_cluster['iteration'])+' for cluster '+str(allele_cluster['id'])+'\n')
+                    if allele_cluster['iteration'] >= 5: sys.stdout.write( 'WARNING!!!! now starting iteration '+str(allele_cluster['iteration'])+' for cluster '+str(allele_cluster['id'])+'\n')
                     
                     for recruiter_allele in recruiters:
                         if self.analysisfolder.settings.debug: print '|  |---current recruiter',recruiter_allele['id'],' comparing to all potential candidates'
@@ -1122,8 +1124,8 @@ class ClusterAllelComparer():
         import os
         
         if True: # create bam files for alleles, this should be a function of its own
-            sys.stderr.write('Making bam files for alleles ... \n')
-            p = misc.Progress(self.total_number_of_barcode_clusters_in_allele_clusters, unit='barcodes processed',printint=1, logfile=sys.stderr)
+            sys.stdout.write('Making bam files for alleles ... \n')
+            p = misc.Progress(self.total_number_of_barcode_clusters_in_allele_clusters, unit='barcodes processed',printint=1, logfile=sys.stdout)
             bamfile =  pysam.Samfile(self.analysisfolder.dataPath+'/mappedInserts.bam')
             newHeader = bamfile.header 
             newHeader['HD']['SO']='coordinate'
@@ -1132,7 +1134,7 @@ class ClusterAllelComparer():
 
             for allele_cluster in self.allele_clusters.values():
                 output_allele_Bam = pysam.AlignmentFile(self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.bam', "wb", header=newHeader)
-                sys.stderr.write('Now creating '+'allele_'+str(allele_cluster['id'])+'.marked.bam'+' ...\n')
+                sys.stdout.write('Now creating '+'allele_'+str(allele_cluster['id'])+'.marked.bam'+' ...\n')
                 for barcode_cluster in allele_cluster['barcode_clusters_in_this_allele_cluster']+allele_cluster['supporting_barcode_clusters']:
                     
                     # if barcode_cluster.readPairCount > 1000:
@@ -1160,7 +1162,7 @@ class ClusterAllelComparer():
                     barcode_cluster.reads_loaded = False
 
                 output_allele_Bam.close()
-                sys.stderr.write('Starting sorting of '+'allele_'+str(allele_cluster['id'])+'.marked.bam'+' ...\n')
+                sys.stdout.write('Starting sorting of '+'allele_'+str(allele_cluster['id'])+'.marked.bam'+' ...\n')
                 picardLogfile = open(self.analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'picardSortSam.allele_'+str(allele_cluster['id'])+'.log.txt','w')
                 command2 = ['java',
                           '-Xmx10g',
@@ -1175,7 +1177,7 @@ class ClusterAllelComparer():
                 for id_number,picard in picards.iteritems():
                     if picard['p'].poll() != None:
                         if 'errdata' not in picard:
-                            sys.stderr.write('Sorting process completed for '+'allele_'+str(id_number)+'.\n')
+                            sys.stdout.write('Sorting process completed for '+'allele_'+str(id_number)+'.\n')
                             picard['errdata'] = picard['p'].communicate()
             
             outputBam.close()
@@ -1208,16 +1210,16 @@ class ClusterAllelComparer():
                       ]
             allreadsPicard = subprocess.Popen(allreads_command,stdout=subprocess.PIPE,stderr=allreadsPicardLogfile)
 
-            sys.stderr.write('Checking bam file sorting processes and inndexing if sucessfull.\n')
+            sys.stdout.write('Checking bam file sorting processes and inndexing if sucessfull.\n')
             for id_number,picard in picards.iteritems():
                 if picard['p'].returncode != 0:
                     print '#\n# cmd: '+' '.join( picard['command'] )+'\n#'
                     print 'picard view Error code', picard['p'].returncode, picard['errdata'], open(picard['logfile'].name).read()
                 else:
-                    sys.stderr.write('Sorting sucessfull for '+'allele_'+str(id_number)+', now indexing bam ...\n')
+                    sys.stdout.write('Sorting sucessfull for '+'allele_'+str(id_number)+', now indexing bam ...\n')
                     pysam.index(self.analysisfolder.dataPath+'/'+'allele_'+str(id_number)+'.marked.sorted.bam',self.analysisfolder.dataPath+'/'+'allele_'+str(id_number)+'.marked.sorted.bai')
                     os.remove(self.analysisfolder.dataPath+'/'+'allele_'+str(id_number)+'.marked.bam')
-                    sys.stderr.write('Bamfile for '+'allele_'+str(id_number)+' now sorted and indexed.\n')
+                    sys.stdout.write('Bamfile for '+'allele_'+str(id_number)+' now sorted and indexed.\n')
 
             errdata = allreadsPicard.communicate()
             if allreadsPicard.returncode != 0:
@@ -1226,10 +1228,10 @@ class ClusterAllelComparer():
             else:
                 pysam.index(self.analysisfolder.dataPath+'/mappedInserts.marked.sorted.bam',self.analysisfolder.dataPath+'/mappedInserts.marked.sorted.bai')
 
-        sys.stderr.write('Done.\n')
+        sys.stdout.write('Done.\n')
 
     def match_alleles(self, ):
-        sys.stderr.write('Matching the alleles to known HLA-types...\n')
+        sys.stdout.write('Matching the alleles to known HLA-types...\n')
         
         from Bio import SeqIO
         import pysam
@@ -1246,11 +1248,11 @@ class ClusterAllelComparer():
         
         # for each allele
         for allele_cluster in self.allele_clusters.values():
-            sys.stderr.write('processing allele cluster '+str(allele_cluster['id'])+'... \n')
+            sys.stdout.write('processing allele cluster '+str(allele_cluster['id'])+'... \n')
 
             bamfile = pysam.Samfile(self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.sorted.bam')
             # produce a consensus for each target region
-            sys.stderr.write('Creating consensus sequence for each target region...\n')
+            sys.stdout.write('Creating consensus sequence for each target region...\n')
             allele_cluster['targetInfo'] = loadBEDfile(self.analysisfolder.settings.targetRegionBed)
             for entry in allele_cluster['targetInfo']:
                 entry['consensus'] = ''
@@ -1376,7 +1378,7 @@ class ClusterAllelComparer():
                                 entry['consensus_colored'] += TerminalColors.YellowBackground+most_frequent_insertion[0]+TerminalColors.Color_Off
                 # print 'allele_'+str(allele_cluster['id']), entry['entry_name']
                 print entry['consensus_colored']
-        sys.stderr.write('consensus sequences created.\n')
+        sys.stdout.write('consensus sequences created.\n')
 
         import re
         # find the target regions in the known hla types
