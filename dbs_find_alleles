@@ -63,7 +63,8 @@ class ClusterAllelComparer():
         
         # set conectionn to the analysisfolder
         self.analysisfolder = analysisfolder
-        self.outfile = open(analysisfolder.dataPath+'find_alleles_output.txt','w',1)
+        self.outfile = open(analysisfolder.dataPath+'/find_alleles_output.txt','w',1)
+        self.info_vars = {}
         
         # define initial values for variables to be used later
         self.high_qualitty_cluster_ids = None # list for holding the ids of high quality clusters
@@ -176,14 +177,20 @@ class ClusterAllelComparer():
         msg += misc.thousandString(self.analysisfolder.results.totalReadCount)+' read pairs were added to the analysis.\n'
         barcode_cluster_read_counts = [i[0] for i in self.analysisfolder.database.c.execute('SELECT clusterTotalReadCount FROM barcodeClusters').fetchall()]
         sum_of_read_counts = sum(barcode_cluster_read_counts)
+        self.info_vars['read_pairs_in_barcode_clusters_with_singlets'] = sum_of_read_counts
         msg += 'Out of these '+misc.thousandString(sum_of_read_counts)+' read pairs ('+str(misc.percentage(sum_of_read_counts,self.analysisfolder.results.totalReadCount))+'%) were clustered to '+misc.thousandString(self.analysisfolder.results.barcodeClusterCount)+' barcode_clusters.\n'
 
+        self.info_vars['barcode_clusters_loaded_for_find_alleles_step'] = len(self.barcode_clusters_by_id)
         msg += 'Out of the barcode clusters were '+misc.thousandString(len(self.barcode_clusters_by_id))+' loaded to this analysis ('+str(misc.percentage(len(self.barcode_clusters_by_id),self.analysisfolder.results.barcodeClusterCount)) +'%)'
         read_pairs_in_analysis = sum([barcode_cluster.readPairCount for barcode_cluster in self.barcode_clusters_by_id.values()])
+        self.info_vars['read_pairs_loaded_for_find_alleles_step'] = read_pairs_in_analysis
         msg += ' they consist of '+misc.thousandString(read_pairs_in_analysis)+' read pairs ('+str(misc.percentage(read_pairs_in_analysis,self.analysisfolder.results.totalReadCount))+'% of total read pairs)\n'
         msg += 'The rest is either:\n\t'+misc.thousandString(self.analysisfolder.results.singeltonBarcodeClusters)+' barcode clusters that are singletons '
         msg += '('+str(misc.percentage(self.analysisfolder.results.singeltonBarcodeClusters,self.analysisfolder.results.barcodeClusterCount)) +'% of barcode_clusters, '
         msg += str(misc.percentage(self.analysisfolder.results.singeltonBarcodeClusters,self.analysisfolder.results.totalReadCount)) +'% or read pairs) and are therefore excluded.\n'
+        self.info_vars['low_read_count_barcode_clusters'] = len(low_read_count_cluster_ids)
+        self.info_vars['barcode_cluster_read_count_cut_off'] = self.read_count_cut_off
+        self.info_vars['read_pairs_in_low_read_count_barcode_clusters'] = sum([tmp[1] for tmp in self.low_read_count_cluster_ids])
         msg += '\t'+misc.thousandString(len(self.low_read_count_cluster_ids))+' barcode clusters that have less than '+str(self.read_count_cut_off)+' reads '
         msg += '('+str(misc.percentage(len(self.low_read_count_cluster_ids),self.analysisfolder.results.barcodeClusterCount)) +'% of barcode_clusters, '
         msg += str(misc.percentage(sum([tmp[1] for tmp in self.low_read_count_cluster_ids]),self.analysisfolder.results.totalReadCount)) +'% or read pairs) and are therefore excluded.\n'
@@ -208,7 +215,8 @@ class ClusterAllelComparer():
         self.statistic_graph_report(self.variable_position_info, output_name=self.analysisfolder.dataPath+'/all_clusters_with_more_than_20_reads.pdf')
         self.create_bam_files()
         self.match_alleles()
-        self.outfile.close
+        self.outfile.close()
+        print self.info_vars
 
     def find_variable_positions(self, cluster_list=None, min_read_count=None):
         """
@@ -1377,25 +1385,28 @@ class ClusterAllelComparer():
                                 entry['consensus'] += most_frequent_insertion[0]
                                 entry['consensus_colored'] += TerminalColors.YellowBackground+most_frequent_insertion[0]+TerminalColors.Color_Off
                 # print 'allele_'+str(allele_cluster['id']), entry['entry_name']
-                print entry['consensus_colored']
+                sys.stdout.write( entry['consensus_colored']+'\n')
         sys.stdout.write('consensus sequences created.\n')
 
         import re
         # find the target regions in the known hla types
+        self.allele_consensus_fasta = open(self.analysisfolder.dataPath+'/allele_consensus.fasta','w')
         for allele_cluster in self.allele_clusters.values():
             allele_cluster['id_matches'] = {}
             for entry in allele_cluster['targetInfo']:
-                print 'allele_'+str(allele_cluster['id']), entry['entry_name']
-                print entry['consensus'].replace('-','')
+                self.allele_consensus_fasta.write( '>'+ 'allele_'+str(allele_cluster['id'])+'_'+ entry['entry_name']+'\n')
+                self.allele_consensus_fasta.write( entry['consensus'].replace('-','') +'\n') 
                 for name, seqrecord in known_hla_types.iteritems():
                     match = re.search(entry['consensus'].replace('-',''), str(seqrecord.seq))
                     if match:
-                        # print seqrecord.id
                         try:
                             allele_cluster['id_matches'][seqrecord.description].append(entry['entry_name'])
                         except KeyError:
                             allele_cluster['id_matches'][seqrecord.description] = [ entry['entry_name'] ]
+        self.allele_consensus_fasta.close()
 
+        import json
+        tmpdict = {}
         #count which hla types that match the best ie all regions match! (perfectly!)    
         for allele_cluster in self.allele_clusters.values():
             print 'allele_'+str(allele_cluster['id'])
@@ -1407,7 +1418,11 @@ class ClusterAllelComparer():
                 if all_in:
                     print match,'matched by', targetlist
                     allele_cluster['all_targets_matches'][match] = targetlist
-            
+            tmpdict[allele_cluster['id']] = allele_cluster['all_targets_matches']        
+        self.allele_matches_dict_file = open(self.analysisfolder.dataPath+'/allele_matches.dict','w')
+        json.dump(tmpdict,self.allele_matches_dict_file)
+        self.allele_matches_dict_file.close()
+
 def barcodecluster2readsdict(barcode_cluster):
     readsDict = barcode_cluster.createBamFile(return_reads_dict=True,log=False)
     return readsDict
