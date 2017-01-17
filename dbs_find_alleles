@@ -68,7 +68,6 @@ class ClusterAllelComparer():
         
         # define initial values for variables to be used later
         self.high_qualitty_cluster_ids = None # list for holding the ids of high quality clusters
-        self.high_qualitty_barcode_clusters = []
         
         #
         # containers for barcode_clusters:
@@ -351,12 +350,12 @@ class ClusterAllelComparer():
         #msg = 'Found '+str(len(self.high_qualitty_cluster_ids))+' barcode clusters, adding to potential seeds ...\n'
         #self.analysisfolder.logfile.write(msg); sys.stderr.write(msg)
         msg = 'Found '+str(len(self.perfect_barcode_clusters))+' barcode clusters, adding to potential seeds ...\n'
+        self.info_vars['perfect_barcode_clusters'] = len(self.perfect_barcode_clusters)
         self.analysisfolder.logfile.write(msg); sys.stdout.write(msg)
 
         #for idnumber in self.high_qualitty_cluster_ids:
         for barcode_cluster in self.perfect_barcode_clusters.values():
             #barcode_cluster = BarcodeCluster(idnumber, self.analysisfolder)
-            self.high_qualitty_barcode_clusters.append(barcode_cluster)
             self.potential_seed_clusters.append(barcode_cluster)
             #barcode_cluster.loadClusterInfo()
         
@@ -417,11 +416,11 @@ class ClusterAllelComparer():
                 if self.analysisfolder.settings.debug: sys.stdout.write('    im a junk cluster'+'\n')
             
             elif not overlap:
-                self.high_qualitty_barcode_clusters.append(cluster)
                 self.potential_seed_clusters.append(cluster)
                 good_counter += 1
                 if self.analysisfolder.settings.debug: sys.stdout.write('    im a nice and good cluster'+'\n')
 
+        self.info_vars['barcode_clusters_with_nonoverlaping_hetrozygosity'] = good_counter
         msg = str(good_counter)+' barcodel clusters added to seeds and '+str(bad_counter)+' barcode clusters trashed due to presense of hetrozygous variants overlapping known variants.\n'
         self.analysisfolder.logfile.write(msg); sys.stdout.write(msg)
         sys.stdout.write( str(len(self.cluster_trash_bin['non clonal']['hetro_bases']))+' out of these were'+'classified as non clonal due to presense of hetrozygous bases ('+str(misc.percentage(sum([barcode_cluster.readPairCount for barcode_cluster in self.cluster_trash_bin['non clonal']['hetro_bases'].values()]),self.analysisfolder.results.totalReadCount))+'% of the total read count)\n')
@@ -434,7 +433,7 @@ class ClusterAllelComparer():
         self.analysisfolder.logfile.write(msg); sys.stdout.write(msg)
         
         #find high quality cluster information
-        for cluster in self.high_qualitty_barcode_clusters:
+        for cluster in self.potential_seed_clusters:
             self.build_allele_representation_dict_for_barcode_cluster(cluster)
 
     def build_allele_representation_dict_for_barcode_cluster(self,cluster,reanalyze=False):
@@ -493,7 +492,7 @@ class ClusterAllelComparer():
         #    
         # find clusters with identical alllels
         #
-        for cluster in self.high_qualitty_barcode_clusters:
+        for cluster in self.potential_seed_clusters:
             allele_representation_string = '|'.join([str(position)+'='+base for position, base in sorted(cluster.allele_representation_dict.iteritems(), key=operator.itemgetter(0))])
             #print cluster.id, allele_representation_string
             try:
@@ -520,7 +519,7 @@ class ClusterAllelComparer():
         # find all positions where an variation was detected in atleast one barcode_cluster
         #
         self.variable_positions_in_at_least_one_barcode_cluster = {}
-        for barcode_cluster in self.high_qualitty_barcode_clusters:
+        for barcode_cluster in self.potential_seed_clusters:
             for position in barcode_cluster.allele_representation_dict.keys():
                 self.variable_positions_in_at_least_one_barcode_cluster[position] = True
 
@@ -530,7 +529,7 @@ class ClusterAllelComparer():
         if self.analysisfolder.settings.debug: print '######### unique alleles'
         if self.analysisfolder.settings.debug: print 'id\pos\t'+'\t'.join([str(position) for position in self.variable_positions_in_at_least_one_barcode_cluster])+'\tIDs' # prints the header
         
-        #for barcode_cluster in self.high_qualitty_barcode_clusters:
+        #for barcode_cluster in self.potential_seed_clusters:
         barcode_clusters_to_compare = []
         self.alleles_sorted_by_barcode_cluster_count = []
         for allele_representation_string, length_of_barcode_cluster_id_list in sorted(self.unique_alleles_by_count.iteritems(), key=operator.itemgetter(1), reverse=True):
