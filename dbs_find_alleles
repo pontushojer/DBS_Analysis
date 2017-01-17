@@ -251,7 +251,6 @@ class ClusterAllelComparer():
             msg = 'predefined list of '+str(len(cluster_list))+' barcode clusters.\n'
             self.analysisfolder.logfile.write(msg); sys.stdout.write(msg)
         
-
         #
         # build the list of reference positions to include
         #
@@ -279,15 +278,6 @@ class ClusterAllelComparer():
             'total_clusters':0
         }
 
-        ####################
-        # for backwards compability
-        #
-        # non_reference_positions = { position:0 for position in tmp_reference_positions }
-        # missing_data_positions  = { position:0 for position in tmp_reference_positions }
-        # hetrozygous_positions   = { position:0 for position in tmp_reference_positions }
-        # total_clusters          = 0
-        ##################
-
         #
         # count the number of clusters at each position
         #
@@ -301,31 +291,15 @@ class ClusterAllelComparer():
                 cluster.updatedb()
 
             # count each type of position
-            #total_clusters += 1# for backwards compability
             output_json['total_clusters'] += 1
             for entry in cluster.targetInfo:
                 for position in xrange(entry['start_position'],entry['end_position']):
                     if position in entry['hetrozygous_positions']:
-                        #hetrozygous_positions[position] += 1# for backwards compability
                         output_json['hetrozygous_positions'][position] += 1
                     if position in entry['non_reference_positions']:
-                        #non_reference_positions[position] += 1# for backwards compability
                         output_json['non_reference_positions'][position] += 1
                     if position in entry['missing_data']:
-                        #missing_data_positions[position] += 1# for backwards compability
                         output_json['missing_data_positions'][position] += 1
-
-
-        ###################
-        # for backwards compability
-        #
-        # self.statistic_position_info = []
-        # self.statistic_position_info.append(tmp_reference_positions)
-        # self.statistic_position_info.append(hetrozygous_positions)                        
-        # self.statistic_position_info.append(non_reference_positions)
-        # self.statistic_position_info.append(missing_data_positions)
-        # self.statistic_position_info.append(total_clusters)
-        ###############
 
         return output_json
 
