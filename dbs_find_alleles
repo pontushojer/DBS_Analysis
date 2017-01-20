@@ -91,7 +91,7 @@ class ClusterAllelComparer():
         msg = 'Loading barcode clusters to memory ...\n'
         self.analysisfolder.logfile.write(msg); sys.stdout.write(msg)
         
-        self.read_count_cut_off = self.analysisfolder.setting.minPairsPerCluster
+        self.read_count_cut_off = int(self.analysisfolder.settings.minPairsPerCluster)
         
         import misc
         p = misc.Progress(self.analysisfolder.results.barcodeClusterCount-self.analysisfolder.results.singeltonBarcodeClusters, unit='barcode clusters loaded',printint=5, logfile=sys.stdout)
@@ -130,7 +130,7 @@ class ClusterAllelComparer():
         msg = 'Loading barcode clusters to memory ...\n'
         self.analysisfolder.logfile.write(msg); sys.stdout.write(msg)
         
-        self.read_count_cut_off = self.analysisfolder.setting.minPairsPerCluster
+        self.read_count_cut_off = int(self.analysisfolder.settings.minPairsPerCluster)
         
         import misc
         p = misc.Progress(self.analysisfolder.results.barcodeClusterCount-self.analysisfolder.results.singeltonBarcodeClusters, unit='barcode clusters loaded',printint=5, logfile=sys.stdout)
@@ -1655,8 +1655,8 @@ def create_target_consensus(in_data):
                 # do read depth checks to see that the number of high quality bases are larger than defined cutoff
                 high_quality_bases_in_this_position = pileup_column.nsegments - tmp_low_quality_bases
                 high_quality_insertions = sum(inserted_bases_in_next_position.values()) - tmp_low_quality_insertions
-                this_position_read_depth_check = high_quality_bases_in_this_position >= 30#int(analysisfolder.settings.minReadDepthForVariantCalling)
-                insertion_read_depth_check = high_quality_insertions >= 30#int(analysisfolder.settings.minReadDepthForVariantCalling)
+                #this_position_read_depth_check = high_quality_bases_in_this_position >= 30#int(analysisfolder.settings.minReadDepthForVariantCalling)
+                #insertion_read_depth_check = high_quality_insertions >= 30#int(analysisfolder.settings.minReadDepthForVariantCalling)
                 
                 #print pileup_column.pos,
                 #print most_frequent_base,
