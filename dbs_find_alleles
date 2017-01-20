@@ -91,9 +91,7 @@ class ClusterAllelComparer():
         msg = 'Loading barcode clusters to memory ...\n'
         self.analysisfolder.logfile.write(msg); sys.stdout.write(msg)
         
-        ### NOTE THE HARDCODED CUT OFF HERE!!!! ###
-        self.read_count_cut_off = 20#self.analysisfolder.setting.minPairsPerCluster
-        ### NOTE THE HARDCODED CUT OFF HERE!!!! ###
+        self.read_count_cut_off = self.analysisfolder.setting.minPairsPerCluster
         
         import misc
         p = misc.Progress(self.analysisfolder.results.barcodeClusterCount-self.analysisfolder.results.singeltonBarcodeClusters, unit='barcode clusters loaded',printint=5, logfile=sys.stdout)
@@ -132,7 +130,7 @@ class ClusterAllelComparer():
         msg = 'Loading barcode clusters to memory ...\n'
         self.analysisfolder.logfile.write(msg); sys.stdout.write(msg)
         
-        self.read_count_cut_off = 20#self.analysisfolder.setting.minPairsPerCluster
+        self.read_count_cut_off = self.analysisfolder.setting.minPairsPerCluster
         
         import misc
         p = misc.Progress(self.analysisfolder.results.barcodeClusterCount-self.analysisfolder.results.singeltonBarcodeClusters, unit='barcode clusters loaded',printint=5, logfile=sys.stdout)
@@ -350,9 +348,7 @@ class ClusterAllelComparer():
 
         msg = 'Loading known variable positions ...\n'
         
-        ### NOTE THE HARDCODED CUT OFF HERE!!!! ###
         min_read_count = self.read_count_cut_off
-        ### NOTE THE HARDCODED CUT OFF HERE!!!! ###
         
         self.analysisfolder.logfile.write(msg); sys.stdout.write(msg)
         self.variable_position_info = self.find_variable_positions( min_read_count=min_read_count )
@@ -835,9 +831,7 @@ class ClusterAllelComparer():
             else:print'Error!!';sys.exit()
 
             # removing the barcode_clusters with 
-            ### ANOTHER READ PAIR CUT OFF HARDCODED HERE ###
             if barcode_cluster.readPairCount < self.read_count_cut_off:
-            ### ANOTHER READ PAIR CUT OFF HARDCODED HERE ###
             
                 if self.analysisfolder.settings.debug: print 'cluster',barcode_cluster.id,'has to few reads'
                 cluster_junk.append(barcode_cluster)

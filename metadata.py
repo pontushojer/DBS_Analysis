@@ -602,7 +602,7 @@ class Settings(object,):
             'maxIndividualIndexMissMatches':'integer',
             'barcodeLength':'integer',
             'barcodeMissmatch':'integer',
-            'readsPerClusterCutOff':'integer',
+#            'readsPerClusterCutOff':'integer',
             'bowtie2Reference':'filename',
             'picardPath':'path',
             'mapqCutOff':'integer',
@@ -633,7 +633,7 @@ class Settings(object,):
             'barcodeMissmatch':0,
             #'readsPerUmiCutOff':5,
             #'umiMaxMisMatch':2,
-            'readsPerClusterCutOff':0,
+#            'readsPerClusterCutOff':0,
             'bowtie2Reference':None,
             'picardPath':None,
             'mapqCutOff':0,
@@ -664,7 +664,7 @@ class Settings(object,):
             'maxIndividualIndexMissMatches':'Number of missmatches allowed in the individual index sequence',
             #'readsPerUmiCutOff':'Number of reads supporting one UMI for it to passs filters',
             #'umiMaxMisMatch':'Number of missmatches allowed in the UMI sequence',
-            'readsPerClusterCutOff':'Number of reads supporting a barcode sequence cluster for it to passs filters (default = 0)',
+#            'readsPerClusterCutOff':'Number of reads supporting a barcode sequence cluster for it to passs filters (default = 0)',
             'bowtie2Reference':'path to the bowtie 2 reference index',
             'picardPath':'path to the picard installation to use',
             'mapqCutOff':'filter all reads with mapping quality less than this (default='+str(self.defaultValues['mapqCutOff'])+')',
@@ -700,7 +700,7 @@ class Settings(object,):
         self.maxIndividualIndexMissMatches = None
         #self.readsPerUmiCutOff = None
         #self.umiMaxMisMatch = None
-        self.readsPerClusterCutOff = None
+#        self.readsPerClusterCutOff = None
         self.bowtie2Reference = None
         self.picardPath = None
         self.mapqCutOff = None
