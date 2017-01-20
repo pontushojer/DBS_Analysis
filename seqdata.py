@@ -1287,100 +1287,101 @@ class BarcodeCluster(object,):
                          readsDict[read.reference_name][read.reference_start] = [read]
                 else: readsDict['unmapped'].append( read )
         
-        #
-        # find potential duplicates in the bamfile
-        #
-        dupMarkingDict = {reference['SN']:{} for reference in bamfile.header['SQ']}
-        for pair in pairs:
-            read1 = pair[0]
-            read2 = pair[1]
+        if self.analysisfolder.settings.type != 'HLA': # dont do dup marking for HLA it is amplicon sequencing
+            #
+            # find potential duplicates in the bamfile
+            #
+            dupMarkingDict = {reference['SN']:{} for reference in bamfile.header['SQ']}
+            for pair in pairs:
+                read1 = pair[0]
+                read2 = pair[1]
+                
+                # check that read pair is mapped to a reference
+                if read1.reference_id >= 0:
+                    # define the most 3 prime read on the reference strand as being "first in pair" (only for this check comparison)
+                    # REMOVED this as the pairs will be different if you change r1 and r2 ie != PCR duplicate
+                    #if read1.reference_start > read2.reference_start:
+                    #    read1 = pair[1]
+                    #    read2 = pair[0]
+                    #    pair = pair[::-1]
+                    
+                    # add to dictionary sorted by r1 and r2 positions to find groups of potential duplicates
+                    try:             dupMarkingDict[read1.reference_name][int(read1.reference_start)][int(read2.reference_start)].append(pair)
+                    except KeyError:
+                        try:             dupMarkingDict[read1.reference_name][int(read1.reference_start)][int(read2.reference_start)] = [pair]
+                        except KeyError: dupMarkingDict[read1.reference_name][int(read1.reference_start)] = {int(read2.reference_start):[pair]}
             
-            # check that read pair is mapped to a reference
-            if read1.reference_id >= 0:
-                # define the most 3 prime read on the reference strand as being "first in pair" (only for this check comparison)
-                # REMOVED this as the pairs will be different if you change r1 and r2 ie != PCR duplicate
-                #if read1.reference_start > read2.reference_start:
-                #    read1 = pair[1]
-                #    read2 = pair[0]
-                #    pair = pair[::-1]
-                
-                # add to dictionary sorted by r1 and r2 positions to find groups of potential duplicates
-                try:             dupMarkingDict[read1.reference_name][int(read1.reference_start)][int(read2.reference_start)].append(pair)
-                except KeyError:
-                    try:             dupMarkingDict[read1.reference_name][int(read1.reference_start)][int(read2.reference_start)] = [pair]
-                    except KeyError: dupMarkingDict[read1.reference_name][int(read1.reference_start)] = {int(read2.reference_start):[pair]}
-                
-        #
-        # go through potential duplicates and check cigar + directions if duplicated score by basequalities and mark (set flag in bamfile)
-        # (note that r1 are here defined as the read most towards the 3prim end not the first read in the pair)
-        #
-        
-        #
-        # Dupmarking as similar to picard as possible according to http://broadinstitute.github.io/picard/faq.html
-        # Q: How does MarkDuplicates work?
-        # A: The MarkDuplicates tool finds the 5' coordinates and mapping orientations of each read pair (single-end data is also handled).
-        # It takes all clipping into account as well as any gaps or jumps in the alignment. Matches all read pairs using the 5' coordinates and their orientations.
-        # It marks all but the "best" pair as duplicates, where "best" is defined as the read pair having the highest sum of base qualities of bases with Q >= 15.
-        # NOTE THAT: SE MAPPING MIGHT NOT BE HANDLED IN THE CORRECT WAY CHECK THIS OUT LATER!!
-        #
-        for reference_name, r1_positions in dupMarkingDict.iteritems():
-            for r1_position,r2_positions in r1_positions.iteritems():
-                for r2_position, reads_with_same_pos in r2_positions.iteritems():
-                    
-                    # make dict for direction and cigar check
-                    direction_and_cigar  = {'fwd':{'fwd':{},'rev':{}},'rev':{'fwd':{},'rev':{}}}
-                    
-                    # fill the direction and cigar check dict
-                    for pair in reads_with_same_pos:
-                        read1 = pair[0]
-                        read2 = pair[1]
+            #
+            # go through potential duplicates and check cigar + directions if duplicated score by basequalities and mark (set flag in bamfile)
+            # (note that r1 are here defined as the read most towards the 3prim end not the first read in the pair)
+            #
+            
+            #
+            # Dupmarking as similar to picard as possible according to http://broadinstitute.github.io/picard/faq.html
+            # Q: How does MarkDuplicates work?
+            # A: The MarkDuplicates tool finds the 5' coordinates and mapping orientations of each read pair (single-end data is also handled).
+            # It takes all clipping into account as well as any gaps or jumps in the alignment. Matches all read pairs using the 5' coordinates and their orientations.
+            # It marks all but the "best" pair as duplicates, where "best" is defined as the read pair having the highest sum of base qualities of bases with Q >= 15.
+            # NOTE THAT: SE MAPPING MIGHT NOT BE HANDLED IN THE CORRECT WAY CHECK THIS OUT LATER!!
+            #
+            for reference_name, r1_positions in dupMarkingDict.iteritems():
+                for r1_position,r2_positions in r1_positions.iteritems():
+                    for r2_position, reads_with_same_pos in r2_positions.iteritems():
                         
-                        if not cigarDummyForDupCheck:
-                            try:                 direction_and_cigar[{True:'rev',False:'fwd'}[read1.is_reverse]][{True:'rev',False:'fwd'}[read2.is_reverse]][str(read1.cigar)][str(read2.cigar)].append(pair)
-                            except KeyError:
-                                try:             direction_and_cigar[{True:'rev',False:'fwd'}[read1.is_reverse]][{True:'rev',False:'fwd'}[read2.is_reverse]][str(read1.cigar)][str(read2.cigar)] = [pair]
-                                except KeyError: direction_and_cigar[{True:'rev',False:'fwd'}[read1.is_reverse]][{True:'rev',False:'fwd'}[read2.is_reverse]][str(read1.cigar)] = {str(read2.cigar):[pair]}
-                        else:
-                            # use a dummy string for a stricter duplication check, resullting in that reads that mapp with same coordinates but different cigar strings will be marked as duplicates
-                            try:                 direction_and_cigar[{True:'rev',False:'fwd'}[read1.is_reverse]][{True:'rev',False:'fwd'}[read2.is_reverse]][str('dummy')][str('dummy')].append(pair)
-                            except KeyError:
-                                try:             direction_and_cigar[{True:'rev',False:'fwd'}[read1.is_reverse]][{True:'rev',False:'fwd'}[read2.is_reverse]][str('dummy')][str('dummy')] = [pair]
-                                except KeyError: direction_and_cigar[{True:'rev',False:'fwd'}[read1.is_reverse]][{True:'rev',False:'fwd'}[read2.is_reverse]][str('dummy')] = {str('dummy'):[pair]}                    
-
-                    # for all groups of identically mapped reads
-                    for r1_direction, r2_directions in direction_and_cigar.iteritems():
-                        for r2_direction, r1_cigars in r2_directions.iteritems():
-                            for r1_cigar, r2_cigars in r1_cigars.iteritems():
-                                for r2_cigar, identically_mapped_pairs in r2_cigars.iteritems():
-
-                                    # calculate the sum of all base qualities in read pair, add them to dict and sort by them
-                                    baseQualitySums = {}
-                                    for pair in identically_mapped_pairs:
-                                        read1 = pair[0]
-                                        read2 = pair[1]
-                                        # calculate the pairBaseQualitySum as sum of base qualities of bases with Q >= 15
-                                        pairBaseQualitySum = sum([q for q in read1.query_qualities if q >= 15])+sum([q for q in read2.query_qualities if q >= 15])
-                                        try:             baseQualitySums[pairBaseQualitySum].append(pair)
-                                        except KeyError: baseQualitySums[pairBaseQualitySum]=[pair]
-                                    pairsSortedbyqSum =[ (pairBaseQualitySum,pairList) for qSupairBaseQualitySumm,pairList in sorted(baseQualitySums.iteritems(), key=operator.itemgetter(0))]
-                                    
-                                    # for all but the highest scoring mark the reads as duplicates
-                                    for (pairBaseQualitySum,pairList) in pairsSortedbyqSum[:-1]:
-                                        for r1,r2 in pairList:
+                        # make dict for direction and cigar check
+                        direction_and_cigar  = {'fwd':{'fwd':{},'rev':{}},'rev':{'fwd':{},'rev':{}}}
+                        
+                        # fill the direction and cigar check dict
+                        for pair in reads_with_same_pos:
+                            read1 = pair[0]
+                            read2 = pair[1]
+                            
+                            if not cigarDummyForDupCheck:
+                                try:                 direction_and_cigar[{True:'rev',False:'fwd'}[read1.is_reverse]][{True:'rev',False:'fwd'}[read2.is_reverse]][str(read1.cigar)][str(read2.cigar)].append(pair)
+                                except KeyError:
+                                    try:             direction_and_cigar[{True:'rev',False:'fwd'}[read1.is_reverse]][{True:'rev',False:'fwd'}[read2.is_reverse]][str(read1.cigar)][str(read2.cigar)] = [pair]
+                                    except KeyError: direction_and_cigar[{True:'rev',False:'fwd'}[read1.is_reverse]][{True:'rev',False:'fwd'}[read2.is_reverse]][str(read1.cigar)] = {str(read2.cigar):[pair]}
+                            else:
+                                # use a dummy string for a stricter duplication check, resullting in that reads that mapp with same coordinates but different cigar strings will be marked as duplicates
+                                try:                 direction_and_cigar[{True:'rev',False:'fwd'}[read1.is_reverse]][{True:'rev',False:'fwd'}[read2.is_reverse]][str('dummy')][str('dummy')].append(pair)
+                                except KeyError:
+                                    try:             direction_and_cigar[{True:'rev',False:'fwd'}[read1.is_reverse]][{True:'rev',False:'fwd'}[read2.is_reverse]][str('dummy')][str('dummy')] = [pair]
+                                    except KeyError: direction_and_cigar[{True:'rev',False:'fwd'}[read1.is_reverse]][{True:'rev',False:'fwd'}[read2.is_reverse]][str('dummy')] = {str('dummy'):[pair]}                    
+    
+                        # for all groups of identically mapped reads
+                        for r1_direction, r2_directions in direction_and_cigar.iteritems():
+                            for r2_direction, r1_cigars in r2_directions.iteritems():
+                                for r1_cigar, r2_cigars in r1_cigars.iteritems():
+                                    for r2_cigar, identically_mapped_pairs in r2_cigars.iteritems():
+    
+                                        # calculate the sum of all base qualities in read pair, add them to dict and sort by them
+                                        baseQualitySums = {}
+                                        for pair in identically_mapped_pairs:
+                                            read1 = pair[0]
+                                            read2 = pair[1]
+                                            # calculate the pairBaseQualitySum as sum of base qualities of bases with Q >= 15
+                                            pairBaseQualitySum = sum([q for q in read1.query_qualities if q >= 15])+sum([q for q in read2.query_qualities if q >= 15])
+                                            try:             baseQualitySums[pairBaseQualitySum].append(pair)
+                                            except KeyError: baseQualitySums[pairBaseQualitySum]=[pair]
+                                        pairsSortedbyqSum =[ (pairBaseQualitySum,pairList) for qSupairBaseQualitySumm,pairList in sorted(baseQualitySums.iteritems(), key=operator.itemgetter(0))]
+                                        
+                                        # for all but the highest scoring mark the reads as duplicates
+                                        for (pairBaseQualitySum,pairList) in pairsSortedbyqSum[:-1]:
+                                            for r1,r2 in pairList:
+                                                if self.analysisfolder.settings.type != 'HLA':
+                                                    r1.is_duplicate = True
+                                                    r2.is_duplicate  = True
+                                                r1.set_tag('cd',1)
+                                                r2.set_tag('cd',1)
+                                        
+                                        # get all the pairs with the highest score and mark all but one as duplicate no sorting just what happens to be last in list
+                                        pairBaseQualitySum,pairList = pairsSortedbyqSum[-1]
+                                        for r1,r2 in pairList[:-1]:
                                             if self.analysisfolder.settings.type != 'HLA':
                                                 r1.is_duplicate = True
-                                                r2.is_duplicate  = True
+                                                r2.is_duplicate = True
                                             r1.set_tag('cd',1)
                                             r2.set_tag('cd',1)
-                                    
-                                    # get all the pairs with the highest score and mark all but one as duplicate no sorting just what happens to be last in list
-                                    pairBaseQualitySum,pairList = pairsSortedbyqSum[-1]
-                                    for r1,r2 in pairList[:-1]:
-                                        if self.analysisfolder.settings.type != 'HLA':
-                                            r1.is_duplicate = True
-                                            r2.is_duplicate = True
-                                        r1.set_tag('cd',1)
-                                        r2.set_tag('cd',1)
             
         #
         # print the reads to the bamfile in the order specified in bamfile header and coordinate sorted
@@ -1412,7 +1413,10 @@ class BarcodeCluster(object,):
             self.analysisfolder.database.c.executemany('UPDATE reads SET mappingFlagR1=?, mappingFlagR2=? WHERE id=?', updateValues)
             self.analysisfolder.database.commitAndClose()
         
-        if return_reads_dict: return readsDict
+        if return_reads_dict:
+            bamfile.close()
+            readsDict['EXCLUDE'] = bamfile
+            return readsDict
         
         return 0
 
