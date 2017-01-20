@@ -116,7 +116,94 @@ def alleles():
 
 @app.route("/individuals")
 def individuals():
-    return render_template('index.html')
+    return render_template('individuals.html')
+
+@app.route("/ind_details.json")
+def ind_details_json():
+    import json
+    import misc
+    import operator
+    import re
+    
+# trc = total read count
+# bc = barcode cluster
+# bci = barcodes cluster in individual
+# rci = read counts in individual
+# 
+# Individual id "No info" has 976 barcode clusters (22.14% ot total read count):
+# 	#bc:	%trc:	%bci:	%rci:	what:
+    with open( app.analysisfolder.dataPath+'/find_alleles_info.dict' ) as infile: info_vars = eval(infile.read())
+    with open( app.analysisfolder.dataPath+'/allele_types_dict' ) as infile: allele_types = eval(infile.read())
+
+    out_list = []
+    in_sample = []
+    
+    for ind_id, total_reads_in_this_ind in sorted([ (ind_id, sum([sum(read_counts_list) for read_counts_list in allele_types_in_this_ind.values()])) for ind_id, allele_types_in_this_ind in allele_types.iteritems()], key=operator.itemgetter(1),reverse=True):
+        allele_types_in_this_ind = allele_types[ind_id]
+        barcode_clusters = sum([len(read_counts_list) for read_counts_list in allele_types_in_this_ind.values()])
+        
+        alleles = []
+        for allele_id, read_count in  sorted([ ( allele_id, sum(read_counts_list) ) for allele_id, read_counts_list in allele_types_in_this_ind.iteritems() ], key=operator.itemgetter(1),reverse=True):
+            read_counts_list = allele_types_in_this_ind[allele_id]
+
+            alleles.append(
+                    {
+                        'id':allele_id,
+                        "barcode_cluster_count": str(len(read_counts_list)),
+                        "barcode_cluster_perc": str(misc.percentage(len(read_counts_list), barcode_clusters))+'%',
+                        "read_count":misc.thousandString(read_count),
+                        "read_perc_tot":str(misc.percentage(read_count,app.analysisfolder.results.totalReadCount))+'%',
+                        "read_perc_ind":str(misc.percentage(read_count,total_reads_in_this_ind))+'%'
+                    }
+                )
+        alleles.append(
+            {
+                'id':"Total",
+                "barcode_cluster_count": str(barcode_clusters),
+                "barcode_cluster_perc": str(misc.percentage(barcode_clusters, barcode_clusters))+'%',
+                "read_count":misc.thousandString(total_reads_in_this_ind),
+                "read_perc_tot":str(misc.percentage(total_reads_in_this_ind,app.analysisfolder.results.totalReadCount))+'%',
+                "read_perc_ind":str(misc.percentage(total_reads_in_this_ind,total_reads_in_this_ind))+'%'
+            }
+        )
+
+        out_list.append( {'ind_id': ind_id, 'alleles':alleles} )
+
+    return json.dumps(out_list)
+
+@app.route("/individuals.json")
+def individuals_json():
+    import json
+    import misc
+    import operator
+    import re
+    
+    with open( app.analysisfolder.dataPath+'/find_alleles_info.dict' ) as infile: info_vars = eval(infile.read())
+    with open( app.analysisfolder.dataPath+'/allele_types_dict' ) as infile: allele_types = eval(infile.read())
+
+    out_list = []
+    in_sample = []
+    
+    for ind_id, total_reads_in_this_ind in sorted([ (ind_id, sum([sum(read_counts_list) for read_counts_list in allele_types_in_this_ind.values()])) for ind_id, allele_types_in_this_ind in allele_types.iteritems()], key=operator.itemgetter(1),reverse=True):
+        allele_types_in_this_ind = allele_types[ind_id]
+
+        #total_reads_in_this_ind = sum([sum(read_counts_list) for read_counts_list in allele_types_in_this_ind.values()])
+        
+        alleles = []
+        for allele_id, read_count in  sorted([ ( allele_id, sum(read_counts_list) ) for allele_id, read_counts_list in allele_types_in_this_ind.iteritems() ], key=operator.itemgetter(1),reverse=True):
+            if ind_id not in ['No info', 'nosiy signal', 'unknown id','Non clonal'] and not re.search('trashed',allele_id):
+                alleles.append(str(allele_id).replace('allele ','')+', '+str(misc.percentage(read_count,app.analysisfolder.results.totalReadCount))+'%, '+str(misc.percentage(read_count,total_reads_in_this_ind))+'%')
+
+        if len(alleles) :
+            out_list.append(
+                    {
+                        "id":ind_id,
+                        "a1":alleles[0],
+                        "a2":alleles[1] if len(alleles) >=2 else '-',
+                    }
+                )
+
+    return json.dumps(out_list)
 
 @app.route("/cluster_trash.json")
 def cluster_trash_json():
