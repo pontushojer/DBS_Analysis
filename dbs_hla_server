@@ -17,10 +17,12 @@ from flask import request
 # initiate the flask application
 #
 static_folder_path = '/'.join(os.path.realpath(__file__).split('/')[:-1])+'/web_interface_static/'
+template_folder_path = '/'.join(os.path.realpath(__file__).split('/')[:-1])+'/templates/'
 app = Flask(
     __name__,
     static_folder   = static_folder_path,
-    static_url_path = '/static'
+    static_url_path = '/static',
+    template_folder=template_folder_path,
     )
 
 #
