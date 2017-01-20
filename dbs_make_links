@@ -38,7 +38,7 @@ def create_links():
         'dbs_find_alleles',
         'viewLogfiles',
         'dbs_tag_bam',
-        ' dbs_hla_server'
+        'dbs_hla_server'
         ]
     
     for program_name in program_names: update_link(program_name)
