@@ -3,9 +3,40 @@
 
   <div class="jumbotron">
     <h1>Alleles</h1>
-    <p> test test test <strong></strong> test test test (test test test <strong id="total_read_count"></strong> ). test test test test test test.</p>
+    <p> Found <strong>{{allele_count}}</strong> alleles among <strong>{{barcode_cluster_count}}</strong> Barcode Clusters that had at least <strong>{{min_reads}}</strong> read pairs. In total these Barcode Clusters included <strong>{{read_pair_count}}</strong> Read Pairs, <strong>{{read_pair_percentage}}</strong>% of total Read Pairs added to the analysis.</p>
   </div>
-
+  
+  <h2>Allele stats:</h2>
+  <div class="row">
+    <div class="col-md-12" align="center">
+      <div id="allele_stats_table">
+        <table class="table">
+          <th>Empty Table</th>
+          <tr>
+            <td>Please wait one moment while the data for this table is loaded.</td>
+          </tr>
+        </table>
+      </div>
+      * the % of the total Reads Pairs added to the analysis that finally ended up in Barcode Clusters that support the allele.
+    </div>
+  </div>
+  
+  <h2>Cluster trash bin:</h2>
+  <div class="row">
+    <div class="col-md-12" align="center">
+      <div id="cluster_trash_table">
+        <table class="table">
+          <th>Empty Table</th>
+          <tr>
+            <td>Please wait one moment while the data for this table is loaded.</td>
+          </tr>
+        </table>
+      </div>
+      * the % of the total Reads Pairs added to the analysis that finally ended up in Barcode Clusters that where trashed due to this.
+    </div>
+  </div>
+  
+  <h2>IGV visualization of the alleles:</h2>
   <div id="igv-container"></div>
 
   <link rel="stylesheet" type="text/css" href="static/css/jquery-ui.css"/>
@@ -14,6 +45,9 @@
   <script type="text/javascript" src="static/js/jquery.min.js"></script>
   <script type="text/javascript" src="static/js/jquery-ui.min.js"></script>
   <script type="text/javascript" src="static/js/igv-1.0.6.js"></script>
+  <script src="/static/js/d3.v3.js"></script>
+  <script src="/static/js/spin.js"></script>
+  <script src="/static/js/allele_stats.js"></script>
   
   <script type="text/javascript">
     var options = {

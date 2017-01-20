@@ -28,7 +28,7 @@ app = Flask(
 #
 try:
     analysisfolder = metadata.AnalysisFolder(sys.argv[1])
-    analysisfolder.readindexTsv()
+    #analysisfolder.readindexTsv()
 except IndexError: sys.stderr.write('please supply a commandline on format:\n'+os.path.basename(__file__)+' <analysis-output-folder>\n');sys.exit()
 app.analysisfolder = analysisfolder
 app.analysisfolder.settings.mapqCutOff = int(app.analysisfolder.settings.mapqCutOff)
@@ -88,15 +88,148 @@ def read_pairs():
 
 @app.route("/barcode_clusters")
 def barcode_clusters():
-    return render_template('barcode_clusters.html', non_singleton_clusters=app.analysisfolder.results.barcodeClusterCount-app.analysisfolder.results.singeltonBarcodeClusters)
+    import misc
+    return render_template('barcode_clusters.html', non_singleton_clusters=misc.thousandString(app.analysisfolder.results.barcodeClusterCount-app.analysisfolder.results.singeltonBarcodeClusters))
 
 @app.route("/alleles")
 def alleles():
-    return render_template('alleles.html', reference_id='HLA-A', allele_ids=[1,2])
+    import json
+    import misc
+    with open( app.analysisfolder.dataPath+'/find_alleles_info.dict' ) as infile: info_vars = eval(infile.read())
+    with open( app.analysisfolder.dataPath+'/allele_matches.dict' ) as infile: allele_matches = eval(infile.read())
+    with open( app.analysisfolder.dataPath+'/allele_types_dict' ) as infile: allele_types = eval(infile.read())
+    print info_vars.keys()
+    print allele_matches
+    print allele_types.keys()
+    return render_template(
+        'alleles.html',
+        reference_id='HLA-A',
+        allele_ids=info_vars['allele_cluster_info'].keys(),
+        allele_count=len(info_vars['allele_cluster_info'].keys()),
+        barcode_cluster_count=misc.thousandString(info_vars['barcode_clusters_loaded_for_find_alleles_step']),
+        read_pair_count=misc.thousandString(info_vars['read_pairs_loaded_for_find_alleles_step']),
+        read_pair_percentage=misc.percentage(info_vars['read_pairs_loaded_for_find_alleles_step'],app.analysisfolder.results.totalReadCount),
+        min_reads = info_vars['read_cutoff_for_variable_position_info']
+        )
 
 @app.route("/individuals")
 def individuals():
     return render_template('index.html')
+
+@app.route("/cluster_trash.json")
+def cluster_trash_json():
+    import json
+    import misc
+    
+    with open( app.analysisfolder.dataPath+'/find_alleles_info.dict' ) as infile: info_vars = eval(infile.read())
+    with open( app.analysisfolder.dataPath+'/allele_types_dict' ) as infile: allele_types = eval(infile.read())
+
+    # info_vars['trash_bin'] = {
+    #     'No_similarity_to_allele_cluster': { barcode_cluster.id:barcode_cluster.readPairCount }, 
+    #     'non clonal': {
+    #         'hetro_bases':  { barcode_cluster.id:barcode_cluster.readPairCount }, 
+    #         'individual_id':{ barcode_cluster.id:barcode_cluster.readPairCount }
+    #         }, 
+    #     'matching_more_than_1_allele_cluster': { barcode_cluster.id:barcode_cluster.readPairCount  }, 
+    #     'Low_read_count': { barcode_cluster.id:barcode_cluster.readPairCount  }
+    # }
+
+    out_list = []
+    in_sample = []
+    total_barcode_cluster_count = 0
+    total_read_count = 0
+    table_name = {'No_similarity_to_allele_cluster':'Match no allele', 'matching_more_than_1_allele_cluster':'Match several alleles', 'Low_read_count':'Below read pair count cut off','hetro_bases':'Non clonal, has hetrozygous base overlapping potential variant','individual_id':'Non clonal, has several individual ids'}
+    for key in ['No_similarity_to_allele_cluster', 'matching_more_than_1_allele_cluster', 'Low_read_count']:
+        readcount = sum(info_vars['trash_bin'][key].values())
+        reads = misc.percentage(readcount, app.analysisfolder.results.totalReadCount)
+        total_read_count += readcount
+        total_barcode_cluster_count += len(info_vars['trash_bin'][key])
+        out_list.append(
+                {
+                    "id":table_name[key],
+                    "barcode_clusters":str(len(info_vars['trash_bin'][key])) + ' ('+str(misc.percentage(len(info_vars['trash_bin'][key]),info_vars['barcode_clusters_loaded_for_find_alleles_step']))+'%)',
+                    "reads":str(reads)+'%',
+                    "in_sample":" ,".join(in_sample),
+                    "match":''
+                }
+            )
+    for key in ['hetro_bases','individual_id']:
+        readcount = sum(info_vars['trash_bin']['non clonal'][key].values())
+        reads = misc.percentage(readcount, app.analysisfolder.results.totalReadCount)
+        total_read_count += readcount
+        total_barcode_cluster_count += len(info_vars['trash_bin']['non clonal'][key])
+        out_list.append(
+                {
+                    "id":table_name[key],
+                    "barcode_clusters":str(len(info_vars['trash_bin']['non clonal'][key])) + ' ('+str(misc.percentage(len(info_vars['trash_bin']['non clonal'][key]),info_vars['barcode_clusters_loaded_for_find_alleles_step']))+'%)',
+                    "reads":str(reads)+'%',
+                    "in_sample":" ,".join(in_sample),
+                    "match":''
+                }
+            )
+    out_list.append(
+            {
+                "id":'In Total',
+                "barcode_clusters":str(total_barcode_cluster_count) + ' ('+str(misc.percentage(total_barcode_cluster_count,info_vars['barcode_clusters_loaded_for_find_alleles_step']))+'%)',
+                "reads":str(misc.percentage(total_read_count, app.analysisfolder.results.totalReadCount))+'%',
+                "in_sample":"",
+                "match":''
+            }
+        )    
+    return json.dumps(out_list)
+
+@app.route("/allele_matches.json")
+def allele_matches_json():
+    
+    import misc
+    import operator
+    
+    with open( app.analysisfolder.dataPath+'/find_alleles_info.dict' ) as infile: info_vars = eval(infile.read())
+    with open( app.analysisfolder.dataPath+'/allele_matches.dict' ) as infile: allele_matches = eval(infile.read())
+    with open( app.analysisfolder.dataPath+'/allele_types_dict' ) as infile: allele_types = eval(infile.read())
+    
+    total_read_count = 0
+    total_barcode_cluster_count = 0
+    
+    out_list = []
+    #for allele_id in sorted(info_vars['allele_cluster_info'].keys()):
+    for readcount, allele_id in sorted([(sum([count for barcode_cluster_id, count in list(info_vars['allele_cluster_info'][allele_id]['barcode_clusters_in_this_allele_cluster'].iteritems())+list(info_vars['allele_cluster_info'][allele_id]['supporting_barcode_clusters'].iteritems())]), allele_id) for allele_id in info_vars['allele_cluster_info'].keys()],key=operator.itemgetter(0), reverse=True):
+        
+        matches = [tmp_string.replace('A*','').split(' ')[1] for tmp_string in allele_matches[allele_id].keys()]
+        barcode_clusters = list(info_vars['allele_cluster_info'][allele_id]['barcode_clusters_in_this_allele_cluster'].iteritems())+list(info_vars['allele_cluster_info'][allele_id]['supporting_barcode_clusters'].iteritems())
+        #readcount = sum([count for barcode_cluster_id, count in barcode_clusters])
+        reads = misc.percentage(readcount, app.analysisfolder.results.totalReadCount)
+        total_read_count += readcount
+        total_barcode_cluster_count += len(barcode_clusters)
+        
+        in_sample = []
+        for ind_id in allele_types:
+            allele_types_in_this_ind = allele_types[ind_id]
+            if 'allele '+str(allele_id) in allele_types_in_this_ind.keys():
+                total_reads_in_this_ind = sum([sum(read_counts_list) for read_counts_list in allele_types_in_this_ind.values()])
+                if misc.percentage(sum(allele_types_in_this_ind['allele '+str(allele_id)]),app.analysisfolder.results.totalReadCount) > 1.0 and ind_id != 'No info': in_sample.append(ind_id)
+        
+        out_list.append(
+                {
+                    "id":allele_id,
+                    "barcode_clusters":str(len(barcode_clusters)) + ' ('+str(misc.percentage(len(barcode_clusters),info_vars['barcode_clusters_loaded_for_find_alleles_step']))+'%)',
+                    "reads":str(reads)+'%',
+                    "in_sample":" ,".join(in_sample),
+                    "match":', '.join(matches)
+                }
+            )
+
+    out_list.append(
+            {
+                "id":'In Total',
+                "barcode_clusters":str(total_barcode_cluster_count) + ' ('+str(misc.percentage(total_barcode_cluster_count,info_vars['barcode_clusters_loaded_for_find_alleles_step']))+'%)',
+                "reads":str(misc.percentage(total_read_count, app.analysisfolder.results.totalReadCount))+'%',
+                "in_sample":"",
+                "match":''
+            }
+        )    
+    import json
+    return json.dumps(out_list)#'[{"id":1, "barcode_clusters":1, "reads":10, "in_sample":1,"match":1},{"id":2, "barcode_clusters":7489,"reads":10,"in_sample":"1 , 8 , 9 , 0","match":"matchar pelle och kurt"}]'
 
 @app.route("/barcode_clusters.json")
 def barcode_clusters_json():
@@ -472,7 +605,7 @@ def get_bootstrap(static_folder_path):
             sys.stderr.write(url+' => '+outfile_name+' ... downloaded.\n')
     sys.stderr.write('all files present.\n')
 
-def make_cluster_stats_json(analysisfolder, update=False):
+def make_cluster_stats_json(analysisfolder, update=True):
     
     import operator
     import json
@@ -482,7 +615,9 @@ def make_cluster_stats_json(analysisfolder, update=False):
     
         analysisfolder.database.getConnection()
         data = analysisfolder.database.c.execute('SELECT clusterId, clusterTotalReadCount, readPairsInBamFile, mappedSEReads, targetInfo FROM barcodeClusters WHERE clusterTotalReadCount > 1').fetchall()
-        tmp_list = [{'id':item[0],'total':item[1],'inbam':item[2]*2,'mapped':item[3],'ti':[{'name':entry['entry_name'],'ard':entry['averageReadDepth']} for entry in eval(item[4])] } for item in data ]
+        data = analysisfolder.database.c.execute('SELECT clusterId, clusterTotalReadCount, readPairsInBamFile, mappedSEReads FROM barcodeClusters WHERE clusterTotalReadCount > 1').fetchall()
+        #tmp_list = [{'id':item[0],'total':item[1],'inbam':item[2]*2,'mapped':item[3],'ti':[{'name':entry['entry_name'],'ard':entry['averageReadDepth']} for entry in eval(item[4])] } for item in data ]
+        tmp_list = [{'id':item[0],'total':item[1],'inbam':item[2],'mapped':item[3] } for item in data ]
         # analysisfolder.results.totalReadCount
         # analysisfolder.results.singeltonBarcodeClusters
         # analysisfolder.results.barcodeClusterCount
@@ -512,6 +647,6 @@ if __name__ == "__main__":
     make_cluster_stats_json(app.analysisfolder)
 
     if app.analysisfolder.settings.port == 'random':
-        app.run(host='0.0.0.0',port=random.randint(1000,9999),debug=False)
+        app.run(host='0.0.0.0',port=random.randint(1000,9999),debug=True)
     else:
-        app.run(host='0.0.0.0',port=int(app.analysisfolder.settings.port),debug=False)
+        app.run(host='0.0.0.0',port=int(app.analysisfolder.settings.port),debug=True)
