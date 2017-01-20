@@ -10,7 +10,6 @@ def main():
     import time
     from seqdata import BarcodeClusterer
     from misc import Progress
-    import multiprocessing
     import sqlite3
     import json, ast
     import os
@@ -67,7 +66,6 @@ class ClusterAllelComparer():
         self.info_vars = {}
         
         # define initial values for variables to be used later
-        self.high_qualitty_cluster_ids = None # list for holding the ids of high quality clusters
         
         #
         # containers for barcode_clusters:
@@ -93,7 +91,9 @@ class ClusterAllelComparer():
         msg = 'Loading barcode clusters to memory ...\n'
         self.analysisfolder.logfile.write(msg); sys.stdout.write(msg)
         
+        ### NOTE THE HARDCODED CUT OFF HERE!!!! ###
         self.read_count_cut_off = 20#self.analysisfolder.setting.minPairsPerCluster
+        ### NOTE THE HARDCODED CUT OFF HERE!!!! ###
         
         import misc
         p = misc.Progress(self.analysisfolder.results.barcodeClusterCount-self.analysisfolder.results.singeltonBarcodeClusters, unit='barcode clusters loaded',printint=5, logfile=sys.stdout)
@@ -112,6 +112,7 @@ class ClusterAllelComparer():
             barcode_cluster.setValues(clusterId,clusterTotalReadCount,readPairsList,readBarcodeIdentitiesList,clusterBarcodeSequence,clusterBarcodeQuality,contigSequencesList,annotations,constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, goodReadPairPositions,targetInfo,individual_ID_dictionary,htmlTable,analyzed, hetrozygous_positions, high_quality_cluster)
             barcode_cluster.in_allele = None # set the new "in_alle" flag to default value none, will be used later to keep track of barcode_cluster/allele/individual connections
 
+#            if len(self.barcode_clusters_by_id) > 100: break
             if barcode_cluster.readPairCount > self.read_count_cut_off:
                 self.barcode_clusters_by_id[barcode_cluster.id] = barcode_cluster
                 try:             self.barcode_clusters_by_read_count[barcode_cluster.readPairCount].append(barcode_cluster)
@@ -187,7 +188,7 @@ class ClusterAllelComparer():
         msg += 'The rest is either:\n\t'+misc.thousandString(self.analysisfolder.results.singeltonBarcodeClusters)+' barcode clusters that are singletons '
         msg += '('+str(misc.percentage(self.analysisfolder.results.singeltonBarcodeClusters,self.analysisfolder.results.barcodeClusterCount)) +'% of barcode_clusters, '
         msg += str(misc.percentage(self.analysisfolder.results.singeltonBarcodeClusters,self.analysisfolder.results.totalReadCount)) +'% or read pairs) and are therefore excluded.\n'
-        self.info_vars['low_read_count_barcode_clusters'] = len(low_read_count_cluster_ids)
+        self.info_vars['low_read_count_barcode_clusters'] = len(self.low_read_count_cluster_ids)
         self.info_vars['barcode_cluster_read_count_cut_off'] = self.read_count_cut_off
         self.info_vars['read_pairs_in_low_read_count_barcode_clusters'] = sum([tmp[1] for tmp in self.low_read_count_cluster_ids])
         msg += '\t'+misc.thousandString(len(self.low_read_count_cluster_ids))+' barcode clusters that have less than '+str(self.read_count_cut_off)+' reads '
@@ -211,11 +212,11 @@ class ClusterAllelComparer():
         self.cluster_uniq_alleles()
         self.find_support_for_alleles()
         self.report()
-        self.statistic_graph_report(self.variable_position_info, output_name=self.analysisfolder.dataPath+'/all_clusters_with_more_than_20_reads.pdf')
+        #self.statistic_graph_report(self.variable_position_info, output_name=self.analysisfolder.dataPath+'/all_clusters_with_more_than_20_reads.pdf')
         self.create_bam_files()
         self.match_alleles()
         self.outfile.close()
-        print self.info_vars
+        #print self.info_vars
 
     def find_variable_positions(self, cluster_list=None, min_read_count=None):
         """
@@ -312,28 +313,17 @@ class ClusterAllelComparer():
         msg = 'Loading barcode clusters with no missing data and no heterozygous variants to population of potential seeds ...\n'
         self.analysisfolder.logfile.write(msg); sys.stdout.write(msg)
 
-        # connect to database and extract cluster ids for clusters with high quality data ie no missing information and no heterozygous positions
-        self.analysisfolder.database.getConnection()
-        #tmp_high_qualitty_cluster_ids = self.analysisfolder.database.c.execute('SELECT clusterId FROM barcodeClusters WHERE hetrozygous_positions<=0 AND high_quality_cluster=1').fetchall()
+        # perfect barcode clusters already found during loading, get the ids of these clusters
         tmp_high_qualitty_cluster_ids = self.perfect_barcode_clusters.keys()
-
-        # reformat the list of ids
-        #self.high_qualitty_cluster_ids = [int(tmp_info[0]) for tmp_info in tmp_high_qualitty_cluster_ids]
-        self.high_qualitty_cluster_ids = tmp_high_qualitty_cluster_ids
-        if len(self.high_qualitty_cluster_ids) == 0: sys.stdout.write('WARNING: no highquality clusters found.\n')
-        #msg = 'Found '+str(len(self.high_qualitty_cluster_ids))+' barcode clusters, adding to potential seeds ...\n'
-        #self.analysisfolder.logfile.write(msg); sys.stderr.write(msg)
+        if len(tmp_high_qualitty_cluster_ids) == 0: sys.stdout.write('WARNING: no highquality clusters found.\n')
         msg = 'Found '+str(len(self.perfect_barcode_clusters))+' barcode clusters, adding to potential seeds ...\n'
-        self.info_vars['perfect_barcode_clusters'] = len(self.perfect_barcode_clusters)
         self.analysisfolder.logfile.write(msg); sys.stdout.write(msg)
+        self.info_vars['perfect_barcode_clusters'] = len(self.perfect_barcode_clusters)
 
-        #for idnumber in self.high_qualitty_cluster_ids:
-        for barcode_cluster in self.perfect_barcode_clusters.values():
-            #barcode_cluster = BarcodeCluster(idnumber, self.analysisfolder)
-            self.potential_seed_clusters.append(barcode_cluster)
-            #barcode_cluster.loadClusterInfo()
+        # append to the actual potential seed list
+        for barcode_cluster in self.perfect_barcode_clusters.values(): self.potential_seed_clusters.append(barcode_cluster)
         
-        msg = ''+str(len(self.high_qualitty_cluster_ids))+' barcode clusters, loaded from db and added to potential seeds.\n'
+        msg = ''+str(len(tmp_high_qualitty_cluster_ids))+' barcode clusters, loaded from db and added to potential seeds.\n'
         self.analysisfolder.logfile.write(msg); sys.stdout.write(msg)
 
     def check_barcode_cluster_for_overlap(self,barcode_cluster):
@@ -359,8 +349,15 @@ class ClusterAllelComparer():
         clusters_with_hetro_not_missing = [cluster for cluster in self.barcode_clusters_by_id.values() if cluster.high_quality_cluster and cluster.hetrozygous_positions >= 1]
 
         msg = 'Loading known variable positions ...\n'
-        self.analysisfolder.logfile.write(msg); sys.stdout.write(msg)        
-        self.variable_position_info = self.find_variable_positions( min_read_count=20 )
+        
+        ### NOTE THE HARDCODED CUT OFF HERE!!!! ###
+        min_read_count = self.read_count_cut_off
+        ### NOTE THE HARDCODED CUT OFF HERE!!!! ###
+        
+        self.analysisfolder.logfile.write(msg); sys.stdout.write(msg)
+        self.variable_position_info = self.find_variable_positions( min_read_count=min_read_count )
+        self.info_vars['variable_position_info'] = self.variable_position_info
+        self.info_vars['read_cutoff_for_variable_position_info'] = min_read_count
         from misc import percentage
         self.non_reference_positions_dict = {}
         for i in range(len(self.variable_position_info['reference_positions'])):
@@ -370,8 +367,8 @@ class ClusterAllelComparer():
             number_of_clusters_has_data_in_this_position = self.variable_position_info['total_clusters'] - self.variable_position_info['missing_data_positions'][this_position]
             percenteage_non_ref_clusters_in_this_position = percentage(number_non_reference_clusters_in_this_position,number_of_clusters_has_data_in_this_position)
             
-            #if percenteage_non_ref_clusters_in_this_position >= 10:
-            if number_non_reference_clusters_in_this_position >= 2:
+            # each non reference position must be seen in atleast two clusters to count thereby avoiding counting long range pcr errors as real variation
+            if number_non_reference_clusters_in_this_position >= 2: 
                 self.non_reference_positions_dict[this_position] = percenteage_non_ref_clusters_in_this_position
 
         msg = 'Checking if the heterozygous variants in '+str(len(clusters_with_hetro_not_missing))+' potential barcode clusters overlap with known variable positions ...\n'
@@ -473,6 +470,7 @@ class ClusterAllelComparer():
                 self.unique_alleles[allele_representation_string].append(cluster)
             except KeyError:
                 self.unique_alleles[allele_representation_string] = [cluster]
+        self.info_vars['number_of_unique_allele_representation_strings'] = len(self.unique_alleles)
             
         #
         # sort the identical alleles by count
@@ -556,29 +554,36 @@ class ClusterAllelComparer():
             print '######### unique alleles end'
 
     def print_allele_cluster_details(self, allele_cluster):
-        sys.stdout.write( '# Allele cluster '+str(allele_cluster['id'])+':\n')
-        sys.stdout.write( '\t\t'+'\t'.join([str(position) for position in sorted(self.variable_positions_in_at_least_one_barcode_cluster)])+'\tIDs\n') # prints the header
+        
+        strings = []
+        
+        strings.append( '# Allele cluster '+str(allele_cluster['id'])+':\n')
+        strings.append( '\t\t'+'\t'.join([str(position) for position in sorted(self.variable_positions_in_at_least_one_barcode_cluster)])+'\tIDs\n') # prints the header
         
         for this_allele in allele_cluster['alles_in_this_cluster'].values():
-            sys.stdout.write( 'it='+str(this_allele['added_to_allele_cluster_at_iteration'])+'\tid='+str(this_allele['id'])+'\t')
+            strings.append( 'it='+str(this_allele['added_to_allele_cluster_at_iteration'])+'\tid='+str(this_allele['id'])+'\t')
             for position in sorted(self.variable_positions_in_at_least_one_barcode_cluster):
                 try:
                     if position in allele_cluster['seed_for_this_allele_cluster']['seeding_barcode_cluster'].allele_representation_dict and this_allele['seeding_barcode_cluster'].allele_representation_dict[position] == allele_cluster['seed_for_this_allele_cluster']['seeding_barcode_cluster'].allele_representation_dict[position]:
-                        sys.stdout.write( str(this_allele['seeding_barcode_cluster'].allele_representation_dict[position])+'\t')
+                        strings.append( str(this_allele['seeding_barcode_cluster'].allele_representation_dict[position])+'\t')
                     else:
                         RED = "\033[1;91m"
                         COLOR_STOP = "\033[0m"
-                        sys.stdout.write( RED+this_allele['seeding_barcode_cluster'].allele_representation_dict[position]+COLOR_STOP+'\t')
+                        strings.append( RED+this_allele['seeding_barcode_cluster'].allele_representation_dict[position]+COLOR_STOP+'\t')
                 except KeyError:
-                    sys.stdout.write( '*'+'\t')
-            sys.stdout.write( ','.join([str(tmp_barcode_cluster.id) for tmp_barcode_cluster in this_allele['barcode_clusters']])+'\t\n')
+                    strings.append( '*'+'\t')
+            strings.append( ','.join([str(tmp_barcode_cluster.id) for tmp_barcode_cluster in this_allele['barcode_clusters']])+'\t\n')
         
-        sys.stdout.write( str(len(sorted([cluster.id for cluster in set(sorted(allele_cluster['barcode_clusters_in_this_allele_cluster']+allele_cluster['supporting_barcode_clusters']))])))+' barcode clusters, fist 100 => ')
-        sys.stdout.write( str(sorted([cluster.id for cluster in set(sorted(allele_cluster['barcode_clusters_in_this_allele_cluster']+allele_cluster['supporting_barcode_clusters']))][0:100]))+'\n')#+'\t'+str([cluster.id for cluster in allele_cluster['supporting_barcode_clusters']])+'\t'
+        strings.append( str(len(sorted([cluster.id for cluster in set(sorted(allele_cluster['barcode_clusters_in_this_allele_cluster']+allele_cluster['supporting_barcode_clusters']))])))+' barcode clusters, fist 100 => ')
+        strings.append( str(sorted([cluster.id for cluster in set(sorted(allele_cluster['barcode_clusters_in_this_allele_cluster']+allele_cluster['supporting_barcode_clusters']))][0:100]))+'\n')#+'\t'+str([cluster.id for cluster in allele_cluster['supporting_barcode_clusters']])+'\t'
         
         my_id_list = [cluster for cluster in allele_cluster['barcode_clusters_in_this_allele_cluster']]+[cluster for cluster in allele_cluster['supporting_barcode_clusters']]
-        self.find_individuals_id_in_clusters( my_id_list )
-        sys.stdout.write( '\n')
+        tmp_dictionary = self.find_individuals_id_in_clusters( my_id_list )
+        self.allele_clusters[allele_cluster['id']]['individual_ids'] = tmp_dictionary
+        
+        sys.stdout.write( ''.join(strings)+'\n')
+        if 'allele_cluster_details_string' not in self.info_vars: self.info_vars['allele_cluster_details_string'] = {}
+        self.info_vars['allele_cluster_details_string'][allele_cluster['id']] = ''.join(strings)
 
     def cluster_uniq_alleles(self, number_of_errors_allowed = 1):
         """ This functions makes Seed alleles as dictionary and clustering them with some analysis for each cluster, also at the end of this function base on the seed allels for some clusters which have diferences in only one positions, making of clusters called Recruiters for supporting of Seed allels would be done"""
@@ -620,7 +625,7 @@ class ClusterAllelComparer():
                     'new_clusters_since_last_iteration':[seed_allele],
                     'iteration':0,
                     'barcode_clusters_in_this_allele_cluster':[barcode_cluster for barcode_cluster in seed_allele['barcode_clusters']],
-                    'network':{},
+                    'network':{}, # would maybe be nice to fix this feature later on 
                     'supporting_barcode_clusters':[]
                 }
                 seed_allele['this_allele_clustered_to'] = tmp_allele_cluster_counter
@@ -656,7 +661,7 @@ class ClusterAllelComparer():
                                 allele_cluster['alles_in_this_cluster'][candidate_allele['id']] = candidate_allele
                                 allele_cluster['new_clusters_since_last_iteration'].append(candidate_allele)
                                 allele_cluster['barcode_clusters_in_this_allele_cluster'] += candidate_allele['barcode_clusters']
-                                allele_cluster['network']
+                                #allele_cluster['network'] # would maybe be nice to fix this feature later on 
 
                                 candidate_allele['added_to_allele_cluster_at_iteration'] = allele_cluster['iteration']
                                 candidate_allele['this_allele_clustered_to'] = allele_cluster['id']
@@ -758,15 +763,17 @@ class ClusterAllelComparer():
         self.analysisfolder.database.getConnection()
         tmp_read_counts = sum([barcode_cluster.readPairCount for barcode_cluster in self.barcode_clusters_by_id.values()])+self.analysisfolder.results.singeltonBarcodeClusters
 
+        # printing over all info:
         high_quality_clusters = [barcode_cluster  for barcode_cluster in self.barcode_clusters_by_id.values() if barcode_cluster.hetrozygous_positions==0 and barcode_cluster.high_quality_cluster]
         tmp_read_counts = [barcode_cluster.readPairCount  for barcode_cluster in high_quality_clusters]
-        tmp_read_counts = sum(tmp_read_counts)#sum([i[0] for i in tmp_read_counts])
+        tmp_read_counts = sum(tmp_read_counts)
         sys.stdout.write( str(len(high_quality_clusters))+' clusters have no missing data and are not hetrozygous '+str(misc.percentage(tmp_read_counts,self.analysisfolder.results.totalReadCount))+'% of total reads\n')
         clusters_with_hetro_not_missing = [barcode_cluster  for barcode_cluster in self.barcode_clusters_by_id.values() if barcode_cluster.hetrozygous_positions>=1 and barcode_cluster.high_quality_cluster]
         tmp_read_counts = [barcode_cluster.readPairCount  for barcode_cluster in clusters_with_hetro_not_missing]
-        tmp_read_counts = sum(tmp_read_counts)#sum([i[0] for i in tmp_read_counts])
+        tmp_read_counts = sum(tmp_read_counts)
         sys.stdout.write( str(len(clusters_with_hetro_not_missing))+' clusters have no missing data but are hetrozygous '+str(misc.percentage(tmp_read_counts,self.analysisfolder.results.totalReadCount))+'% of total reads\n')
         
+        # printing allele_cluster info before finding support:
         tmp_sum = 0
         for allele_cluster in self.allele_clusters.values():
             allele_cluster_sum = 0
@@ -776,6 +783,7 @@ class ClusterAllelComparer():
             sys.stdout.write( 'Allele cluster '+str(allele_cluster['id'])+' has '+str(misc.percentage(allele_cluster_sum,self.analysisfolder.results.totalReadCount))+'% of the total read count\n')
         sys.stdout.write( 'A total of '+str(misc.percentage(tmp_sum,self.analysisfolder.results.totalReadCount))+'% of the reads are in the alleles ('+misc.thousandString(tmp_sum)+' out of '+misc.thousandString(self.analysisfolder.results.totalReadCount)+')\n')
 
+        # find clusters_not_hetro_with_missing and clusters_with_hetro_with_missing and print some info
         msg = '\nLooking for support for the alleles clusters among barcode_clusters with missing data ...\n'
         self.analysisfolder.logfile.write(msg); sys.stdout.write(msg)
         clusters_not_hetro_with_missing = [barcode_cluster  for barcode_cluster in self.barcode_clusters_by_id.values() if barcode_cluster.hetrozygous_positions==0 and not barcode_cluster.high_quality_cluster]
@@ -787,6 +795,7 @@ class ClusterAllelComparer():
         tmp_read_counts = sum(tmp_read_counts)#sum([i[0] for i in tmp_read_counts])
         sys.stdout.write( str(len(clusters_with_hetro_with_missing))+' clusters with missing data and are hetrozygous '+str(misc.percentage(tmp_read_counts,self.analysisfolder.results.totalReadCount))+'% of total reads\n')
 
+        # prepare for the finding support step
         msg = 'Trying to add these '+str(len(clusters_with_hetro_with_missing+clusters_not_hetro_with_missing))+' barcode_clusters with missing data to the allele clusters.\n'
         self.analysisfolder.logfile.write(msg); sys.stdout.write(msg)
 
@@ -804,11 +813,13 @@ class ClusterAllelComparer():
         p = misc.Progress(len(clusters_with_hetro_with_missing+clusters_not_hetro_with_missing),unit='clusters')
         cluster_junk = []
         
+        # start looping though the barcode_clusters to see if they can be placed as support to an allele cluster
         sys.stdout.write( "comparing barcode with missing data clusters to allele_clusters\n" )
         for barcode_cluster in clusters_with_hetro_with_missing+clusters_not_hetro_with_missing:
 
             if self.analysisfolder.settings.debug: print 'cluster',barcode_cluster.id,'has',barcode_cluster.readPairCount,'read pairs'
 
+            # remove anyhting with overlap of hetrozygous call to potential variant
             overlap = self.check_barcode_cluster_for_overlap(barcode_cluster)
             if overlap:
                 self.cluster_trash_bin['non clonal']['hetro_bases'][barcode_cluster.id] = barcode_cluster
@@ -823,7 +834,11 @@ class ClusterAllelComparer():
                 if self.analysisfolder.settings.debug:print 'no hetrozygous variant overlap found to known variable positions'
             else:print'Error!!';sys.exit()
 
-            if barcode_cluster.readPairCount < 10:
+            # removing the barcode_clusters with 
+            ### ANOTHER READ PAIR CUT OFF HARDCODED HERE ###
+            if barcode_cluster.readPairCount < self.read_count_cut_off:
+            ### ANOTHER READ PAIR CUT OFF HARDCODED HERE ###
+            
                 if self.analysisfolder.settings.debug: print 'cluster',barcode_cluster.id,'has to few reads'
                 cluster_junk.append(barcode_cluster)
                 self.cluster_trash_bin['Low_read_count'][barcode_cluster.id] = barcode_cluster
@@ -833,18 +848,33 @@ class ClusterAllelComparer():
             self.build_allele_representation_dict_for_barcode_cluster(barcode_cluster,reanalyze=False)
             matchin_count = 0
             matchin_id=None
+
             for allele_cluster in self.allele_clusters.values():
+
+                # get the clusters
                 cluster1=barcode_cluster
                 cluster2=allele_cluster['seed_for_this_allele_cluster']['seeding_barcode_cluster']
                 if self.analysisfolder.settings.debug: print '    allelecluster=',allele_cluster['id'],'clusterrep.=',cluster2.id,
+                
+                # get the comparison data
                 variable_positions_count, non_equal_position_count, missing_position_count, same_variant_count, both_reference_count = self.compare_allele_representation(cluster1,cluster2,dont_count_missing=True)
                 if self.analysisfolder.settings.debug: print 'comparing cluster=',cluster1.id,'vs cluster=',cluster2.id,'out of',variable_positions_count,'non ref. pos. in any of the clusters there are:','differences=',misc.percentage(non_equal_position_count,variable_positions_count),'missingdata=',misc.percentage(missing_position_count,variable_positions_count),'same_base=',misc.percentage(same_variant_count+both_reference_count,variable_positions_count)
+                # HERE variable_positions_count is the total number of positions with that are investigated
+                #     non_equal_position_count  is the number (out of the variable_positions_count) that are NOT EQUAL between the clusters ie different bases called
+                #     missing_position_count    is the number (out of the variable_positions_count) where ONE of the clusters DON'T HAVE A CALL for the base 
+                #     same_variant_count        is the number (out of the variable_positions_count) that have IDENTICAL BASE CALLS and are NOT SAME as the reference base 
+                #     both_reference_count      is the number (out of the variable_positions_count) that have IDENTICAL BASE CALLS and are THE REFERENCE BASE 
+                
+                # if there are no differing positions and there are information at all from the cluster define it as a match
+                # these cutoffs could be changed, maybe allow a certain percentage of difference, demand that at least the length of the shortest two targets are covered or something like that
                 if non_equal_position_count == 0 and (missing_position_count!=variable_positions_count):
                     matchin_count+=1
                     matchin_id=allele_cluster['id']
                     if self.analysisfolder.settings.debug: print 'comparing cluster=',cluster1.id,'vs cluster=',cluster2.id,'out of',variable_positions_count,'non ref. pos. in any of the clusters there are:','differences=',misc.percentage(non_equal_position_count,variable_positions_count),'missingdata=',misc.percentage(missing_position_count,variable_positions_count),'same_non_ref_base=',misc.percentage(same_variant_count+both_reference_count,variable_positions_count)
                 else:
                     if self.analysisfolder.settings.debug: print 'nomatch'
+
+            # look at the matches we got when comparing to all allele clusters
             if matchin_count == 1:
                 if self.analysisfolder.settings.debug: print 'THIS IS allele_cluster',matchin_id
                 self.allele_clusters[matchin_id]['supporting_barcode_clusters'].append(barcode_cluster)
@@ -857,6 +887,8 @@ class ClusterAllelComparer():
                 self.cluster_trash_bin['matching_more_than_1_allele_cluster'][barcode_cluster.id] = barcode_cluster
                 current_trash['matching_more_than_1_allele_cluster'][barcode_cluster.id] = barcode_cluster
             p.update()
+        
+        # print summary information for the finding support step or really whats in the trash
         junk_sum = sum([barcode_cluster.readPairCount for barcode_cluster in cluster_junk])
         sys.stdout.write( str(len(cluster_junk))+' out of '+str(len(clusters_with_hetro_with_missing+clusters_not_hetro_with_missing))+' could not be placed ('+str(misc.percentage(len(cluster_junk),len(clusters_with_hetro_with_missing+clusters_not_hetro_with_missing)))+'%) '+str(junk_sum)+' reads ie '+str(misc.percentage(junk_sum,self.analysisfolder.results.totalReadCount))+'% of the total read count\n')
         sys.stdout.write( str(len(current_trash['matching_more_than_1_allele_cluster']))+' out of these were '+'matching more than one allele_cluster ('+str(misc.percentage(sum([barcode_cluster.readPairCount for barcode_cluster in current_trash['matching_more_than_1_allele_cluster'].values()]),self.analysisfolder.results.totalReadCount))+'% of the total read count)\n')
@@ -888,6 +920,26 @@ class ClusterAllelComparer():
         
         sys.stdout.write( str(tmp_sum)+ ' reads '+str(misc.percentage(tmp_sum,self.analysisfolder.results.totalReadCount))+'% of total are in the alleles ('+misc.thousandString(tmp_sum)+' out of '+misc.thousandString(self.analysisfolder.results.totalReadCount)+')\n')
         sys.stdout.write( '\n')
+        
+        # add info to the info_vars container to use later in summarizing and/or web GUI summary
+        if 'allele_cluster_info' not in self.info_vars: self.info_vars['allele_cluster_info'] = {}
+        for allele_cluster in self.allele_clusters.values():
+            self.info_vars['allele_cluster_info'][allele_cluster['id']] = {
+                'id':allele_cluster['id'],
+                'barcode_clusters_in_this_allele_cluster':{ barcode_cluster.id:barcode_cluster.readPairCount for barcode_cluster in allele_cluster['barcode_clusters_in_this_allele_cluster']},
+                'supporting_barcode_clusters':{ barcode_cluster.id:barcode_cluster.readPairCount for barcode_cluster in allele_cluster['supporting_barcode_clusters']},
+                'individual_ids':allele_cluster['individual_ids']
+            }
+        if 'trash_bin' not in self.info_vars: self.info_vars['trash_bin'] = {}
+        self.info_vars['trash_bin'] = {
+            'No_similarity_to_allele_cluster': { barcode_cluster.id:barcode_cluster.readPairCount for barcode_cluster in self.cluster_trash_bin['No_similarity_to_allele_cluster'].values() }, 
+            'non clonal': {
+                'hetro_bases':  { barcode_cluster.id:barcode_cluster.readPairCount for barcode_cluster in self.cluster_trash_bin['non clonal']['hetro_bases'].values() }, 
+                'individual_id':{ barcode_cluster.id:barcode_cluster.readPairCount for barcode_cluster in self.cluster_trash_bin['non clonal']['individual_id'].values() }
+                }, 
+            'matching_more_than_1_allele_cluster': { barcode_cluster.id:barcode_cluster.readPairCount for barcode_cluster in self.cluster_trash_bin['matching_more_than_1_allele_cluster'].values() }, 
+            'Low_read_count': { barcode_cluster.id:barcode_cluster.readPairCount for barcode_cluster in self.cluster_trash_bin['Low_read_count'].values() }
+        }
 
     def find_individuals_id_in_clusters(self, list_of_clusters):
         """ Functions find the individual's information and reports which individuals have which alleles""" 
@@ -907,11 +959,13 @@ class ClusterAllelComparer():
             
             try: tmp_dictionary[ barcode_cluster.individual_id ] += 1
             except KeyError: tmp_dictionary[ barcode_cluster.individual_id ] = 1
-
+        
         sys.stdout.write( 'Individual id information in barcode clusters:'+'\n')
         sys.stdout.write( 'clusters\tid'+'\n')
         for id_number, count in sorted(tmp_dictionary.iteritems(), key=operator.itemgetter(1),reverse=True):
             sys.stdout.write( str(count)+'\t'+str(id_number) +'\n')
+            
+        return tmp_dictionary
     
     def statistic_graph_report(self,json_data, genomic_position=True, output_name=None):
         """ Function reports the statistical result for position variation with graph visualization """
@@ -991,7 +1045,7 @@ class ClusterAllelComparer():
             plt.savefig(output_name)
         else:
             plt.show()
-        plt.close()
+        plt.close(fig)
         
         
         ##### As a alternative for other type of plot graph
@@ -1085,7 +1139,7 @@ class ClusterAllelComparer():
                 sys.stdout.write( str(misc.percentage( len(list_of_clusters_with_type),len(barcode_clusters)))+'\t')
                 sys.stdout.write( str(misc.percentage( sum([barcode_cluster.readPairCount for barcode_cluster in list_of_clusters_with_type]) ,sum([barcode_cluster.readPairCount for barcode_cluster in barcode_clusters])))+'\t')
                 sys.stdout.write(str( type_of_cluster)+'\n')
-                self.statistic_graph_report(self.find_variable_positions(cluster_list=list_of_clusters_with_type),output_name=str(self.analysisfolder.dataPath+'/individual_id_'+str(ind_id)+'.'+str(type_of_cluster)+'.'+str(len(list_of_clusters_with_type))+'_clusters.'+str(misc.percentage( sum([barcode_cluster.readPairCount for barcode_cluster in list_of_clusters_with_type]),self.analysisfolder.results.totalReadCount))+'_poftotrc.pdf').replace(' ','_'))
+                #self.statistic_graph_report(self.find_variable_positions(cluster_list=list_of_clusters_with_type),output_name=str(self.analysisfolder.dataPath+'/individual_id_'+str(ind_id)+'.'+str(type_of_cluster)+'.'+str(len(list_of_clusters_with_type))+'_clusters.'+str(misc.percentage( sum([barcode_cluster.readPairCount for barcode_cluster in list_of_clusters_with_type]),self.analysisfolder.results.totalReadCount))+'_poftotrc.pdf').replace(' ','_'))
             sys.stdout.write( '\n')
             
             # add the reduced information set to be able to print a small data summary to disk for use in other programs such as web interface
