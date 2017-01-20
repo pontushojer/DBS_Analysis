@@ -1103,67 +1103,240 @@ class ClusterAllelComparer():
         import subprocess
         import time
         import os
+        import multiprocessing
         
         if True: # create bam files for alleles, this should be a function of its own
-            sys.stdout.write('Making bam files for alleles ... \n')
-            p = misc.Progress(self.total_number_of_barcode_clusters_in_allele_clusters, unit='barcodes processed',printint=1, logfile=sys.stdout)
-            bamfile =  pysam.Samfile(self.analysisfolder.dataPath+'/mappedInserts.bam')
-            newHeader = bamfile.header 
-            newHeader['HD']['SO']='coordinate'
-            outputBam = pysam.AlignmentFile(self.analysisfolder.dataPath+'/mappedInserts.marked.bam', "wb", header=newHeader)
-            picards = {}
-
-            for allele_cluster in self.allele_clusters.values():
-                output_allele_Bam = pysam.AlignmentFile(self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.bam', "wb", header=newHeader)
-                sys.stdout.write('Now creating '+'allele_'+str(allele_cluster['id'])+'.marked.bam'+' ...\n')
-                for barcode_cluster in allele_cluster['barcode_clusters_in_this_allele_cluster']+allele_cluster['supporting_barcode_clusters']:
+            if False:
+                sys.stdout.write('Making bam files for alleles ... \n')
+                p = misc.Progress(self.total_number_of_barcode_clusters_in_allele_clusters, unit='barcodes processed',printint=1, logfile=sys.stdout)
+                bamfile =  pysam.Samfile(self.analysisfolder.dataPath+'/mappedInserts.bam')
+                newHeader = bamfile.header 
+                newHeader['HD']['SO']='coordinate'
+                outputBam = pysam.AlignmentFile(self.analysisfolder.dataPath+'/mappedInserts.marked.bam', "wb", header=newHeader)
+                picards = {}
+    
+                #import time
+                seek_each_times = []
+                loop_file_times = []
+                foreach_cluster_times = []
+                for allele_cluster in self.allele_clusters.values():
+                    sys.stdout.write('Now creating '+'allele_'+str(allele_cluster['id'])+'.marked.bam'+' ...\n')
                     
-                    # if barcode_cluster.readPairCount > 1000:
-                    #     p.update()
-                    #     continue
-                    #readsDict = barcode_cluster.createBamFile(return_reads_dict=True,log=False)
-                    readsDict = barcodecluster2readsdict(barcode_cluster)
-                    
-                    for referenceName in [ reference['SN'] for reference in bamfile.header['SQ'] ]:
-                        positions = readsDict[referenceName]
-                        for position,readsList in sorted(positions.iteritems(), key=operator.itemgetter(0)):
-                            for read in readsList:
+                    if False:
+                        starttime = time.time()
+                        output_allele_Bam = pysam.AlignmentFile(self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.bam', "wb", header=newHeader)
+                        readPairIds = sorted(flatten([barcode_cluster.readPairIdsList for barcode_cluster in allele_cluster['barcode_clusters_in_this_allele_cluster']+allele_cluster['supporting_barcode_clusters']]))
+                        p1 = misc.Progress(len(readPairIds), unit='allele_'+str(allele_cluster['id'])+' read infos loaded',printint=10, logfile=sys.stdout)
+                        read_info_dict = {}
+                        self.analysisfolder.database.getConnection()
+                        info = self.analysisfolder.database.c.execute('SELECT bamFilePos, clusterId FROM reads WHERE id IN ('+', '.join([str(item) for item in readPairIds])+')')
+                        for (bamFilePos, clusterId) in info:
+                            if bamFilePos:
+                                read_info_dict[int(bamFilePos)] = int(clusterId)
+                            p1.update()
+                        self.analysisfolder.database.commitAndClose()
+                        p2 = misc.Progress(len(read_info_dict), unit='allele_'+str(allele_cluster['id'])+' reads processed',printint=5, logfile=sys.stdout)
+                        print str(misc.percentage(len(read_info_dict),len(readPairIds)))+'% of the readds are in the bamfile, extracting them and writing to allele specific bam-file ...'
+                        
+                        #processed = 0
+                        for bamFilePos, barcode_cluster_id in sorted(read_info_dict.iteritems(),key=operator.itemgetter(0)):
+                            bamfile.seek(bamFilePos)
+                            reads = [bamfile.next(),bamfile.next()]
+                            #if processed >= len(read_info_dict)*2: break
+                            #try: barcode_cluster_id = read_info_dict[read.query_name]
+                            #except KeyError: continue
+                            barcode_cluster = self.barcode_clusters_by_id[barcode_cluster_id]
+                            for read in reads:
+                                read.set_tag('bc',barcode_cluster.id)
+                                read.set_tag('in',barcode_cluster.individual_id)
+                                if 'in_allele' in barcode_cluster.__dict__: read.set_tag('al',barcode_cluster.in_allele)
+                                output_allele_Bam.write(read)
+                                outputBam.write(read)
+                            p2.update()
+                            #processed +=1
+                        output_allele_Bam.close()
+                        seek_each_times.append( time.time()-starttime )
+                    if False:
+                        #starttime = time.time()
+                        output_allele_Bam = pysam.AlignmentFile(self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.bam', "wb", header=newHeader)
+                        readPairIds = sorted(flatten([barcode_cluster.readPairIdsList for barcode_cluster in allele_cluster['barcode_clusters_in_this_allele_cluster']+allele_cluster['supporting_barcode_clusters']]))
+                        p1 = misc.Progress(len(readPairIds), unit='allele_'+str(allele_cluster['id'])+' read infos loaded',printint=10, logfile=sys.stdout)
+                        read_info_dict = {}
+                        self.analysisfolder.database.getConnection()
+                        info = self.analysisfolder.database.c.execute('SELECT header, bamFilePos, clusterId FROM reads WHERE id IN ('+', '.join([str(item) for item in readPairIds])+')')
+                        tmp = 1e99
+                        for (header, bamFilePos, clusterId) in info:
+                            if bamFilePos:
+                                read_info_dict[str(header[1:])] = int(clusterId)
+                                if int(bamFilePos) < tmp: tmp=int(bamFilePos)
+                            p1.update()
+                        self.analysisfolder.database.commitAndClose()
+                        print str(misc.percentage(len(read_info_dict),len(readPairIds)))+'% of the readds are in the bamfile, extracting them and writing to allele specific bam-file ...'
+                        p2 = misc.Progress(len(read_info_dict)*2, unit='allele_'+str(allele_cluster['id'])+' reads processed',printint=5, logfile=sys.stdout)
+    
+                        processed = 0
+                        bamfile.seek(tmp)
+                        while True:
+                            if processed >= len(read_info_dict)*2: break
+                            read = bamfile.next()
+                            try: barcode_cluster_id = read_info_dict[read.query_name]
+                            except KeyError: continue
+                            barcode_cluster = self.barcode_clusters_by_id[barcode_cluster_id]
+                            read.set_tag('bc',barcode_cluster.id)
+                            read.set_tag('in',barcode_cluster.individual_id)
+                            if 'in_allele' in barcode_cluster.__dict__: read.set_tag('al',barcode_cluster.in_allele)
+                            output_allele_Bam.write(read)
+                            outputBam.write(read)
+                            p2.update()
+                            processed +=1
+                        output_allele_Bam.close()
+                        #loop_file_times.append(time.time()-starttime)
+                    if True:
+                        starttime = time.time()
+                        output_allele_Bam = pysam.AlignmentFile(self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.bam', "wb", header=newHeader)
+                        ########################################################################################################################################################
+                        for barcode_cluster in allele_cluster['barcode_clusters_in_this_allele_cluster']+allele_cluster['supporting_barcode_clusters']:                         #
+                                                                                                                                                                                #
+                            # if barcode_cluster.readPairCount > 1000:                                                                                                          #
+                            #     p.update()                                                                                                                                    # COULD BE DONE IN PARALLELE TO SPEED THINGS UP
+                            #     continue                                                                                                                                      # MULTI PROCESSING IS NOT POSSIBLE IN THIS WAY DUE TO THE NATURE OF THE PYSAM.ALIGNEDSEGMENT OBJECT STRUCTURE
+                            #readsDict = barcode_cluster.createBamFile(return_reads_dict=True,log=False)                                                                        # THE ORIGINAL BAM FILE MUST BE ACESSABLE WITHIN THE SAME PROCESS AS THE READ...
+                            readsDict = barcodecluster2readsdict(barcode_cluster)                                                                                               #
+                        #########################################################################################################################################################
+                        # clusters_to_fetch_from = allele_cluster['barcode_clusters_in_this_allele_cluster']+allele_cluster['supporting_barcode_clusters']                        #
+                        # poolOfProcesses = multiprocessing.Pool(processes=multiprocessing.cpu_count())                                                                           #
+                        # # poolOfProcesses = multiprocessing.Pool(processes=1)                                                                                                     #
+                        # parallel_results = poolOfProcesses.imap_unordered(barcodecluster2readsdict,clusters_to_fetch_from,chunksize=1)                                          #
+                        # for readsDict in parallel_results:                                                                                                                      #
+                        #########################################################################################################################################################
+                            
+                            # print readsDict['EXCLUDE'] == bamfile 
+                            # print 'adding reads to bam file'
+                            for referenceName in [ reference['SN'] for reference in bamfile.header['SQ'] ]:
+                                positions = readsDict[referenceName]
+                                for position,readsList in sorted(positions.iteritems(), key=operator.itemgetter(0)):
+                                    for read in readsList:
+                                        # print referenceName,position,read
+                                        outputBam.write(read)
+                                        output_allele_Bam.write(read)
+                            # lastly print the unmapped (missing refID) reads to the bamfile
+                            for read in readsDict['unmapped']:
                                 outputBam.write(read)
                                 output_allele_Bam.write(read)
-                    # lastly print the unmapped (missing refID) reads to the bamfile
-                    for read in readsDict['unmapped']:
-                        outputBam.write(read)
-                        output_allele_Bam.write(read)
-                    p.update()
+                            p.update()
+                            # print 'reads added to bam file'
+                            
+                            # reset the barcode to read pairs connections to free some memory
+                            barcode_cluster.readPairs = []
+                            barcode_cluster.readPairsById = {}
+                            barcode_cluster.readPairsByHeader = {}
+                            barcode_cluster.reads_loaded = False
+                        output_allele_Bam.close()
+                        foreach_cluster_times.append(time.time()-starttime)
+     
+                    #print 'seek_each_times',seek_each_times
+                    #print 'loop_file_times',loop_file_times
+                    #print 'foreach_cluster_times',foreach_cluster_times
+                    #########################################################################################################################################################
+                    # poolOfProcesses.close()                                                                                                                                 #
+                    # poolOfProcesses.join()                                                                                                                                  #
+                    #########################################################################################################################################################
                     
-                    # reset the barcode to read pairs connections to free some memory
-                    barcode_cluster.readPairs = []
-                    barcode_cluster.readPairsById = {}
-                    barcode_cluster.readPairsByHeader = {}
-                    barcode_cluster.reads_loaded = False
-
-                output_allele_Bam.close()
-                sys.stdout.write('Starting sorting of '+'allele_'+str(allele_cluster['id'])+'.marked.bam'+' ...\n')
-                picardLogfile = open(self.analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'picardSortSam.allele_'+str(allele_cluster['id'])+'.log.txt','w')
-                command2 = ['java',
-                          '-Xmx10g',
-                          '-jar',self.analysisfolder.settings.picardPath+'/SortSam.jar',
-                          'MAX_RECORDS_IN_RAM=500000',
-                          'SORT_ORDER=coordinate',
-                          'INPUT='+ self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.bam',
-                          'OUTPUT='+self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.sorted.bam'
-                          ]
-                picards[allele_cluster['id']] = {'p':subprocess.Popen(command2,stdout=subprocess.PIPE,stderr=picardLogfile),'command':command2,'logfile':picardLogfile}
+                    sys.stdout.write('Starting sorting of '+'allele_'+str(allele_cluster['id'])+'.marked.bam'+' ...\n')
+                    picardLogfile = open(self.analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'picardSortSam.allele_'+str(allele_cluster['id'])+'.log.txt','w')
+                    command2 = ['java',
+                              '-Xmx5g',
+                              '-jar',self.analysisfolder.settings.picardPath+'/SortSam.jar',
+                              'MAX_RECORDS_IN_RAM=500000',
+                              'SORT_ORDER=coordinate',
+                              'INPUT='+ self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.bam',
+                              'OUTPUT='+self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.sorted.bam'
+                              ]
+                    picards[allele_cluster['id']] = {'p':subprocess.Popen(command2,stdout=subprocess.PIPE,stderr=picardLogfile),'command':command2,'logfile':picardLogfile}
+                    
+                    for id_number,picard in picards.iteritems():
+                        if picard['p'].poll() != None:
+                            if 'errdata' not in picard:
+                                sys.stdout.write('Sorting process completed for '+'allele_'+str(id_number)+'.\n')
+                                picard['errdata'] = picard['p'].communicate()
                 
-                for id_number,picard in picards.iteritems():
-                    if picard['p'].poll() != None:
-                        if 'errdata' not in picard:
-                            sys.stdout.write('Sorting process completed for '+'allele_'+str(id_number)+'.\n')
-                            picard['errdata'] = picard['p'].communicate()
-            
-            outputBam.close()
-            bamfile.close()
+                outputBam.close()
+                bamfile.close()
+            else:
+                sys.stdout.write('Making bam files for alleles ... \n')
+                bamfile =  pysam.Samfile(self.analysisfolder.dataPath+'/mappedInserts.bam')
+                newHeader = bamfile.header 
+                #newHeader['HD']['SO']='coordinate'
+                outputBam = pysam.AlignmentFile(self.analysisfolder.dataPath+'/mappedInserts.marked.bam', "wb", header=newHeader)
+                picards = {}
 
+                read_pair_id_allele_cluster_mapping = {}
+                output_allele_Bams = {}
+                tmp_total_pair_count = 0
+                for allele_cluster in self.allele_clusters.values():
+                    readPairIds = sorted(flatten([barcode_cluster.readPairIdsList for barcode_cluster in allele_cluster['barcode_clusters_in_this_allele_cluster']+allele_cluster['supporting_barcode_clusters']]))
+                    for pair_id in readPairIds: read_pair_id_allele_cluster_mapping[pair_id] = allele_cluster['id']
+                    output_allele_Bams[allele_cluster['id']] = pysam.AlignmentFile(self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.bam', "wb", header=newHeader)
+                    tmp_total_pair_count += len(readPairIds)
+
+                p1 = misc.Progress(tmp_total_pair_count, unit=' read infos loaded',printint=10, logfile=sys.stdout)
+                read_info_dict = {}
+                header2id = {}
+                self.analysisfolder.database.getConnection()
+                info = self.analysisfolder.database.c.execute('SELECT id, header, bamFilePos, clusterId FROM reads')
+                tmp = 1e99
+                for (pair_id, header, bamFilePos, clusterId) in info:
+                    if int(pair_id) in read_pair_id_allele_cluster_mapping:
+                        if bamFilePos:
+                            header2id[str(header[1:])] = int(pair_id)
+                            read_info_dict[str(header[1:])] = int(clusterId)
+                            if int(bamFilePos) < tmp: tmp=int(bamFilePos)
+                        p1.update()
+                self.analysisfolder.database.commitAndClose()
+                print str(misc.percentage(len(read_info_dict),tmp_total_pair_count))+'% of the readds are in the bamfile, extracting them and writing to allele specific bam-file ...'
+                p2 = misc.Progress(len(read_info_dict)*2, unit='reads processed',printint=5, logfile=sys.stdout)
+
+                #processed = 0
+                bamfile.seek(tmp)
+                while True:
+                    #if processed >= len(read_info_dict)*2: break
+                    try: read = bamfile.next()
+                    except StopIteration: break
+                    try: barcode_cluster_id = read_info_dict[read.query_name]
+                    except KeyError: continue
+                    barcode_cluster = self.barcode_clusters_by_id[barcode_cluster_id]
+                    read.set_tag('bc',barcode_cluster.id)
+                    read.set_tag('in',barcode_cluster.individual_id)
+                    if 'in_allele' in barcode_cluster.__dict__: read.set_tag('al',barcode_cluster.in_allele)
+                    output_allele_Bams[read_pair_id_allele_cluster_mapping[header2id[read.query_name]]].write(read)
+                    outputBam.write(read)
+                    p2.update()
+                    #processed +=1
+                
+                for output_allele_Bam in output_allele_Bams.values(): output_allele_Bam.close()
+                
+                for allele_cluster in self.allele_clusters.values():
+                    sys.stdout.write('Starting sorting of '+'allele_'+str(allele_cluster['id'])+'.marked.bam'+' ...\n')
+                    picardLogfile = open(self.analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'picardSortSam.allele_'+str(allele_cluster['id'])+'.log.txt','w')
+                    command2 = ['java',
+                              '-Xmx5g',
+                              '-jar',self.analysisfolder.settings.picardPath+'/SortSam.jar',
+                              'MAX_RECORDS_IN_RAM=500000',
+                              'SORT_ORDER=coordinate',
+                              'INPUT='+ self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.bam',
+                              'OUTPUT='+self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.sorted.bam'
+                              ]
+                    picards[allele_cluster['id']] = {'p':subprocess.Popen(command2,stdout=subprocess.PIPE,stderr=picardLogfile),'command':command2,'logfile':picardLogfile}
+                    
+                    for id_number,picard in picards.iteritems():
+                        if picard['p'].poll() != None:
+                            if 'errdata' not in picard:
+                                sys.stdout.write('Sorting process completed for '+'allele_'+str(id_number)+'.\n')
+                                picard['errdata'] = picard['p'].communicate()
+                
+                outputBam.close()
+                bamfile.close()
+            
             # for allele_cluster in self.allele_clusters.values():
             #     bamfilename = self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.bam'
             #     picardLogfile = open(self.analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'picardSortSam.allele_'+str(allele_cluster['id'])+'.log.txt','w')
@@ -1184,7 +1357,7 @@ class ClusterAllelComparer():
             allreads_command = ['java',
                       '-Xmx5g',
                       '-jar',self.analysisfolder.settings.picardPath+'/SortSam.jar',
-                      'MAX_RECORDS_IN_RAM=2500000',
+                      'MAX_RECORDS_IN_RAM=500000',
                       'SORT_ORDER=coordinate',
                       'INPUT='+ self.analysisfolder.dataPath+'/mappedInserts.marked.bam',
                       'OUTPUT='+self.analysisfolder.dataPath+'/mappedInserts.marked.sorted.bam'
