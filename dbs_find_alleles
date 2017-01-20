@@ -1229,136 +1229,35 @@ class ClusterAllelComparer():
         
         # for each allele
         for allele_cluster in self.allele_clusters.values():
-            sys.stdout.write('processing allele cluster '+str(allele_cluster['id'])+'... \n')
+            #sys.stdout.write('processing allele cluster '+str(allele_cluster['id'])+'... \n')
 
-            bamfile = pysam.Samfile(self.analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.sorted.bam')
             # produce a consensus for each target region
-            sys.stdout.write('Creating consensus sequence for each target region...\n')
+            #sys.stdout.write('Creating consensus sequence for each target region...\n')
             allele_cluster['targetInfo'] = loadBEDfile(self.analysisfolder.settings.targetRegionBed)
-            for entry in allele_cluster['targetInfo']:
-                entry['consensus'] = ''
-                entry['consensus_colored'] = ''
-                print '>allele_'+str(allele_cluster['id']), entry['entry_name']
-                for pileup_column in bamfile.pileup(stepper='nofilter', reference=entry['reference_name'], start=int(entry['start_position'])-1, end=int(entry['end_position'])+1):
-                    if pileup_column.pos >= entry['start_position'] and pileup_column.pos <= entry['end_position']:
-                        if pileup_column.nsegments >= int(self.analysisfolder.settings.minReadDepthForVariantCalling):
-                            
-                            # init counters
-                            bases_in_this_position = {}
-                            inserted_bases_in_next_position = {}
-                        
-                            #check all reads that align to this position and sequences phred quality
-                            for pileup_read in pileup_column.pileups:
-                                                            
-                                # if next position is an insertion save the inserted bases to be able too look for hetrozygosity 
-                                if pileup_read.indel >= 0:
-                                    
-                                    if pileup_read.indel == 0: insertion = None # no insertion present in read ie read is same as reference
-                                    else:
-                                        insertion = pileup_read.alignment.seq[ pileup_read.query_position+1: pileup_read.query_position+pileup_read.indel+1] # insertion present
-                                        insertion_qualities = pileup_read.alignment.query_qualities[ pileup_read.query_position+1: pileup_read.query_position+pileup_read.indel+1]
-                                        averager_insertion_BQ = float(sum(insertion_qualities))/float(len(insertion_qualities))
-                                    
-                                        if averager_insertion_BQ < int(self.analysisfolder.settings.minBasePhredQuality):
-                                            try: inserted_bases_in_next_position[ 'InsertLowBQ' ] += 1
-                                            except KeyError: inserted_bases_in_next_position[ 'InsertLowBQ' ] = 1
-                                        else:
-                                            try: inserted_bases_in_next_position[ insertion ] += 1
-                                            except KeyError: inserted_bases_in_next_position[ insertion ]  = 1
-                                
-                                # if the current reference position is deleted in read set the base to ""
-                                if pileup_read.query_position == None: 
-                                    assert pileup_read.is_del
-                                    try: bases_in_this_position[ '-' ] += 1
-                                    except KeyError:bases_in_this_position[ '-' ] = 1
-                                
-                                # if the base in the read has aligned to one base in the reference, get the base
-                                else:
-                                    #Check the sequences phred quality
-                                    if pileup_read.alignment.query_qualities[ pileup_read.query_position ] < int(self.analysisfolder.settings.minBasePhredQuality):
-                                        try: bases_in_this_position[ 'lowBQ' ] += 1
-                                        except KeyError: bases_in_this_position[ 'lowBQ' ] = 1
-                                        continue
-                                    else:
-                                        try: bases_in_this_position[pileup_read.alignment.seq[ pileup_read.query_position ]] += 1
-                                        except KeyError: bases_in_this_position[pileup_read.alignment.seq[ pileup_read.query_position ]] = 1
-                                
-                            # set flags for positions
-                            this_pos_hetro = None
-                            insertion_hetro = None
-                            most_frequent_base = (None,0)
-                            most_frequent_insertion = (None,0)
-                            
-                            # get the number of low quality base calls to be able to remove them even if they are zero and not getting a Key error when calculating the allele frequencies
-                            try: tmp_low_quality_bases = bases_in_this_position['lowBQ']
-                            except KeyError: tmp_low_quality_bases = 0
-                            try: tmp_low_quality_insertions = inserted_bases_in_next_position['InsertLowBQ']
-                            except KeyError: tmp_low_quality_insertions = 0
-    
-                            
-                            # check the distribution of bases at this position
-                            for base, count in bases_in_this_position.iteritems():
-                                
-                                # caluclate the allele frequency of the base
-                                allele_frequenzy = misc.percentage(count, pileup_column.nsegments - tmp_low_quality_bases)
-                                
-                                # determine if this is the most frequent base in this position
-                                if allele_frequenzy > most_frequent_base[1] and base != 'lowBQ': most_frequent_base = (base, allele_frequenzy)
-                                
-                                #filters
-                                larger_than_cutoff = allele_frequenzy >= 100*self.analysisfolder.settings.minAlleleFreqForHetrozygousVariant
-                                smaller_than_1_minus_cutoff = allele_frequenzy <= 100*(1 - self.analysisfolder.settings.minAlleleFreqForHetrozygousVariant)
-                                remove_bq_entry_filter = base != 'lowBQ'
-                                
-                                #check filters
-                                if larger_than_cutoff and smaller_than_1_minus_cutoff and remove_bq_entry_filter: this_pos_hetro = True
-                            
-                            insertion_freq_out_of_total = 0
-                            # check the distribution of insertions at the next position
-                            for insertion, count in inserted_bases_in_next_position.iteritems():
+#            for entry in allele_cluster['targetInfo']: # for allele for entry could be done in parallel to speed things up
+#                entry = create_target_consensus(allele_cluster,entry,self.analysisfolder)
+
+        sys.stdout.write('kicking of the parallel part ...\n')
+        import itertools
+        import multiprocessing
+        poolOfProcesses = multiprocessing.Pool(processes=multiprocessing.cpu_count())
+        parallel_results = poolOfProcesses.imap_unordered(
+                create_target_consensus,
+                zip(itertools.product(self.allele_clusters.values(),range(len(self.allele_clusters.values()[0]['targetInfo']))),itertools.repeat(self.analysisfolder)),
+                chunksize=1
+            )
         
-                                # caluclate the allele frequency of the insetion and find the most common
-                                allele_frequenzy = misc.percentage(count, sum(inserted_bases_in_next_position.values())-tmp_low_quality_insertions) # tmp_low_quality_insertions
-                                if allele_frequenzy > most_frequent_insertion[1] and insertion != 'InsertLowBQ':
-                                    most_frequent_insertion = (insertion, allele_frequenzy)
-                                    insertion_freq_out_of_total = misc.percentage(count, pileup_column.nsegments - tmp_low_quality_bases)
-                                
-                                #filters
-                                larger_than_cutoff = allele_frequenzy >= 100*self.analysisfolder.settings.minAlleleFreqForHetrozygousVariant
-                                smaller_than_1_minus_cutoff = allele_frequenzy <= 100*(1 - self.analysisfolder.settings.minAlleleFreqForHetrozygousVariant)
-                                remove_bq_entry_filter = insertion != 'InsertLowBQ'
-                                
-                                if larger_than_cutoff and smaller_than_1_minus_cutoff and remove_bq_entry_filter: insertion_hetro = True
-                            
-                            # Get the reference base at this position
-                            reference_base_in_this_position = reference.fetch(reference=pileup_column.reference_name,start=pileup_column.reference_pos,end=pileup_column.reference_pos+1)
-                            
-                            # do read depth checks to see that the number of high quality bases are larger than defined cutoff
-                            high_quality_bases_in_this_position = pileup_column.nsegments - tmp_low_quality_bases
-                            high_quality_insertions = sum(inserted_bases_in_next_position.values()) - tmp_low_quality_insertions
-                            this_position_read_depth_check = high_quality_bases_in_this_position >= 30#int(self.analysisfolder.settings.minReadDepthForVariantCalling)
-                            insertion_read_depth_check = high_quality_insertions >= 30#int(self.analysisfolder.settings.minReadDepthForVariantCalling)
-                            
-                            #print pileup_column.pos,
-                            #print most_frequent_base,
-                            #if not this_position_read_depth_check: print 'rd fail',
-                            #if this_pos_hetro: print 'HETRO!!',
-                            #print 'i=>',insertion_read_depth_check, most_frequent_insertion,insertion_freq_out_of_total,
-                            #if insertion_hetro: print 'insertion hetro',
-                            #print ''
-                            
-                            if most_frequent_base[1] < 90.0:
-                                entry['consensus_colored'] += TerminalColors.YellowBoldIntense
-                                print TerminalColors.YellowBoldIntense+'# Warning!! base '+most_frequent_base[0]+' at '+str(pileup_column.pos)+' represented only by '+str(most_frequent_base[1])+'% this could be a noisy position but potentially a failed phasiong event!'+TerminalColors.Color_Off
-                            elif most_frequent_base[0] != reference_base_in_this_position:
-                                entry['consensus_colored'] += TerminalColors.GreenBoldIntense
-                            entry['consensus'] += most_frequent_base[0]
-                            entry['consensus_colored'] += most_frequent_base[0]+TerminalColors.Color_Off
-                            if insertion_freq_out_of_total >= 90.0:
-                                entry['consensus'] += most_frequent_insertion[0]
-                                entry['consensus_colored'] += TerminalColors.YellowBackground+most_frequent_insertion[0]+TerminalColors.Color_Off
-                # print 'allele_'+str(allele_cluster['id']), entry['entry_name']
-                sys.stdout.write( entry['consensus_colored']+'\n')
+        sys.stdout.write('collecting ...\n')
+        for tmp_data_2 in parallel_results:
+            print 'TEST'
+        #for tmp_data in zip(itertools.product(self.allele_clusters.values(),range(len(self.allele_clusters.values()[0]['targetInfo']))),itertools.repeat(self.analysisfolder)):
+        #    tmp_data_2 = create_target_consensus(tmp_data)
+            
+            entry, allele_cluster_id, target_info_index = tmp_data_2
+            self.allele_clusters[allele_cluster_id]['targetInfo'][target_info_index] = entry
+            sys.stdout.write('consensus created for allele cluster '+str(allele_cluster_id)+' target-region '+entry['entry_name']+'. \n')
+        poolOfProcesses.close()
+        poolOfProcesses.join()
         sys.stdout.write('consensus sequences created.\n')
 
         import re
@@ -1366,9 +1265,22 @@ class ClusterAllelComparer():
         self.allele_consensus_fasta = open(self.analysisfolder.dataPath+'/allele_consensus.fasta','w')
         for allele_cluster in self.allele_clusters.values():
             allele_cluster['id_matches'] = {}
+
+# COULD MATCH ALL AT ONCE AND SEE IF IT IMPROVES
+            all_consensus_regex = '[AGTCN]+'.join( [entry['consensus'].replace('-','') for entry in allele_cluster['targetInfo']])
+            #print all_consensus_regex
+            for name, seqrecord in known_hla_types.iteritems():
+                match = re.search(all_consensus_regex, str(seqrecord.seq))
+                if match:
+                    try:
+                        allele_cluster['id_matches'][seqrecord.description].append('all_in_one')
+                    except KeyError:
+                        allele_cluster['id_matches'][seqrecord.description] = [ 'all_in_one' ]
+            
             for entry in allele_cluster['targetInfo']:
                 self.allele_consensus_fasta.write( '>'+ 'allele_'+str(allele_cluster['id'])+'_'+ entry['entry_name']+'\n')
                 self.allele_consensus_fasta.write( entry['consensus'].replace('-','') +'\n') 
+
                 for name, seqrecord in known_hla_types.iteritems():
                     match = re.search(entry['consensus'].replace('-',''), str(seqrecord.seq))
                     if match:
@@ -1386,7 +1298,7 @@ class ClusterAllelComparer():
             allele_cluster['all_targets_matches'] = {}
             for match, targetlist in allele_cluster['id_matches'].iteritems():
                 all_in = True
-                for entry_name in [entry['entry_name'] for entry in allele_cluster['targetInfo']]:
+                for entry_name in [entry['entry_name'] for entry in allele_cluster['targetInfo']]+['all_in_one']:
                     if entry_name not in targetlist: all_in = False
                 if all_in:
                     print match,'matched by', targetlist
@@ -1395,9 +1307,161 @@ class ClusterAllelComparer():
         self.allele_matches_dict_file = open(self.analysisfolder.dataPath+'/allele_matches.dict','w')
         json.dump(tmpdict,self.allele_matches_dict_file)
         self.allele_matches_dict_file.close()
+        self.info_vars_dict_file = open(self.analysisfolder.dataPath+'/find_alleles_info.dict','w')
+        json.dump(self.info_vars,self.info_vars_dict_file)
+        self.info_vars_dict_file.close()
 
 def barcodecluster2readsdict(barcode_cluster):
     readsDict = barcode_cluster.createBamFile(return_reads_dict=True,log=False)
     return readsDict
 
+def create_target_consensus(in_data):
+
+    print 'GO! child'
+    from Bio import SeqIO
+    import pysam
+    from seqdata import loadBEDfile
+    import misc
+    from misc import TerminalColors
+    import sys
+
+    allele_cluster,target_info_index = in_data[0]
+    analysisfolder = in_data[1]
+    entry = allele_cluster['targetInfo'][target_info_index]
+    
+    sys.stdout.write('processing allele cluster '+str(allele_cluster['id'])+' target-region '+entry['entry_name']+'... \n')
+
+    try:            reference = pysam.FastaFile(analysisfolder.settings.bowtie2Reference)
+    except IOError: reference = pysam.FastaFile(analysisfolder.settings.bowtie2Reference+'.fa')
+
+    bamfile = pysam.Samfile(analysisfolder.dataPath+'/'+'allele_'+str(allele_cluster['id'])+'.marked.sorted.bam')
+    entry['consensus'] = ''
+    entry['consensus_colored'] = ''
+    for pileup_column in bamfile.pileup(stepper='nofilter', reference=entry['reference_name'], start=int(entry['start_position'])-1, end=int(entry['end_position'])+1):
+        if pileup_column.pos >= entry['start_position'] and pileup_column.pos <= entry['end_position']:
+            if pileup_column.nsegments >= int(analysisfolder.settings.minReadDepthForVariantCalling):
+                
+                # init counters
+                bases_in_this_position = {}
+                inserted_bases_in_next_position = {}
+            
+                #check all reads that align to this position and sequences phred quality
+                for pileup_read in pileup_column.pileups:
+                                                
+                    # if next position is an insertion save the inserted bases to be able too look for hetrozygosity 
+                    if pileup_read.indel >= 0:
+                        
+                        if pileup_read.indel == 0: insertion = None # no insertion present in read ie read is same as reference
+                        else:
+                            insertion = pileup_read.alignment.seq[ pileup_read.query_position+1: pileup_read.query_position+pileup_read.indel+1] # insertion present
+                            insertion_qualities = pileup_read.alignment.query_qualities[ pileup_read.query_position+1: pileup_read.query_position+pileup_read.indel+1]
+                            averager_insertion_BQ = float(sum(insertion_qualities))/float(len(insertion_qualities))
+                        
+                            if averager_insertion_BQ < int(analysisfolder.settings.minBasePhredQuality):
+                                try: inserted_bases_in_next_position[ 'InsertLowBQ' ] += 1
+                                except KeyError: inserted_bases_in_next_position[ 'InsertLowBQ' ] = 1
+                            else:
+                                try: inserted_bases_in_next_position[ insertion ] += 1
+                                except KeyError: inserted_bases_in_next_position[ insertion ]  = 1
+                    
+                    # if the current reference position is deleted in read set the base to ""
+                    if pileup_read.query_position == None: 
+                        assert pileup_read.is_del
+                        try: bases_in_this_position[ '-' ] += 1
+                        except KeyError:bases_in_this_position[ '-' ] = 1
+                    
+                    # if the base in the read has aligned to one base in the reference, get the base
+                    else:
+                        #Check the sequences phred quality
+                        if pileup_read.alignment.query_qualities[ pileup_read.query_position ] < int(analysisfolder.settings.minBasePhredQuality):
+                            try: bases_in_this_position[ 'lowBQ' ] += 1
+                            except KeyError: bases_in_this_position[ 'lowBQ' ] = 1
+                            continue
+                        else:
+                            try: bases_in_this_position[pileup_read.alignment.seq[ pileup_read.query_position ]] += 1
+                            except KeyError: bases_in_this_position[pileup_read.alignment.seq[ pileup_read.query_position ]] = 1
+                    
+                # set flags for positions
+                this_pos_hetro = None
+                insertion_hetro = None
+                most_frequent_base = (None,0)
+                most_frequent_insertion = (None,0)
+                
+                # get the number of low quality base calls to be able to remove them even if they are zero and not getting a Key error when calculating the allele frequencies
+                try: tmp_low_quality_bases = bases_in_this_position['lowBQ']
+                except KeyError: tmp_low_quality_bases = 0
+                try: tmp_low_quality_insertions = inserted_bases_in_next_position['InsertLowBQ']
+                except KeyError: tmp_low_quality_insertions = 0
+
+                
+                # check the distribution of bases at this position
+                for base, count in bases_in_this_position.iteritems():
+                    
+                    # caluclate the allele frequency of the base
+                    allele_frequenzy = misc.percentage(count, pileup_column.nsegments - tmp_low_quality_bases)
+                    
+                    # determine if this is the most frequent base in this position
+                    if allele_frequenzy > most_frequent_base[1] and base != 'lowBQ': most_frequent_base = (base, allele_frequenzy)
+                    
+                    #filters
+                    larger_than_cutoff = allele_frequenzy >= 100*analysisfolder.settings.minAlleleFreqForHetrozygousVariant
+                    smaller_than_1_minus_cutoff = allele_frequenzy <= 100*(1 - analysisfolder.settings.minAlleleFreqForHetrozygousVariant)
+                    remove_bq_entry_filter = base != 'lowBQ'
+                    
+                    #check filters
+                    if larger_than_cutoff and smaller_than_1_minus_cutoff and remove_bq_entry_filter: this_pos_hetro = True
+                
+                insertion_freq_out_of_total = 0
+                # check the distribution of insertions at the next position
+                for insertion, count in inserted_bases_in_next_position.iteritems():
+
+                    # caluclate the allele frequency of the insetion and find the most common
+                    allele_frequenzy = misc.percentage(count, sum(inserted_bases_in_next_position.values())-tmp_low_quality_insertions) # tmp_low_quality_insertions
+                    if allele_frequenzy > most_frequent_insertion[1] and insertion != 'InsertLowBQ':
+                        most_frequent_insertion = (insertion, allele_frequenzy)
+                        insertion_freq_out_of_total = misc.percentage(count, pileup_column.nsegments - tmp_low_quality_bases)
+                    
+                    #filters
+                    larger_than_cutoff = allele_frequenzy >= 100*analysisfolder.settings.minAlleleFreqForHetrozygousVariant
+                    smaller_than_1_minus_cutoff = allele_frequenzy <= 100*(1 - analysisfolder.settings.minAlleleFreqForHetrozygousVariant)
+                    remove_bq_entry_filter = insertion != 'InsertLowBQ'
+                    
+                    if larger_than_cutoff and smaller_than_1_minus_cutoff and remove_bq_entry_filter: insertion_hetro = True
+                
+                # Get the reference base at this position
+                reference_base_in_this_position = reference.fetch(reference=pileup_column.reference_name,start=pileup_column.reference_pos,end=pileup_column.reference_pos+1)
+                
+                # do read depth checks to see that the number of high quality bases are larger than defined cutoff
+                high_quality_bases_in_this_position = pileup_column.nsegments - tmp_low_quality_bases
+                high_quality_insertions = sum(inserted_bases_in_next_position.values()) - tmp_low_quality_insertions
+                this_position_read_depth_check = high_quality_bases_in_this_position >= 30#int(analysisfolder.settings.minReadDepthForVariantCalling)
+                insertion_read_depth_check = high_quality_insertions >= 30#int(analysisfolder.settings.minReadDepthForVariantCalling)
+                
+                #print pileup_column.pos,
+                #print most_frequent_base,
+                #if not this_position_read_depth_check: print 'rd fail',
+                #if this_pos_hetro: print 'HETRO!!',
+                #print 'i=>',insertion_read_depth_check, most_frequent_insertion,insertion_freq_out_of_total,
+                #if insertion_hetro: print 'insertion hetro',
+                #print ''
+                
+                if most_frequent_base[1] < 90.0:
+                    entry['consensus_colored'] += TerminalColors.YellowBoldIntense
+                    print TerminalColors.YellowBoldIntense+'# Warning!! base '+most_frequent_base[0]+' in allele_'+str(allele_cluster['id'])+' target='+entry['entry_name']+' at '+str(pileup_column.pos)+' represented only by '+str(most_frequent_base[1])+'% this could be a noisy position but potentially a failed phasiong event!'+TerminalColors.Color_Off
+                elif most_frequent_base[0] != reference_base_in_this_position:
+                    entry['consensus_colored'] += TerminalColors.GreenBoldIntense
+                entry['consensus'] += most_frequent_base[0]
+                entry['consensus_colored'] += most_frequent_base[0]+TerminalColors.Color_Off
+                if insertion_freq_out_of_total >= 90.0:
+                    entry['consensus'] += most_frequent_insertion[0]
+                    entry['consensus_colored'] += TerminalColors.YellowBackground+most_frequent_insertion[0]+TerminalColors.Color_Off
+    # print 'allele_'+str(allele_cluster['id']), entry['entry_name']
+    print '>allele_'+str(allele_cluster['id']), entry['entry_name']
+    sys.stdout.write( entry['consensus_colored']+'\n')
+    bamfile.close()
+    
+    return entry, allele_cluster['id'], target_info_index
+
+flatten = lambda l: [item for sublist in l for item in sublist]
+    
 if __name__ == "__main__": main()
