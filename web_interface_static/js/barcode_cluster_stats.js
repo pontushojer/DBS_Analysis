@@ -1,3 +1,24 @@
+// initiate variables defining the size of the images
+var width = 750,
+height = 300,
+padding = 50,
+move_left = 80,
+move_down = 5;  
+
+// define the image canvas to paint on
+var hist_canvas = d3.select("#graph_container_2").append("svg")
+    .attr("width",width)
+    .attr("height",height + padding )
+    .append("g")
+        .attr( "transform", "translate( " + move_left + " ,  " + move_down + "  )" ) ;
+
+// define the image canvas to paint on
+var lines_canvas = d3.select("#graph_container_1").append("svg")
+    .attr("width",width)
+    .attr("height",height + padding )
+    .append("g")
+        .attr( "transform", "translate( " + move_left + " ,  " + move_down + "  )" ) ;
+
 var opts = {
   lines: 9, // The number of lines to draw
   length: 9, // The length of each line
@@ -10,6 +31,8 @@ var opts = {
 };
 var target = document.getElementById('graph_container_1')
 var spinner_1 = new Spinner(opts).spin(target);
+var target2 = document.getElementById('graph_container_2')
+var spinner_2 = new Spinner(opts).spin(target2);
 
 function add(a, b) {
   return a + b;
@@ -32,18 +55,12 @@ function brushFilter(in_data,extent) {
 d3.json("barcode_clusters.json", function(error, data) {
   
   spinner_1.stop();
+  spinner_2.stop();
   
   if (error) throw error;
   
   
   function initiate_plots( data ) {
-
-    // initiate variables defining the size of the images
-    var width = 750,
-    height = 300,
-    padding = 50,
-    move_left = 80,
-    move_down = 5;  
   
 // HERE
 
@@ -90,13 +107,6 @@ d3.json("barcode_clusters.json", function(error, data) {
     //  .html(function(d) {
     //    return d.y + " clusters has " + Math.ceil(Math.round(d.x*10)/10) + " to " + Math.floor(Math.round((d.x + d.dx)*10)/10) + " reads";
     //  })
-
-    // define the image canvas to paint on
-    var hist_canvas = d3.select("#graph_container_2").append("svg")
-        .attr("width",width)
-        .attr("height",height + padding )
-        .append("g")
-            .attr( "transform", "translate( " + move_left + " ,  " + move_down + "  )" ) ;
     
     // add the tip "layout"
     //hist_canvas.call(tip)
@@ -237,13 +247,6 @@ d3.json("barcode_clusters.json", function(error, data) {
         .orient("left")
         .ticks(10, ",.2s")
         .tickSize(6, 0);
-
-    // define the image canvas to paint on
-    var lines_canvas = d3.select("#graph_container_1").append("svg")
-        .attr("width",width)
-        .attr("height",height + padding )
-        .append("g")
-            .attr( "transform", "translate( " + move_left + " ,  " + move_down + "  )" ) ;
             
     // add x axis text
     var lines_x_group = lines_canvas.append("g")
