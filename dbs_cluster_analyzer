@@ -244,7 +244,7 @@ def updateClusterChunk(analysisfolder,chunk):
                 # set flag to true
                 updated = True
         
-                print 'updated ',len(chunk),'clusters', updated,'(',','.join([str(x[-1]) for x in chunk]),')'
+                print 'updated ',len(chunk),'clusters'#, updated,'(',','.join([str(x[-1]) for x in chunk]),')'
                 time.sleep(1)
                 # sys.stderr.write('updateClusterChunk pid='+str(os.getpid())+', update done.\n')
                 
