@@ -1,0 +1,289 @@
+#! /usr/bin/env python
+
+import sys
+
+def main(): 
+    #
+    # Imports
+    #
+    import metadata
+    import time
+    from seqdata import BarcodeClusterer
+    from misc import Progress
+    import multiprocessing
+    import sqlite3
+    import json, ast
+    import os
+    import pysam
+
+    #
+    # check input and get commandline args
+    #
+    try:
+        analysisfolder = metadata.AnalysisFolder(sys.argv[1])
+        analysisfolder.readindexTsv()
+        if analysisfolder.settings.temp: analysisfolder.copy_to_temp()
+
+    except IndexError: sys.stderr.write('please supply a commandline on format:\n'+os.path.basename(__file__)+' <analysis-output-folder>\n');sys.exit()
+
+    #
+    # check analysis folder
+    #
+    if not analysisfolder.checkIntegrity() == 'PASS': print analysisfolder.checkIntegrity()+'\nERROR: Now exiting'
+
+    #
+    # create a logfile
+    #
+    logfile = open(analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'_downsample_bam.log.txt','w',1)
+    logfile.write('cmd: '+' '.join(sys.argv)+'\n')
+    analysisfolder.logfile = logfile
+
+    #
+    # check if the target region bedfile is defined
+    #
+    if not analysisfolder.settings.targetRegionBed or not os.path.exists(analysisfolder.settings.targetRegionBed):
+        msg = 'WARNING: cant find the target definition bed file!!\n'
+        msg+= '(If run is not targeted you can safely ignore this message).\n'
+        sys.stderr.write(msg);
+        logfile.write(msg)
+     
+    #
+    # Do the work here!!
+    #
+    import operator
+    import random
+    import pysam
+    max_reads_per_position = 100
+    windowsize = 100
+    with open( analysisfolder.dataPath+'/find_alleles_info.dict' ) as infile: info_vars = eval(infile.read())
+    for readcount, allele_id in sorted([(sum([count for barcode_cluster_id, count in list(info_vars['allele_cluster_info'][allele_id]['barcode_clusters_in_this_allele_cluster'].iteritems())+list(info_vars['allele_cluster_info'][allele_id]['supporting_barcode_clusters'].iteritems())]), allele_id) for allele_id in info_vars['allele_cluster_info'].keys()],key=operator.itemgetter(0), reverse=True):
+        
+        down_sample(allele_id,analysisfolder,windowsize,max_reads_per_position)
+            
+    if analysisfolder.database_in_temp: analysisfolder.copy_from_temp()
+    logfile.write('find_alleles FINISHED\n')
+
+def down_sample(allele_id,analysisfolder,windowsize,max_reads_per_position):
+
+    #
+    # imports
+    #
+    import operator
+    import random
+    import pysam
+    import os
+
+    #
+    # get the filenames
+    #
+    original_file_name = analysisfolder.dataPath+'/'+'allele_'+str(allele_id)+'.marked.sorted.bam'
+    original_index_name= analysisfolder.dataPath+'/'+'allele_'+str(allele_id)+'.marked.sorted.bai'
+    backup_file_name = analysisfolder.dataPath+'/'+'allele_'+str(allele_id)+'.marked.sorted.original_not_downsampled.bam'
+    backup_index_name = analysisfolder.dataPath+'/'+'allele_'+str(allele_id)+'.marked.sorted.original_not_downsampled.bai'
+
+    #
+    # check if a backup has been made otherwise create one
+    #
+    if not (os.path.isfile(backup_file_name) and os.path.isfile(backup_index_name)):
+        msg = '\n\nBacking up '+original_file_name+' to '+backup_file_name+'.\n'
+        analysisfolder.logfile.write(msg)
+        sys.stderr.write(msg)
+        os.rename(original_file_name,backup_file_name)
+        os.rename(original_index_name,backup_index_name)
+
+    #
+    # if there was already a backup use it as source instead of the "orgignal file name file"
+    #    
+    else:
+        msg = '\n\nUsing the backup file from a previous downsampling run as source ('+backup_file_name+').\n'
+        analysisfolder.logfile.write(msg)
+        sys.stderr.write(msg)
+        
+    msg = 'downsampling '+backup_file_name+' to '+original_file_name+'\n'
+    analysisfolder.logfile.write(msg)
+    sys.stderr.write(msg)
+    
+    #
+    # open bam for reading and set initial values of counters etc
+    #
+    bamfile = pysam.Samfile(backup_file_name)
+    newHeader = bamfile.header 
+    outputBam = pysam.AlignmentFile(original_file_name, "wb", header=newHeader)
+    current_window_lower = 0
+    current_window_upper = current_window_lower + windowsize
+    last_position = 0
+    reads = []
+    printed_mates = {}
+    printed_positions = {}
+    not_printed = {}
+    still_sorted = True
+    
+    #
+    # loop through all reads in bamfile
+    #
+    for read in bamfile.fetch(until_eof=True):
+
+        #
+        # when entering a new window do this
+        #
+        if int(read.pos) > current_window_upper:
+            
+            sys.stderr.write('\n')
+            msg = 'Window '+str(int(current_window_lower))+'-'+str(int(current_window_upper))+' the new read position is '+str(read.pos)+' writing '+str(min(len(reads),max_reads_per_position))+' reads to output bamfile.\n'
+            analysisfolder.logfile.write(msg)
+            sys.stderr.write(msg)
+            #last_position = int(read.pos)
+            
+            #
+            # count number of reads already printed in this window
+            #
+            already_printed_count = 0
+            for position,count in printed_positions.iteritems():
+                if position >= current_window_lower and position <= current_window_upper: already_printed_count += count
+            
+            #
+            # check if we need to print more reads
+            #
+            if already_printed_count < max_reads_per_position:
+                to_print = max_reads_per_position - already_printed_count
+            
+                #
+                # if there are more reads in the buffer than what we wanna print get a random subset
+                #
+                if len(reads_buffer) > to_print:
+                    
+                    #
+                    # sort the buffer by mates
+                    #
+                    current_buffer_by_mate_info = {}
+                    for print_read in reads_buffer:
+                        try: current_buffer_by_mate_info[print_read.qname].append(print_read)
+                        except KeyError: current_buffer_by_mate_info[print_read.qname] = [print_read]
+                    printed = 0
+                    
+                    for print_read in random.sample(reads_buffer,to_print):
+                        
+                        #
+                        # print each of the reads in the random subset
+                        #
+                        outputBam.write(print_read)
+                        printed += 1
+                        try: printed_mates[print_read.qname] += 1
+                        except KeyError: printed_mates[print_read.qname] = 1
+                        try: printed_positions[print_read.pos] += 1
+                        except KeyError: printed_positions[print_read.pos] = 1
+                        
+                        #
+                        # check if mate is in the same buffer or has been skipped in earlier buffer in that case print it to the file
+                        #
+                        if len(current_buffer_by_mate_info[print_read.qname]) == 2 or print_read.qname in not_printed:
+                            
+                            if print_read.qname in not_printed:
+                                #print 'MATE WAS SKIPPED IN EARLIER BUFFER PRINTING'
+                                mate = not_printed[print_read.qname]
+                                still_sorted = False
+                            else:
+                                #print 'MATE IS IN SAME BUFFER PRINTING'
+                                r1 = current_buffer_by_mate_info[print_read.qname][0]
+                                r2 = current_buffer_by_mate_info[print_read.qname][1]
+                                if   print_read == r1: mate = r2
+                                elif print_read == r2: mate = r1
+                            outputBam.write(mate)
+                            printed += 1
+                            try: printed_mates[mate.qname] += 1
+                            except KeyError: printed_mates[mate.qname] = 1
+                            try: printed_positions[mate.pos] += 1
+                            except KeyError: printed_positions[mate.pos] = 1
+                        
+                        # if enough reads are printed break the loop
+                        if printed >= to_print: break
+                    
+                    #
+                    # track all skipped reads
+                    #
+                    for print_read in reads_buffer:
+                        if print_read.qname not in printed_mates: not_printed[print_read.qname] = print_read
+                
+                
+                else:
+                    #
+                    # if the buffer is smaller than or equal to the requested reads count print the whole buffer
+                    #
+                    for print_read in reads_buffer:
+                        
+                        #
+                        # print read
+                        #
+                        outputBam.write(print_read)
+                        try: printed_mates[print_read.qname] += 1
+                        except KeyError: printed_mates[print_read.qname] = 1
+                        try: printed_positions[print_read.pos] += 1
+                        except KeyError: printed_positions[print_read.pos] = 1
+
+                        #
+                        # check if mate has been skipped in earlier buffer
+                        #
+                        if print_read.qname in not_printed:
+                            mate = not_printed[print_read.qname]
+                            still_sorted = False
+                            outputBam.write(mate)
+                            printed += 1
+                            try: printed_mates[mate.qname] += 1
+                            except KeyError: printed_mates[mate.qname] = 1
+                            try: printed_positions[mate.pos] += 1
+                            except KeyError: printed_positions[mate.pos] = 1
+
+            #
+            # reset the buffer for the new window
+            #
+            msg = 'resetting buffer of length='+str(len(reads_buffer))+' and moving on to position '+str(last_position)+'.\n'
+            analysisfolder.logfile.write(msg)
+            sys.stderr.write(msg)
+            last_position = int(read.pos)
+            current_window_lower = int(read.pos)
+            current_window_upper = current_window_lower + windowsize
+            reads_buffer = []
+            
+        #
+        # if the mate of the read has been printed print the read aswell
+        #
+        if read.qname in printed_mates:
+            sys.stderr.write('Printing read mate '+read.qname+' to outfile ... \r')
+            outputBam.write(read)
+            try: printed_mates[read.qname] += 1
+            except KeyError: printed_mates[read.qname] = 1
+            try: printed_positions[read.pos] += 1
+            except KeyError: printed_positions[read.pos] = 1
+        
+        #
+        # otherwise add the read to the buffer to enable random subsetting when we reach the next window
+        #
+        else:#if read.qname not in printed_mates:
+            sys.stderr.write('('+str(len(reads_buffer))+') appending read '+read.qname+' to buffer ... \r')
+            reads_buffer.append(read)
+    
+    #
+    # close the output file for writing
+    #
+    outputBam.close()
+    
+    #
+    # sort the bamfile by coordinate
+    #
+    if True:#not still_sorted:
+        msg = '\nThe sorting was messed up resorting the bamfile.\n'
+        analysisfolder.logfile.write(msg)
+        sys.stderr.write(msg)        
+        pysam.sort(original_file_name, '-o', original_file_name+'.NEW_SORT.bam')
+        os.rename(original_file_name+'.NEW_SORT.bam', original_file_name)
+    
+    #
+    # index the bamfile
+    #
+    msg = '\nindexing the new '+original_file_name+'\n'
+    analysisfolder.logfile.write(msg)
+    sys.stderr.write(msg)
+    pysam.sort(original_file_name)
+    pysam.index(original_file_name,original_index_name)
+
+if __name__ == "__main__": main()
