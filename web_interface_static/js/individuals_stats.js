@@ -73,12 +73,16 @@ function appendTable(container_id, data, columns, header_bool,header_text) {
 
 d3.json("individuals.json", function(error, data) {
     tabulate( '#ind_stats_table', data,
-             ['id', 'a1','a2'],
+             ['id', 'a1','a1_perc_tot','a1_perc_self','a2','a2_perc_tot','a1_perc_self'],
              true,
              {
                 'id':'individual Id',
-                'a1':'Allele 1, % of all reads, % of reads in ind.',
-                'a2':'Allele 2, % of all reads, % of reads in ind.',
+                'a1':'Allele 1',
+                'a1_perc_tot':'% of all reads',
+                'a1_perc_self':'% of reads in ind',
+                'a2':'Allele 2',
+                'a2_perc_tot':'% of all reads',
+                'a2_perc_self':'% of reads in ind',
                 }
             )
     }

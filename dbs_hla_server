@@ -97,6 +97,7 @@ def barcode_clusters():
 def alleles():
     import json
     import misc
+    import operator
     with open( app.analysisfolder.dataPath+'/find_alleles_info.dict' ) as infile: info_vars = eval(infile.read())
     with open( app.analysisfolder.dataPath+'/allele_matches.dict' ) as infile: allele_matches = eval(infile.read())
     with open( app.analysisfolder.dataPath+'/allele_types_dict' ) as infile: allele_types = eval(infile.read())
@@ -106,7 +107,7 @@ def alleles():
     return render_template(
         'alleles.html',
         reference_id='HLA-A',
-        allele_ids=info_vars['allele_cluster_info'].keys(),
+        allele_ids=[allele_id for readcount, allele_id in sorted([(sum([count for barcode_cluster_id, count in list(info_vars['allele_cluster_info'][allele_id]['barcode_clusters_in_this_allele_cluster'].iteritems())+list(info_vars['allele_cluster_info'][allele_id]['supporting_barcode_clusters'].iteritems())]), allele_id) for allele_id in info_vars['allele_cluster_info'].keys()],key=operator.itemgetter(0), reverse=True)],#info_vars['allele_cluster_info'].keys(),
         allele_count=len(info_vars['allele_cluster_info'].keys()),
         barcode_cluster_count=misc.thousandString(info_vars['barcode_clusters_loaded_for_find_alleles_step']),
         read_pair_count=misc.thousandString(info_vars['read_pairs_loaded_for_find_alleles_step']),
@@ -116,7 +117,8 @@ def alleles():
 
 @app.route("/individuals")
 def individuals():
-    return render_template('individuals.html')
+    with open( app.analysisfolder.dataPath+'/allele_types_dict' ) as infile: allele_types = eval(infile.read())
+    return render_template('individuals.html',ind_count=sum([1 for ind_id in allele_types if ind_id not in ['No info','Non clonal','unknown id','nosiy signal']]))
 
 @app.route("/ind_details.json")
 def ind_details_json():
@@ -192,14 +194,19 @@ def individuals_json():
         alleles = []
         for allele_id, read_count in  sorted([ ( allele_id, sum(read_counts_list) ) for allele_id, read_counts_list in allele_types_in_this_ind.iteritems() ], key=operator.itemgetter(1),reverse=True):
             if ind_id not in ['No info', 'nosiy signal', 'unknown id','Non clonal'] and not re.search('trashed',allele_id):
-                alleles.append(str(allele_id).replace('allele ','')+', '+str(misc.percentage(read_count,app.analysisfolder.results.totalReadCount))+'%, '+str(misc.percentage(read_count,total_reads_in_this_ind))+'%')
+                alleles.append({'id':allele_id.replace('allele ',''), 'perc_of_total':str(misc.percentage(read_count,app.analysisfolder.results.totalReadCount))+'%', 'perc_of_self':str(misc.percentage(read_count,total_reads_in_this_ind))+'%'})
+                #str(allele_id).replace('allele ','')+', '+str(misc.percentage(read_count,app.analysisfolder.results.totalReadCount))+'%, '+str(misc.percentage(read_count,total_reads_in_this_ind))+'%')
 
         if len(alleles) :
             out_list.append(
                     {
                         "id":ind_id,
-                        "a1":alleles[0],
-                        "a2":alleles[1] if len(alleles) >=2 else '-',
+                        "a1":alleles[0]['id'],
+                        "a1_perc_tot":alleles[0]['perc_of_total'],
+                        "a1_perc_self":alleles[0]['perc_of_self'],
+                        "a2":alleles[1]['id'] if len(alleles) >=2 else '-',
+                        "a2_perc_tot":alleles[1]['perc_of_total'] if len(alleles) >=2 else '-',
+                        "a2_perc_self":alleles[1]['perc_of_self'] if len(alleles) >=2 else '-',
                     }
                 )
 
