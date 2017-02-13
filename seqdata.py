@@ -1939,7 +1939,7 @@ class BarcodeCluster(object,):
             
             for entry in self.targetInfo:
 
-                read_depths = [column.nsegments for column in bamfile.pileup(stepper='nofilter', reference=entry['reference_name'], start=entry['start_position'], end=entry['end_position']) if (column.pos >= entry['start_position'] and column.pos <= entry['end_position']) ]
+                read_depths = [column.nsegments for column in bamfile.pileup(stepper='nofilter', max_depth=1e6, reference=entry['reference_name'], start=entry['start_position'], end=entry['end_position']) if (column.pos >= entry['start_position'] and column.pos <= entry['end_position']) ]
 
                 try:
                     if output == 'average_readdepth_with_zeros': entry['averageReadDepth'] = round(float(sum(read_depths))/float(entry['end_position']-entry['start_position']+1),2)
@@ -1990,10 +1990,10 @@ class BarcodeCluster(object,):
             tmp_coverage_check = {}
             
             # make a pilup of aligned bases for each base in targeted region
-            for pileup_column in bamfile.pileup(stepper='nofilter', reference=entry['reference_name'], start=int(entry['start_position'])-1, end=int(entry['end_position'])+1):
+            for pileup_column in bamfile.pileup(stepper='nofilter', reference=entry['reference_name'], start=int(entry['start_position'])-1, end=int(entry['end_position'])+1, max_depth=1e6):
                 
                 # "assert" that the base are within target
-                if pileup_column.pos >= entry['start_position'] and pileup_column.pos <= entry['end_position']:
+                if pileup_column.pos >= int(entry['start_position']) and pileup_column.pos <= int(entry['end_position']):
                     
                     # check readcount above defined cutoff
                     if pileup_column.nsegments >= int(self.analysisfolder.settings.minReadDepthForVariantCalling): #change this to not only hetro variant but variant callin general
