@@ -29,16 +29,16 @@ def create_links():
     """
     
     program_names = [
-        'dbs_barcode_clustrer',
-        'dbs_change_settings',
-        'dbs_cluster_analyzer',
-        'dbs_handle_indetifier',
-        'dbs_insert_mapper',
+#        'dbs_barcode_clustrer',
+#        'dbs_change_settings',
+#        'dbs_cluster_analyzer',
+#        'dbs_handle_indetifier',
+#        'dbs_insert_mapper',
         'dbs_web_interface_server',
-        'dbs_find_alleles',
+#        'dbs_find_alleles',
         'viewLogfiles',
         'dbs_tag_bam',
-        'dbs_hla_server'
+#        'dbs_hla_server'
         ]
     
     for program_name in program_names: update_link(program_name)
