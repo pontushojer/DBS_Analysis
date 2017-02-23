@@ -1,0 +1,44 @@
+#! /usr/bin/env python
+
+import sys
+
+def main(): 
+    #
+    # Imports
+    #
+    from dbs_analysis import metadata
+    import time
+    from dbs_analysis.seqdata import BarcodeClusterer
+    import os
+    
+    #
+    # check input and get commandline args
+    #
+    try:
+        analysisfolder = metadata.AnalysisFolder(sys.argv[1])
+        if analysisfolder.settings.temp: analysisfolder.copy_to_temp()
+    except IndexError: sys.stderr.write('please supply a commandline on format:\n'+os.path.basename(__file__)+' <analysis-output-folder>\n');sys.exit()
+    
+    #
+    # check analysis folder
+    #
+    if not analysisfolder.checkIntegrity() == 'PASS': print analysisfolder.checkIntegrity()+'\nERROR: Now exiting'
+
+    #
+    # create a logfile
+    #
+    logfile = open(analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'_barcodeClusterer','w',1)
+    logfile.write('cmd: '+' '.join(sys.argv)+'\n')
+    analysisfolder.logfile = logfile
+
+    #
+    # cluster barcode sequences
+    #
+    barcodeClusterer = BarcodeClusterer(analysisfolder)
+    barcodeClusterer.clusterBarcodeSequences()
+
+    if analysisfolder.database_in_temp: analysisfolder.copy_from_temp()
+    
+    logfile.write('barcodeClusterer FINISHED\n')
+
+if __name__ == "__main__": main()

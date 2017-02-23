@@ -1,0 +1,488 @@
+#! /usr/bin/env python
+
+#
+# This program gets all infiles in the database and add all read data to the database (ids barcode and handle positions etc)
+#
+
+import sys
+
+def main():
+    
+    #
+    # Imports
+    #
+    import dbs_analysis
+    import time
+    import os
+    
+    #
+    # check input and get commandline args
+    #
+    try:
+        r1filename = sys.argv[1]
+        r2filename = sys.argv[2]
+        analysisfolder = dbs_analysis.metadata.AnalysisFolder(sys.argv[3])
+        if analysisfolder.settings.temp: analysisfolder.copy_to_temp()
+    except IndexError: sys.stderr.write('please supply an outfile and infiles on format:\n'+os.path.basename(__file__)+' <r1> <r2> <analysis-output-folder>\n');sys.exit()
+    
+    #
+    # check analysis folder
+    #
+    if not analysisfolder.checkIntegrity() == 'PASS':
+        if analysisfolder.checkIntegrity() == 'FAIL: The folder does not exist.': analysisfolder.create()
+        else:
+            print analysisfolder.checkIntegrity()+'\nERROR: Now exiting'
+    
+    #
+    # create a logfile
+    #
+    logfile = open(analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'_wfaChecker','w',1)
+    logfile.write('cmd: '+' '.join(sys.argv)+'\n')
+    analysisfolder.logfile = logfile
+    
+    #
+    # add files to database
+    #
+    if 'SKIP' not in [r1filename,r2filename]:
+        analysisfolder.database.addFastqs(os.path.abspath(r1filename), os.path.abspath(r2filename),logfile=logfile)
+    else:
+        logfile.write('No fastq files added to db just running data check ... \n')
+    logfile.write('Allowing '+str(analysisfolder.settings.maxHandleMissMatches)+' missmatches in handles during this run.\n')
+    
+    #
+    # create the fastq reader and runt it
+    #
+    reader = FastqReader(analysisfolder,logfile=logfile)
+    reader.runParallel() # run it in parallel processing mode
+
+    if analysisfolder.database_in_temp: analysisfolder.copy_from_temp()
+    
+    logfile.write('wfaChecker FINISHED\n')
+
+def foreachRead(readpair):
+    """ checks that are run in parallel using multiprocessing for each read pair
+    This functions is used mainly by FastqReader.runParallel but also by the non-supported FastqReader.run"""
+    
+    #readpair.isIlluminaAdapter()
+    readpair.identifyDirection()
+    #readpair.makeColoredOut() # removed this to speed things up should be able to run if comment is removed
+    readpair.fixInsert()
+    readpair.matchdbs()
+    
+    return readpair
+
+class FastqReader(object):
+    """ reads fastq files (read one and two) and identifies the coordinates for the Barcode sequence etc and adds the data to the database """
+    
+    def __init__(self,analysisfolder,logfile=None):
+        
+        #
+        # connections to other objects
+        #
+        self.analysisfolder = analysisfolder
+        self.logfile = logfile
+        self.resultsummary=Summary(analysisfolder)
+  
+        #
+        # Setting initial values
+        #
+        self.filesAdded = {}
+        self.readsToAdd = []
+        self.currentLocation = 1
+        self.appendChunkSize = 500000
+        self.getFilenames()
+        self.totalReadcount = 0
+        self.currentRead = 0
+        self.grandTotal = 0
+        self.minR1ReadLength = 10000000000
+        self.minR2ReadLength = 10000000000
+
+        #
+        # get the grand total readcount in all files to be added to the database
+        #
+        for filePairId, readcount, fastq1, fastq2 in self.infiles: self.grandTotal += readcount
+        if self.logfile: logfile.write('Going to add a self.grandTotal of '+str(self.grandTotal)+' reads to the database.\n')
+
+        from dbs_analysis import misc
+        self.progress = misc.Progress(self.grandTotal, logfile=self.logfile, unit='reads-post-processed', mem=True)
+        
+        #
+        # open outfiles for inserts
+        #
+        self.analysisfolder.fastq_outfile1 = open(self.analysisfolder.fastq_outfile1,'w')
+        self.analysisfolder.fastq_outfile2 = open(self.analysisfolder.fastq_outfile2,'w')
+        self.analysisfolder.fastq_outfile3 = open(self.analysisfolder.fastq_outfile3,'w')
+        self.analysisfolder.coloredReadMasking = open(self.analysisfolder.coloredReadMasking,'w')
+
+    def getFilenames(self,):
+        """ fecth infiles from database table and store in self.infiles variable """
+        self.infiles = self.analysisfolder.database.getFastqs()
+
+    def readPairGenerator(self,):
+        """ generator that reads all infiles in database and produces seqdata.ReadPair() objects """
+
+        #
+        # imports
+        #
+        import gzip
+        from dbs_analysis import misc
+        from dbs_analysis import seqdata
+
+        #
+        # Loop through infiles
+        #
+        readfromdiskProgress = misc.Progress(self.grandTotal, logfile=self.logfile, unit='reads-read-from-disk', mem=True)
+        with readfromdiskProgress:
+            for filePairId, readcount, fastq1, fastq2 in self.infiles:
+                if self.logfile: self.logfile.write(str(self.currentRead)+' read pairs read from infiles, now starting to read from '+fastq1+'.\n')
+                self.totalReadcount += readcount
+                
+                #
+                # Open the files
+                #
+                if fastq1.split('.')[-1] in ['gz','gzip']: file1 = gzip.open(fastq1)
+                else: file1 = open(fastq1,'r')
+                if fastq2.split('.')[-1] in ['gz','gzip']: file2 = gzip.open(fastq2)
+                else: file2 = open(fastq2,'r')
+                
+                #
+                # Parse files
+                #
+                while 'NOT EOFError':
+                    try:
+                        
+                        #
+                        # get data from fastq file
+                        #
+                        r1PositionInFile = file1.tell()
+                        r2PositionInFile = file2.tell()
+                        header1 = file1.readline().rstrip()
+                        header2 = file2.readline().rstrip()
+                        sequenceR1 = file1.readline().rstrip()
+                        sequenceR2 = file2.readline().rstrip()
+                        trash = file1.readline().rstrip()
+                        trash = file2.readline().rstrip()
+                        qualR1 = file1.readline().rstrip()
+                        qualR2 = file2.readline().rstrip()
+                        if not header1: break
+                        self.currentRead += 1
+      
+                        #
+                        # set initial values to None
+                        #
+                        bamFilePos = None
+                        direction = None
+                        h1 = None
+                        h2 = None
+                        h3 = None
+                        constructType = None
+                        dbsMatch = None
+                        dbsSeq = None
+                        dbsQual = None
+                        mappingFlagR1 = None
+                        refNameR1 = None
+                        refPosR1 = None
+                        mapQR1 = None
+                        cigarR1 = None
+                        mappingFlagR2 = None
+                        refNameR2 = None
+                        refPosR2 = None
+                        mapQR2 = None
+                        cigarR2 = None
+                        insertSize = None
+                        clusterId = None
+                        annotations = {}
+                        individual_id = None
+                        
+                        #
+                        # set fastq origin
+                        #
+                        fromFastqId = filePairId
+                        
+                        #
+                        # assert header match and set header
+                        #
+                        assert header1.split(' ')[0] == header2.split(' ')[0], '\n\n#\n# Error header missmatch in fastq pair.\n#\n\n'
+                        header = header1.split(' ')[0]
+                        
+                        #
+                        # create read pair object
+                        #
+                        pair = seqdata.ReadPair(
+                            self.currentRead, header,
+                            sequenceR1, sequenceR2,
+                            qualR1, qualR2,
+                            direction, h1, h2, h3, constructType,
+                            dbsMatch, dbsSeq, dbsQual,
+                            mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1,
+                            mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,
+                            insertSize, clusterId, annotations, fromFastqId,r1PositionInFile,r2PositionInFile,bamFilePos,individual_id,self.analysisfolder
+                            )
+                        #pair.analysisfolder = self.analysisfolder
+                        
+                        #
+                        # update read progress and yield
+                        #
+                        readfromdiskProgress.update()
+                        yield pair
+                    
+                    except EOFError: break #End Of File
+
+                assert self.totalReadcount == self.currentRead, 'Error while reading infiles: Read count after file '+fastq1+' is '+str(self.currentRead)+' should theoretically be '+str(self.totalReadcount)+'.\n'
+                if self.logfile: self.logfile.write('Reached the end of '+fastq1+'.\n')
+        if self.logfile: self.logfile.write(str(self.grandTotal)+' read pairs read from infiles.\n')
+        self.analysisfolder.results.setResult('totalReadCount',self.grandTotal)
+
+    def foreachProcessedPair(self, pair):
+        """ to be performed for read pairs that come back from the parallel processing """
+        
+        #
+        # check read pair file origin
+        #
+        if pair.fileOrigin not in self.filesAdded:
+            if self.logfile: self.logfile.write('Starting post process of read pair #'+str(pair.id)+' (from file '+str(pair.fileOrigin)+').\n')
+            self.filesAdded[pair.fileOrigin] = True
+  
+        #
+        # check read length
+        #
+        self.minR1ReadLength = min([self.minR1ReadLength,len(pair.r1Seq)])
+        self.minR2ReadLength = min([self.minR2ReadLength,len(pair.r2Seq)])
+        
+        #
+        # add to results summary
+        #
+        self.resultsummary.add(pair)
+        
+        #
+        # write to files
+        #
+        minInsertSize = 25
+        #self.analysisfolder.coloredReadMasking.write( pair.outputSeq + '\n')
+        if pair.insert and pair.dbs and pair.dbsmatch:
+            if pair.insert[0] and len(pair.insert[0]) >= minInsertSize and pair.insert[1] and len(pair.insert[1]) >= minInsertSize:
+                self.analysisfolder.fastq_outfile1.write( str(pair.header)+' '+str(pair.dbs)+'\n'+str(pair.insert[0])+'\n+\n'+str(pair.insert[2])+'\n')
+                self.analysisfolder.fastq_outfile2.write( str(pair.header)+' '+str(pair.dbs)+'\n'+str(pair.insert[1])+'\n+\n'+str(pair.insert[3])+'\n')
+                pair.annotations['PeInsert'] = True
+            elif pair.insert[0] and len(pair.insert[0]) >= minInsertSize:
+                # self.analysisfolder.fastq_outfile3.write( str(pair.header)+' '+str(pair.dbs)+'\n'+str(pair.insert[0])+'\n+\n'+str(pair.insert[2])+'\n')
+                pair.annotations['SingletInsert'] = True
+            elif pair.insert[1] and len(pair.insert[1]) >= minInsertSize:
+                # self.analysisfolder.fastq_outfile3.write( str(pair.header)+' '+str(pair.dbs)+'\n'+str(pair.insert[1])+'\n+\n'+str(pair.insert[3])+'\n')
+                pair.annotations['SingletInsert'] = True
+            else: pair.annotations['AllInsertsFail'] = True
+
+        #
+        # append to chunk
+        #
+        self.readsToAdd.append(pair.databaseTuple)
+  
+        #
+        # add chunk to db
+        #
+        if len(self.readsToAdd) >= self.appendChunkSize: self.chunkToDb()
+
+        # update the progressmeter progression
+        self.progress.update()
+
+        return 0
+
+    def chunkToDb(self, ):
+        """ adds one chunk of reads to the database """
+        
+        #
+        # Imports
+        #
+        import time
+  
+        # set starttime for operation and write message to logfile
+        chunkStartTime = time.time()
+        if self.logfile: self.logfile.write('Staring to append reads '+str(self.currentLocation)+'-'+str(self.currentLocation+len(self.readsToAdd)-1)+' to db.\n')
+  
+        # use database function to add the reads
+        self.analysisfolder.database.addReads(self.readsToAdd)
+  
+        # get end time and write log message
+        chunkTime = time.time()-chunkStartTime
+        if self.logfile: self.logfile.write('Reads '+str(self.currentLocation)+'-'+str(self.currentLocation+len(self.readsToAdd)-1)+' appended to db after '+str(int(round(chunkTime,0)/60))+' minutes and '+str(round(chunkTime,0)%60)+' seconds.\n')
+  
+        # update the counter and reset the chunk content
+        self.currentLocation += len(self.readsToAdd)
+        self.readsToAdd = []
+        
+        return 0
+
+    def run(self,):
+        """ old function for running the analysis in a seraial mode  --- NOTE: not supported but might work!!! ----
+        """
+        
+        #
+        # Write log message
+        #
+        if self.logfile: self.logfile.write('Adding reads to database table.\n')
+        
+        #
+        # Parse through files and add to database in chunks of "self.appendChunkSize" reads
+        #
+        with self.progress:
+            for pair in self.readPairGenerator():
+                #
+                # foreach read do this before adding to db, this part could be done in parallel
+                #
+                pair = foreachRead(pair)
+                
+                #
+                # post procesing for each read, preparing and adding to db
+                #
+                self.foreachProcessedPair(pair)
+
+
+        #
+        # add final chunk to db
+        #
+        if self.readsToAdd: self.chunkToDb()
+        
+        #
+        # Done write to log and return
+        #
+        if self.logfile: logfile.write('Files '+', '.join([key for key in self.filesAdded.keys()])+' added sucesfully to the database.\n')
+        
+        return 0
+
+    def runParallel(self,):
+        """ Function that run the handle and adapter identification as well as some other function for each read in parallel before the information is added to the database
+        """
+        
+        #
+        # imports
+        #
+        import multiprocessing
+        
+        #
+        # drop old data and create table for new data
+        #
+        if self.logfile: self.logfile.write('Create reads table (and drop old one if needed) ...\n')
+        self.analysisfolder.database.getConnection()
+        self.analysisfolder.database.c.execute("DROP TABLE IF EXISTS reads")
+        self.analysisfolder.database.c.execute('''CREATE TABLE reads (id, header, sequenceR1, sequenceR2, qualR1, qualR2, direction, h1, h2, h3, constructType, dbsMatch, dbsSeq, dbsQual, mappingFlagR1, refNameR1, refPosR1, mapQR1, cigarR1, mappingFlagR2, refNameR2, refPosR2, mapQR2, cigarR2,insertSize, clusterId, annotations, fromFastqId, r1PositionInFile, r2PositionInFile, bamFilePos, individual_id, PRIMARY KEY (id))''')
+        if self.logfile: self.logfile.write('commiting changes to database.\n')
+        self.analysisfolder.database.commitAndClose()
+        
+        #
+        # Write log message
+        #
+        if self.logfile: self.logfile.write('Adding reads to database table (working in parallel).\n')
+        
+        # set up the pool of processes to run the analysis for each read pair
+        poolOfProcesses = multiprocessing.Pool(int(self.analysisfolder.settings.parallelProcesses),maxtasksperchild=100000000)
+        self.parallelResults = poolOfProcesses.imap_unordered(foreachRead,self.readPairGenerator(),chunksize=10000)
+        
+        #
+        # Parse through files and add to database in chunks of "self.appendChunkSize" reads
+        #
+        adapterCount = 0
+        with self.progress:
+            for pair in self.parallelResults:	    
+
+                #
+                # post procesing for each read, preparing and adding to db
+                #
+                self.foreachProcessedPair(pair)
+
+                if 'Read1IsIlluminaAdapter' in pair.annotations or 'Read2IsIlluminaAdapter' in pair.annotations: adapterCount += 1
+        
+        # Set the adapter count to the results value in the results database table
+        self.analysisfolder.results.setResult('readPairsAreIlluminaAdapters',adapterCount)
+
+        #
+        # add final chunk to db and close the multiprocessing pool
+        #
+        if self.readsToAdd: self.chunkToDb()
+        poolOfProcesses.close()
+        poolOfProcesses.join()
+        
+        #
+        # Done write to log and return
+        #
+        if self.logfile: self.logfile.write('Files '+', '.join([str(key) for key in self.filesAdded.keys()])+' added sucesfully to the database.\n')
+        if self.logfile: self.logfile.write('Saving totalReadCount etc to results table in database.\n')
+        self.analysisfolder.results.setResult('minR1readLength',self.minR1ReadLength)
+        self.analysisfolder.results.setResult('minR2readLength',self.minR2ReadLength)
+        self.analysisfolder.results.saveToDb()
+        self.resultsummary.printsummary()
+        
+        return 0
+
+class Summary():
+    """collection of counters too keep track of some runtime stats
+    """
+    
+    def __init__(self, analysisfolder, logfile=None):
+        """ sets counter intial values etc to zero
+        """
+        
+        #
+        # Set initial values of counters etc
+        #
+        self.totalReads = 0
+        self.directions = {}
+        self.constructType = {}
+        self.dbsmatches = {}
+        self.analysisfolder = analysisfolder
+        self.logfile = logfile
+
+    def add(self, readpair):
+        """ add the pair values to the summary statistics """
+        self.totalReads += 1
+        try: self.directions[readpair.direction] += 1
+        except KeyError: self.directions[readpair.direction] = 1
+        try: self.constructType[readpair.construct] += 1
+        except KeyError: self.constructType[readpair.construct] = 1
+        try: self.dbsmatches[readpair.dbsmatch] += 1
+        except KeyError: self.dbsmatches[readpair.dbsmatch] = 1
+
+    def printsummary(self):
+        """ write the current status of all counters to logfile and set results in database """
+
+        from dbs_analysis import misc
+
+        print '\n##### SUMMARY #####'
+
+        print self.totalReads
+
+        print 'Directions:'
+        self.analysisfolder.logfile.write ('Directions:\n')
+        for direction,count in self.directions.iteritems():
+            string = str(direction) +'\t'+str(misc.percentage(count,self.totalReads))
+            print string
+            self.analysisfolder.logfile.write (string+'\n')
+        print ''
+        self.analysisfolder.logfile.write ('\n')
+
+        print 'CunstructType:'
+        self.analysisfolder.logfile.write ('CunstructType:'+'\n')
+        for constructtype,count in self.constructType.iteritems():
+            string = str(constructtype) +'\t'+str(misc.percentage(count,self.totalReads))
+            print string
+            self.analysisfolder.logfile.write (string+'\n')
+        print ''
+        self.analysisfolder.logfile.write ('\n')
+
+        print 'DBSmatch:'
+        self.analysisfolder.logfile.write ('DBSmatch:'+'\n')
+        for match,count in self.dbsmatches.iteritems():
+            if match != None: string= ' '+str(match) +'\t'+str(misc.percentage(count,self.totalReads-self.dbsmatches[None]))+' (% of total-None)'
+            else: string= ' '+str(match) +'\t'+str(misc.percentage(count,self.totalReads))+' (% of total)'
+            print string
+            self.analysisfolder.logfile.write (string+'\n')
+        print ''
+        self.analysisfolder.logfile.write ('\n')
+
+        #
+        # set results in database
+        #
+        self.analysisfolder.results.setResult('readsWithDbsPatternMatch',self.dbsmatches)
+        self.analysisfolder.results.setResult('constructTypes',self.constructType)
+        self.analysisfolder.results.saveToDb()
+
+if __name__ == "__main__": main()
