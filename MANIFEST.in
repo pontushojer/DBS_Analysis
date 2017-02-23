@@ -1,0 +1,2 @@
+graft dbs_analysis/hla_interface/templates
+graft dbs_analysis/hla_interface/web_interface_static
