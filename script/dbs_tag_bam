@@ -6,10 +6,10 @@ def main():
     #
     # Imports
     #
-    import metadata
+    from dbs_analysis import metadata
     import time
-    from seqdata import BarcodeClusterer
-    from misc import Progress
+    from dbs_analysis.seqdata import BarcodeClusterer
+    from dbs_analysis.misc import Progress
     import multiprocessing
     import sqlite3
     import json, ast

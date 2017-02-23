@@ -38,7 +38,9 @@ setup(name='dbs_analysis',
         'script/dbs_change_settings',
         'script/dbs_cluster_analyzer',
         'script/dbs_find_alleles',
-        'script/dbs_hla_server'
+        'script/dbs_hla_server',
+        'script/dbs_tag_bam',
+        'script/dbs_downsample_bam'
         ],
     ext_modules=cythonize(extensions)
     )
