@@ -6,10 +6,10 @@ def main():
     #
     # Imports
     #
-    import metadata
+    from dbs_analysis import metadata
     import time
     import os
-    from misc import TerminalColors
+    from dbs_analysis.misc import TerminalColors
     
     #
     # check input and get commandline args

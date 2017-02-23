@@ -6,10 +6,10 @@ def main():
     #
     # Imports
     #
-    import metadata
+    from dbs_analysis import metadata
     import time
-    from seqdata import BarcodeClusterer
-    from misc import Progress
+    from dbs_analysis.seqdata import BarcodeClusterer
+    from dbs_analysis.misc import Progress
     import multiprocessing
     import sqlite3
     import os
@@ -116,8 +116,8 @@ def forResultingCluster(progress,cluster,updateChunk):
 def cluster_generator(analysisfolder):
     """ function that gets the clusterids from the database and yields seqdata.BarcodeCluster() objects """
     
-    from seqdata import BarcodeCluster
-    from seqdata import BarcodeClusterer
+    from dbs_analysis.seqdata import BarcodeCluster
+    from dbs_analysis.seqdata import BarcodeClusterer
     import sys
     import os
     

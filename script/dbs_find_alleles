@@ -6,10 +6,10 @@ def main():
     #
     # Imports
     #
-    import metadata
+    from dbs_analysis import metadata
     import time
-    from seqdata import BarcodeClusterer
-    from misc import Progress
+    from dbs_analysis.seqdata import BarcodeClusterer
+    from dbs_analysis.misc import Progress
     import sqlite3
     import json, ast
     import os
@@ -93,10 +93,10 @@ class ClusterAllelComparer():
         
         self.read_count_cut_off = int(self.analysisfolder.settings.minPairsPerCluster)
         
-        import misc
+        from dbs_analysis import misc
         p = misc.Progress(self.analysisfolder.results.barcodeClusterCount-self.analysisfolder.results.singeltonBarcodeClusters, unit='barcode clusters loaded',printint=5, logfile=sys.stdout)
 
-        from seqdata import BarcodeCluster
+        from dbs_analysis.seqdata import BarcodeCluster
         import sqlite3
         self.analysisfolder.database.getConnection()
         #info = self.analysisfolder.database.c.execute('SELECT clusterId, clusterTotalReadCount, clusterBarcodeSequence, annotations, constructTypes, readPairsInBamFile, mappedSEReads, SEreadsPassMappingQualityFilter, goodReadPairs, duplicateReadPairs, targetInfo, individual_ID_dictionary, analyzed, hetrozygous_positions, high_quality_cluster FROM barcodeClusters WHERE clusterTotalReadCount>1')
@@ -132,7 +132,7 @@ class ClusterAllelComparer():
         
         self.read_count_cut_off = int(self.analysisfolder.settings.minPairsPerCluster)
         
-        import misc
+        from dbs_analysis import misc
         p = misc.Progress(self.analysisfolder.results.barcodeClusterCount-self.analysisfolder.results.singeltonBarcodeClusters, unit='barcode clusters loaded',printint=5, logfile=sys.stdout)
         
         #for barcode_cluster in self.analysisfolder.database.getAllClustersLoaded(self.analysisfolder, cluster_id_max=100, cluster_id_min=10, skip_singletons=True):#, skip_htmlTable=True):
@@ -167,7 +167,7 @@ class ClusterAllelComparer():
             function for printing some initial statistics
         """
 
-        import misc
+        from dbs_analysis import misc
 
         msg  = '\n#\n# Initial status:\n#\n'
 
@@ -229,7 +229,7 @@ class ClusterAllelComparer():
         # imports
         #
         import re
-        from seqdata import BarcodeCluster
+        from dbs_analysis.seqdata import BarcodeCluster
 
         msg = 'Searching for variable positions in '
         self.analysisfolder.logfile.write(msg); sys.stdout.write(msg)
@@ -309,7 +309,7 @@ class ClusterAllelComparer():
         """ function that finds clusters with high quality alleles in the data """
 
         import sys
-        from seqdata import BarcodeCluster
+        from dbs_analysis.seqdata import BarcodeCluster
 
         msg = 'Loading barcode clusters with no missing data and no heterozygous variants to population of potential seeds ...\n'
         self.analysisfolder.logfile.write(msg); sys.stdout.write(msg)
@@ -342,7 +342,7 @@ class ClusterAllelComparer():
 
     def add_high_quality_barcode_clusters_to_seeds(self, ):
         
-        import misc
+        from dbs_analysis import misc
         
         msg = '\nAdding barcode clusters with no missing data and heterozygous variants to population of potential seeds ...\n'
         self.analysisfolder.logfile.write(msg); sys.stdout.write(msg)
@@ -357,7 +357,7 @@ class ClusterAllelComparer():
         self.variable_position_info = self.find_variable_positions( min_read_count=min_read_count )
         self.info_vars['variable_position_info'] = self.variable_position_info
         self.info_vars['read_cutoff_for_variable_position_info'] = min_read_count
-        from misc import percentage
+        from dbs_analysis.misc import percentage
         self.non_reference_positions_dict = {}
         for i in range(len(self.variable_position_info['reference_positions'])):
             this_position = self.variable_position_info['reference_positions'][i]
@@ -690,7 +690,7 @@ class ClusterAllelComparer():
             in that case we would need to add some variable tracking those like the variable_positions_in_at_least_one_cluster dict above but not overlapping with the self.variable_positions_in_at_least_one_barcode_cluster dict
             variable_positions_in_at_least_one_cluster = self.variable_positions_in_at_least_one_barcode_cluster.'''
         
-        import misc
+        from dbs_analysis import misc
 
         variable_positions_in_at_least_one_cluster = {}
         for cluster in [cluster1,cluster2]:
@@ -754,7 +754,7 @@ class ClusterAllelComparer():
 
     def find_support_for_alleles(self,):
         """ Now with this function we try to finding the clusters which have similarity with defined main alleles for covering the clusters with shortage of information in regions """ 
-        import misc
+        from dbs_analysis import misc
 
         msg = '\nmaking post clustering summary:\n'
         self.analysisfolder.logfile.write(msg); sys.stdout.write(msg)
@@ -944,9 +944,9 @@ class ClusterAllelComparer():
     def find_individuals_id_in_clusters(self, list_of_clusters):
         """ Functions find the individual's information and reports which individuals have which alleles""" 
         
-        from seqdata import BarcodeCluster        
+        from dbs_analysis.seqdata import BarcodeCluster        
         from collections import Counter
-        from misc import percentage
+        from dbs_analysis.misc import percentage
         import operator
         
         tmp_dictionary = {}
@@ -972,7 +972,7 @@ class ClusterAllelComparer():
         
         import sys
         import matplotlib.pyplot as plt
-        import misc
+        from dbs_analysis import misc
 
         # tmp_position_list = self.statistic_position_info[0]
         # hetrozygous_positions = self.statistic_position_info[1]
@@ -1087,7 +1087,7 @@ class ClusterAllelComparer():
         #
         # import
         #
-        import misc
+        from dbs_analysis import misc
         import operator
         import pysam
         import subprocess
@@ -1152,7 +1152,7 @@ class ClusterAllelComparer():
         #
         # import
         #
-        import misc
+        from dbs_analysis import misc
         import operator
         import pysam
         import subprocess
@@ -1444,9 +1444,9 @@ class ClusterAllelComparer():
         
         from Bio import SeqIO
         import pysam
-        from seqdata import loadBEDfile
-        import misc
-        from misc import TerminalColors
+        from dbs_analysis.seqdata import loadBEDfile
+        from dbs_analysis import misc
+        from dbs_analysis.misc import TerminalColors
         
         known_hla_types = SeqIO.to_dict(SeqIO.parse(self.analysisfolder.settings.known_hla_types, "fasta")) # must be changed to a variable so another fasta can be used
 
@@ -1557,9 +1557,9 @@ def create_target_consensus(in_data):
     #print 'GO! child'
     from Bio import SeqIO
     import pysam
-    from seqdata import loadBEDfile
-    import misc
-    from misc import TerminalColors
+    from dbs_analysis.seqdata import loadBEDfile
+    from dbs_analysis import misc
+    from dbs_analysis.misc import TerminalColors
     import sys
 
     allele_cluster,target_info_index = in_data[0]
