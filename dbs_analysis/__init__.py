@@ -2,4 +2,5 @@ import misc
 import sequences
 import metadata
 import seqdata
-import hamming_cython_solution
+try: import hamming_cython_solution
+except ImportError: pass

@@ -7,7 +7,7 @@ from flask import Flask
 from flask import render_template
 from flask import json
 from flask import Response
-import metadata
+from dbs_analysis import metadata
 import sys
 import time
 import os
@@ -25,29 +25,29 @@ app = Flask(
     template_folder=template_folder_path,
     )
 
-#
-# check input and get commandline args
-#
-try:
-    analysisfolder = metadata.AnalysisFolder(sys.argv[1])
-    #analysisfolder.readindexTsv()
-except IndexError: sys.stderr.write('please supply a commandline on format:\n'+os.path.basename(__file__)+' <analysis-output-folder>\n');sys.exit()
-app.analysisfolder = analysisfolder
-app.analysisfolder.settings.mapqCutOff = int(app.analysisfolder.settings.mapqCutOff)
-app.analysisfolder.dataPath=os.path.abspath(app.analysisfolder.dataPath) 
-
-#
-# check analysis folder
-#
-if not analysisfolder.checkIntegrity() == 'PASS': print analysisfolder.checkIntegrity()+'\nERROR: Now exiting'
-
-#
-# create a logfile
-#
-logfile = open(analysisfolder.logpath+'/dbs_hla_server.log.txt','a',1)
-logfile.write(time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'\n')
-logfile.write('cmd: '+' '.join(sys.argv)+'\n')
-analysisfolder.logfile = logfile
+# #
+# # check input and get commandline args
+# #
+# try:
+#     analysisfolder = metadata.AnalysisFolder(sys.argv[1])
+#     #analysisfolder.readindexTsv()
+# except IndexError: sys.stderr.write('please supply a commandline on format:\n'+os.path.basename(__file__)+' <analysis-output-folder>\n');sys.exit()
+# app.analysisfolder = analysisfolder
+# app.analysisfolder.settings.mapqCutOff = int(app.analysisfolder.settings.mapqCutOff)
+# app.analysisfolder.dataPath=os.path.abspath(app.analysisfolder.dataPath) 
+# 
+# #
+# # check analysis folder
+# #
+# if not analysisfolder.checkIntegrity() == 'PASS': print analysisfolder.checkIntegrity()+'\nERROR: Now exiting'
+# 
+# #
+# # create a logfile
+# #
+# logfile = open(analysisfolder.logpath+'/dbs_hla_server.log.txt','a',1)
+# logfile.write(time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'\n')
+# logfile.write('cmd: '+' '.join(sys.argv)+'\n')
+# analysisfolder.logfile = logfile
 
 @app.route("/")
 def start():
@@ -77,12 +77,12 @@ def index():
 
 @app.route("/read_pairs")
 def read_pairs():
-    from misc import thousandString
-    from seqdata import revcomp
-    from sequences import HLA_DBS as DBS
-    from sequences import HLA_H1 as H1
-    from sequences import HLA_H2 as H2
-    from sequences import HLA_H3 as H3
+    from dbs_analysis.misc import thousandString
+    from dbs_analysis.seqdata import revcomp
+    from dbs_analysis.sequences import HLA_DBS as DBS
+    from dbs_analysis.sequences import HLA_H1 as H1
+    from dbs_analysis.sequences import HLA_H2 as H2
+    from dbs_analysis.sequences import HLA_H3 as H3
     # from seqdata import revcomp
     # from misc import HtmlColors
     # layout_html = HtmlColors.BlueIntense+H1+HtmlColors.Color_Off+'-'+HtmlColors.CyanIntense+DBS+HtmlColors.Color_Off+'-'+HtmlColors.PurpleIntense+revcomp(H2)+HtmlColors.Color_Off+HtmlColors.BlackIntense+'- DNA Sequence Of Targeted Amplicon -'+HtmlColors.Color_Off+HtmlColors.YellowIntense+revcomp(H3)+HtmlColors.Color_Off
@@ -90,13 +90,13 @@ def read_pairs():
 
 @app.route("/barcode_clusters")
 def barcode_clusters():
-    import misc
+    from dbs_analysis import misc
     return render_template('barcode_clusters.html', non_singleton_clusters=misc.thousandString(app.analysisfolder.results.barcodeClusterCount-app.analysisfolder.results.singeltonBarcodeClusters))
 
 @app.route("/alleles")
 def alleles():
     import json
-    import misc
+    from dbs_analysis import misc
     import operator
     with open( app.analysisfolder.dataPath+'/find_alleles_info.dict' ) as infile: info_vars = eval(infile.read())
     with open( app.analysisfolder.dataPath+'/allele_matches.dict' ) as infile: allele_matches = eval(infile.read())
@@ -123,7 +123,7 @@ def individuals():
 @app.route("/ind_details.json")
 def ind_details_json():
     import json
-    import misc
+    from dbs_analysis import misc
     import operator
     import re
     
@@ -176,7 +176,7 @@ def ind_details_json():
 @app.route("/individuals.json")
 def individuals_json():
     import json
-    import misc
+    from dbs_analysis import misc
     import operator
     import re
     
@@ -215,7 +215,7 @@ def individuals_json():
 @app.route("/cluster_trash.json")
 def cluster_trash_json():
     import json
-    import misc
+    from dbs_analysis import misc
     
     with open( app.analysisfolder.dataPath+'/find_alleles_info.dict' ) as infile: info_vars = eval(infile.read())
     with open( app.analysisfolder.dataPath+'/allele_types_dict' ) as infile: allele_types = eval(infile.read())
@@ -277,7 +277,7 @@ def cluster_trash_json():
 @app.route("/allele_matches.json")
 def allele_matches_json():
     
-    import misc
+    from dbs_analysis import misc
     import operator
     
     with open( app.analysisfolder.dataPath+'/find_alleles_info.dict' ) as infile: info_vars = eval(infile.read())
@@ -449,7 +449,7 @@ def make_mapping_stats_json():
 \s+(?P<singleMultiMap>\d+) \(\d+.\d+\%\) aligned >1 times
 (?P<overallAlignmentRate>\d+.\d+)\% overall alignment rate"""
     import re
-    from misc import percentage
+    from dbs_analysis.misc import percentage
     with open(app.analysisfolder.dataPath+'/bt2.stat.txt') as infile:
         data = infile.read()
         p = re.compile(pattern)
@@ -491,7 +491,7 @@ def make_mapping_stats_json():
 @app.route("/dbs_match.json")
 def make_dbs_match_json():
     import time
-    from misc import percentage
+    from dbs_analysis.misc import percentage
     
     if app.analysisfolder.results.readsWithDbsPatternMatch:
         tmp = eval(app.analysisfolder.results.readsWithDbsPatternMatch)
@@ -513,8 +513,8 @@ def makehandlejson():
     """ gets the handle content information and dums it to json """
     
     import operator
-    from misc import percentage
-    from misc import thousandString
+    from dbs_analysis.misc import percentage
+    from dbs_analysis.misc import thousandString
     constructOK = 0
     missing_h3 = 0
     missing_h2 = 0

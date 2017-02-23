@@ -1,0 +1,31 @@
+#! /usr/bin/env python
+
+import sys
+import os
+from dbs_analysis import metadata
+import dbs_analysis
+import dbs_analysis.hla_interface
+from dbs_analysis.hla_interface.dbs_hla_server import make_cluster_stats_json
+import time
+import random
+
+try:
+    analysisfolder = metadata.AnalysisFolder(sys.argv[1])
+except IndexError: sys.stderr.write('please supply a commandline on format:\n'+os.path.basename(__file__)+' <analysis-output-folder>\n');sys.exit()
+
+app = dbs_analysis.hla_interface.app
+app.analysisfolder = analysisfolder
+app.analysisfolder.settings.mapqCutOff = int(app.analysisfolder.settings.mapqCutOff)
+app.analysisfolder.dataPath=os.path.abspath(app.analysisfolder.dataPath) 
+
+logfile = open(analysisfolder.logpath+'/dbs_hla_server.log.txt','a',1)
+logfile.write(time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'\n')
+logfile.write('cmd: '+' '.join(sys.argv)+'\n')
+analysisfolder.logfile = logfile
+
+make_cluster_stats_json(app.analysisfolder)
+
+if app.analysisfolder.settings.port == 'random':
+    app.run(host='0.0.0.0',port=random.randint(1000,9999),debug=True)
+else:
+    app.run(host='0.0.0.0',port=int(app.analysisfolder.settings.port),debug=True)
