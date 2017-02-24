@@ -90,7 +90,13 @@ class BarcodeClusterer(object):
         clusteringProgramsLogfile = open(self.analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'_cdHitBarcodeClustering.log.txt','w')
 
         # cluster raw barcodes
-        command = ['cd-hit-454',
+        import platform
+        import re
+        if re.search('Ubuntu',platform.platform()):
+            cdhit454name = 'cdhit-454'
+        else:
+            cdhit454name = 'cd-hit-454'
+        command = [cdhit454name,
                   '-i',self.analysisfolder.dataPath+'/rawBarcodeSequencesSortedByAbundance.fq',
                   '-o',self.analysisfolder.dataPath+'/clusteredBarcodeSequences',
                   '-g','1',      # mode
