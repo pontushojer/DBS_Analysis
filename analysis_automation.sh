@@ -6,6 +6,10 @@
 #     git
 #
 
+# on ubuntu this is really easy, just run:
+#     sudo apt-get install virtualenv bowtie2 python-dev cd-hit git; echo -e "alias cd-hit-454=\"cdhit-454\"" >> ~/.bashrc
+
+
 #
 # Setting and setting up the analysis enviroment
 #
@@ -29,22 +33,26 @@ echo ""
 echo "### Downloading SRA toolkit and picardtools"
 # os specific block START ###########################################################################################################
 #                                                                                                                                   #
-# ubuntu version:                                                                                                                   #
+### ubuntu version:                                                                                                                 #
+# echo "### Running ubuntu version please edit this script line 34 to 58 to run another os"                                         #
+# sudo apt-get install virtualenv bowtie2 python-dev cd-hit git; echo -e "alias cd-hit-454=\"cdhit-454\"" >> ~/.bashrc              #
 # wget "https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/2.8.1-3/sratoolkit.2.8.1-3-ubuntu64.tar.gz"                                      #
 # tar -xvzf sratoolkit.2.8.1-3-ubuntu64.tar.gz                                                                                      #
-# sratoolkitpath=$(pwd)/sratoolkit.2.8.1-3-ubuntu64                                                                                        #
+# sratoolkitpath=$(pwd)/sratoolkit.2.8.1-3-ubuntu64                                                                                 #
 # wget "https://netix.dl.sourceforge.net/project/picard/picard-tools/1.114/picard-tools-1.114.zip"                                  #
 #                                                                                                                                   #
-# centos version:                                                                                                                   #
+### centos version:                                                                                                                 #
+# echo "### Running centos version please edit this script line 34 to 58 to run another os"                                         #
 # wget "https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/2.8.1-3/sratoolkit.2.8.1-3-centos_linux64.tar.gz"                                #
 # tar -xvzf sratoolkit.2.8.1-3-centos_linux64.tar.gz                                                                                #
-# sratoolkitpath=$(pwd)/sratoolkit.2.8.1-3-centos_linux64                                                                                  #
+# sratoolkitpath=$(pwd)/sratoolkit.2.8.1-3-centos_linux64                                                                           #
 # wget "https://netix.dl.sourceforge.net/project/picard/picard-tools/1.114/picard-tools-1.114.zip"                                  #
 #                                                                                                                                   #
-# OSX version:                                                                                                                      #
+### OSX version:                                                                                                                    #
+echo "### Running OSX version please edit this script line 34 to 58 to run another os"                                              #
 curl https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/2.8.1-3/sratoolkit.2.8.1-3-mac64.tar.gz -o sratoolkit.2.8.1-3-mac64.tar.gz          #
 tar -xvzf sratoolkit.2.8.1-3-mac64.tar.gz                                                                                           #
-sratoolkitpath=$(pwd)/sratoolkit.2.8.1-3-mac64                                                                                             #
+sratoolkitpath=$(pwd)/sratoolkit.2.8.1-3-mac64                                                                                      #
 curl "https://netix.dl.sourceforge.net/project/picard/picard-tools/1.114/picard-tools-1.114.zip" -o picard-tools-1.114.zip          #
 #                                                                                                                                   #
 # os specific block END #############################################################################################################
