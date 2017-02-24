@@ -7,7 +7,7 @@
 #
 
 # on ubuntu this is really easy, just run:
-#     sudo apt-get install virtualenv bowtie2 python-dev cd-hit git; echo -e "alias cd-hit-454=\"cdhit-454\"" >> ~/.bashrc
+#     sudo apt-get install virtualenv bowtie2 python-dev cd-hit git; mkdir ~/bin; echo -e "cdhit-454 \"\$@\"" > ~/bin/cd-hit-454; chmod +x ~/bin/cd-hit-454; echo -e "export PATH=\$PATH:~/bin" >> ~/.bashrc
 
 # on centos maybe like this? have not tested it ...
 # sudo yum install python-devel python-setuptools python-pip; sudo pip install --upgrade pip; sudo pip install virtualenv
