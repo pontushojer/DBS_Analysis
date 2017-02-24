@@ -6,6 +6,8 @@ Software for analysis of Droplet Barcode Sequencing data.
 ```
     git clone https://github.com/elhb/DBS_Analysis.git
     cd DBS_Analysis
+    git checkout structure
+    pip install -r requirements.txt
     python setup.py build
     python setup.py install
 ```
@@ -108,4 +110,4 @@ This script is supplied to allow others to reproduce the analysis exactly as it 
 ```
     bash analysis_automation.sh
 ```
-**Note that:** *This part is still under* **heavy** *development and need working* **bowtie2**, **bowtie2-build**, **cd-hit-454** *and* **virtualenv** *installations in your PATH.*8
+**Note that:** *This part is still under* **heavy** *development and need working* **bowtie2**, **bowtie2-build**, **cd-hit-454** *and* **virtualenv** *installations in your PATH.*
