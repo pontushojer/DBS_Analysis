@@ -7,7 +7,7 @@
 #
 
 # on ubuntu this is really easy, just run:
-#     sudo apt-get install virtualenv bowtie2 python-dev cd-hit git;
+#     sudo apt-get install virtualenv bowtie2 python-dev cd-hit git python-tk;
 
 # on centos maybe like this? have not tested it ...
 # sudo yum install python-devel python-setuptools python-pip; sudo pip install --upgrade pip; sudo pip install virtualenv
@@ -37,24 +37,24 @@ echo "### Downloading SRA toolkit and picardtools"
 if [[ "$OSTYPE" == "linux-gnu" ]]; then
 
     ### ubuntu version:
-    echo "### Running ubuntu version please edit this script line 36 to 60 to run another os"
-    sudo apt-get install virtualenv bowtie2 python-dev cd-hit git
+    echo "### Running ubuntu version"
+    sudo apt-get install virtualenv bowtie2 python-dev cd-hit git python-tk
     wget "https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/2.8.1-3/sratoolkit.2.8.1-3-ubuntu64.tar.gz"
     tar -xvzf sratoolkit.2.8.1-3-ubuntu64.tar.gz
     sratoolkitpath=$(pwd)/sratoolkit.2.8.1-3-ubuntu64
     wget "https://netix.dl.sourceforge.net/project/picard/picard-tools/1.114/picard-tools-1.114.zip"
 
-    ### centos version: MIGHT BE CRAP                                                                                                   #
-    # echo "### Running centos version please edit this script line 36 to 60 to run another os"                                         #
-    # wget "https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/2.8.1-3/sratoolkit.2.8.1-3-centos_linux64.tar.gz"                                #
-    # tar -xvzf sratoolkit.2.8.1-3-centos_linux64.tar.gz                                                                                #
-    # sratoolkitpath=$(pwd)/sratoolkit.2.8.1-3-centos_linux64                                                                           #
-    # wget "https://netix.dl.sourceforge.net/project/picard/picard-tools/1.114/picard-tools-1.114.zip"                                  #
+    ### centos version: MIGHT BE CRAP
+    # echo "### Running centos version"
+    # wget "https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/2.8.1-3/sratoolkit.2.8.1-3-centos_linux64.tar.gz"
+    # tar -xvzf sratoolkit.2.8.1-3-centos_linux64.tar.gz
+    # sratoolkitpath=$(pwd)/sratoolkit.2.8.1-3-centos_linux64
+    # wget "https://netix.dl.sourceforge.net/project/picard/picard-tools/1.114/picard-tools-1.114.zip"
     
 elif [[ "$OSTYPE" == "darwin"* ]]; then
 
     # OSX version
-    echo "### Running OSX version please edit this script line 36 to 60 to run another os"
+    echo "### Running OSX version"
     curl https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/2.8.1-3/sratoolkit.2.8.1-3-mac64.tar.gz -o sratoolkit.2.8.1-3-mac64.tar.gz
     tar -xvzf sratoolkit.2.8.1-3-mac64.tar.gz
     sratoolkitpath=$(pwd)/sratoolkit.2.8.1-3-mac64
@@ -62,17 +62,17 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
 
 elif [[ "$OSTYPE" == "cygwin" ]]; then
         # POSIX compatibility layer and Linux environment emulation for Windows
-        echo "OS is not supported, aborting"; exit
+        echo "OS cygwin is not supported, aborting"; exit
 elif [[ "$OSTYPE" == "msys" ]]; then
         # Lightweight shell and GNU utilities compiled for Windows (part of MinGW)
-        echo "OS is not supported, aborting"; exit
+        echo "OS msys is not supported, aborting"; exit
 elif [[ "$OSTYPE" == "win32" ]]; then
         # I'm not sure this can happen.
-        echo "OS is not supported, aborting"; exit
+        echo "OS win32 is not supported, aborting"; exit
 elif [[ "$OSTYPE" == "freebsd"* ]]; then
-        echo "OS is not supported, aborting"; exit
+        echo "OS freebsd is not supported, aborting"; exit
 else
-        echo "OS is not supported, aborting"; exit
+        echo "Your OS is not supported, aborting"; exit
 fi
 
 unzip picard-tools-1.114.zip 
@@ -187,7 +187,10 @@ do
     dbs_find_alleles analysis_results/$accession graph
     sleep 1
     echo "### sample $accession is now finished!"
-    echo -e "### to look at the results you can now run the following command:\n###\tdbs_hla_server " $(pwd)"/analysis_results/"$accession "\n### and then go to http://0.0.0.0:5000/ in your favourite web browser"
+    echo -e "### to look at the results you can now run the following commands:"
+    echo -e "###\tsource analysis_automation/analysis_automation_venv/bin/activate"
+    echo -e "###\tdbs_hla_server " $(pwd)"/analysis_results/"$accession ""
+    echo -e "### and then go to http://0.0.0.0:5000/ in your favourite web browser"
 done;
 
 deactivate
