@@ -13,6 +13,7 @@ Software for analysis of Droplet Barcode Sequencing data.
 - *bowtie2 can be found [here](https://sourceforge.net/projects/bowtie-bio/files/bowtie2/2.2.8/)*
 - *picard tools can be found [here](https://sourceforge.net/projects/picard/files/picard-tools/1.114/)*
 - *cd-hit-454 can be found [here](https://github.com/weizhongli/cdhit/releases/download/V4.6.1/cd-hit-v4.6.1-2012-08-27.tgz)*
+
 *On Ubuntu this installation is really easy just run the following commands:*
 ```
     sudo apt-get install virtualenv bowtie2 python-dev cd-hit git;
