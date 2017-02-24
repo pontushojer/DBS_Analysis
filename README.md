@@ -17,10 +17,6 @@ Software for analysis of Droplet Barcode Sequencing data.
 *On Ubuntu this installation is really easy just run the following commands:*
 ```
     sudo apt-get install virtualenv bowtie2 python-dev cd-hit git;
-    mkdir ~/bin;
-    echo -e "cdhit-454 \"\$@\"" > ~/bin/cd-hit-454;
-    chmod +x ~/bin/cd-hit-454;
-    echo -e "export PATH=\$PATH:~/bin" >> ~/.bashrc
 ```
 
 ## Standard Usage:

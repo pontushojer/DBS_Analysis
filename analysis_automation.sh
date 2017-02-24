@@ -7,7 +7,7 @@
 #
 
 # on ubuntu this is really easy, just run:
-#     sudo apt-get install virtualenv bowtie2 python-dev cd-hit git; mkdir ~/bin; echo -e "cdhit-454 \"\$@\"" > ~/bin/cd-hit-454; chmod +x ~/bin/cd-hit-454; echo -e "export PATH=\$PATH:~/bin" >> ~/.bashrc
+#     sudo apt-get install virtualenv bowtie2 python-dev cd-hit git;
 
 # on centos maybe like this? have not tested it ...
 # sudo yum install python-devel python-setuptools python-pip; sudo pip install --upgrade pip; sudo pip install virtualenv
@@ -38,7 +38,7 @@ if [[ "$OSTYPE" == "linux-gnu" ]]; then
 
     ### ubuntu version:
     echo "### Running ubuntu version please edit this script line 36 to 60 to run another os"
-    sudo apt-get install virtualenv bowtie2 python-dev cd-hit git; echo -e "alias cd-hit-454=\"cdhit-454\"" >> ~/.bashrc
+    sudo apt-get install virtualenv bowtie2 python-dev cd-hit git
     wget "https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/2.8.1-3/sratoolkit.2.8.1-3-ubuntu64.tar.gz"
     tar -xvzf sratoolkit.2.8.1-3-ubuntu64.tar.gz
     sratoolkitpath=$(pwd)/sratoolkit.2.8.1-3-ubuntu64
