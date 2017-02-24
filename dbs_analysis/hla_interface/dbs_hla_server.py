@@ -677,13 +677,13 @@ def get_bootstrap(static_folder_path):
 
     sys.stderr.write('Looking for igv.js and dependancies ... \n')
     for filename, web_folder,local_folder in [
-        ('igv-1.0.6.js','https://igv.org/web/release/1.0.6/','js/'),
-        ('igv-1.0.6.css','https://igv.org/web/release/1.0.6/','css/'),
-        ('igv-1.0.6.min.js','https://igv.org/web/release/1.0.6/','js/'),
-        ('igv-1.0.6.min.map','https://igv.org/web/release/1.0.6/','js/'),
-        ('cursor_logo.png','https://igv.org/web/release/1.0.6/img/','img/'),
-        ('cursor_logo.svg','https://igv.org/web/release/1.0.6/img/','img/'),
-        ('igv_logo_letters_paths.svg','https://igv.org/web/release/1.0.6/img/','img/'),
+        ('igv-1.0.6.js','http://igv.org/web/release/1.0.6/','js/'),
+        ('igv-1.0.6.css','http://igv.org/web/release/1.0.6/','css/'),
+        ('igv-1.0.6.min.js','http://igv.org/web/release/1.0.6/','js/'),
+        ('igv-1.0.6.min.map','http://igv.org/web/release/1.0.6/','js/'),
+        ('cursor_logo.png','http://igv.org/web/release/1.0.6/img/','img/'),
+        ('cursor_logo.svg','http://igv.org/web/release/1.0.6/img/','img/'),
+        ('igv_logo_letters_paths.svg','http://igv.org/web/release/1.0.6/img/','img/'),
         ('jquery-ui.css','https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/themes/smoothness/','css/'),
         ('font-awesome.min.css','https://maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/','css/'),
         ('jquery-ui.min.js','https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/','js/'),
