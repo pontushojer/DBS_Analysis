@@ -20,7 +20,11 @@ Software for analysis of Droplet Barcode Sequencing data.
 ```
     sudo apt-get install virtualenv bowtie2 python-dev cd-hit git python-tk;
 ```
-
+*On OSX if you have homebrew installed you should be able to use:*
+```
+    brew install bowtie2 cd-hit;
+    pip install virtualenv
+```
 ## Standard Usage:
 
 For each sample you want to analyze the following steps need to be performed ` <path to analysis> ` is the path to a folder where you want your analysis results and intermediary files to be stored.
@@ -74,6 +78,7 @@ For each sample you want to analyze the following steps need to be performed ` <
 ```
     dbs_cluster_analyzer <path to analysis> reanalyze=True
 ```
+**Note that:** *This step sometimes freezez before finishing (eg. at 60% progress) this usually indicates that something is funky with the pysam installation, if this is the case try to build pysam from source, potentially also try switching virtualenv to conda this worked for me at several occasions.*
 
 #### 6. Identify the alleles present within the data
 ```
@@ -110,4 +115,4 @@ This script is supplied to allow others to reproduce the analysis exactly as it 
 ```
     bash analysis_automation.sh
 ```
-**Note that:** *This part is still under* **heavy** *development and need working* **bowtie2**, **bowtie2-build**, **cd-hit-454** *and* **virtualenv** *installations in your PATH.*
+**Note that:** *This part is still under* **heavy** *development and need working* **bowtie2**, **bowtie2-build**, **cd-hit-454** *and* **virtualenv** *installations in your PATH. Alternatively the script will try to install the dependencies though will probably only work on* **ubuntu** *or if you have* **homebrew** *installed on your Mac.*

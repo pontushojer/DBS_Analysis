@@ -5,10 +5,73 @@
 #     cd-hit-454
 #     git
 #
-
+if [[ "$OSTYPE" == "linux-gnu" ]]; then
 # on ubuntu this is really easy, just run:
-#     sudo apt-get install virtualenv bowtie2 python-dev cd-hit git python-tk;
+#   sudo apt-get install virtualenv bowtie2 python-dev cd-hit git python-tk;
+    echo "### Running ubuntu version, installing dependencies"
+    sudo apt-get install virtualenv bowtie2 python-dev cd-hit git python-tk
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+    now_at=$(pwd)
+    echo "### Running OSX version, installing dependencies"
+    # git is installed by default in Xcode and all will fail if xcode is not installed so hopefully you have Xcode (or at least the command-line developer tools)
+    
+    xcode-select --install
+    if [[ $(brew --version) =~ Homebrew ]];
+    then
+        echo "### using Home brew to install some stuff.";
+        brew install bowtie2
+        brew install cd-hit
+    else
+        echo "### homebrew not found, will try to install by other method";
 
+        if [[ $PATH =~ ~/bin ]];
+        then
+            echo "### ~/bin folder in PATH, nice";
+        else
+            echo "### ~/bin folder not in PATH";
+            mkdir -p ~/bin
+            echo -e "### Attemting to add \"export PATH=\$HOME/bin:\$PATH\" to ~/.bashrc if you don't use ~/.bashrc-file you might have to fix this manually";
+            echo -e "export PATH=\$HOME/bin:\$PATH" >> ~/.bashrc
+        fi
+        
+        # bowtie2
+        if [[ $(bowtie2 --version) =~ "bowtie2-align-s version" ]];
+        then
+            echo "### bowtie2 already installed.";
+        else
+            echo "### bowtie2 not installed, installing";
+            cd ~/bin
+            curl "https://excellmedia.dl.sourceforge.net/project/bowtie-bio/bowtie2/2.2.8/bowtie2-2.2.8-macos-x86_64.zip" -o bowtie2-2.2.8-macos-x86_64.zip
+            unzip bowtie2-2.2.8-macos-x86_64.zip
+            ln -s ~/bin/bowtie2-2.2.8/bowtie2 ~/bin2/
+            ln -s ~/bin/bowtie2-2.2.8/bowtie2-build ~/bin/
+        fi
+    
+        # cdhit
+        if [[ $(cd-hit-454 --version) =~ "CD-HIT version" ]];
+        then
+            echo "### cd-hit-454 installed";
+        else
+            echo "### cd-hit-454 not installed, installing ... NOT WORKING DO MANUALLY";
+            cd ~/bin
+            git clone https://github.com/weizhongli/cdhit.git
+            cd cdhit/
+            make
+            ln -s ~/bin2/cdhit/cd-hit-454 ~/bin/
+            cd ..
+        fi
+
+    fi
+
+    #virualenvn
+    echo "### installing virtualenv";
+    pip install virtualenv
+    cd $now_at
+elif [[ "$OSTYPE" == "freebsd"* ]]; then
+    echo "OS freebsd is not supported, aborting"; exit
+else
+    echo "Your OS is not supported, aborting"; exit
+fi
 # on centos maybe like this? have not tested it ...
 # sudo yum install python-devel python-setuptools python-pip; sudo pip install --upgrade pip; sudo pip install virtualenv
 
@@ -38,7 +101,6 @@ if [[ "$OSTYPE" == "linux-gnu" ]]; then
 
     ### ubuntu version:
     echo "### Running ubuntu version"
-    sudo apt-get install virtualenv bowtie2 python-dev cd-hit git python-tk
     wget "https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/2.8.1-3/sratoolkit.2.8.1-3-ubuntu64.tar.gz"
     tar -xvzf sratoolkit.2.8.1-3-ubuntu64.tar.gz
     sratoolkitpath=$(pwd)/sratoolkit.2.8.1-3-ubuntu64
@@ -70,6 +132,7 @@ elif [[ "$OSTYPE" == "win32" ]]; then
         # I'm not sure this can happen.
         echo "OS win32 is not supported, aborting"; exit
 elif [[ "$OSTYPE" == "freebsd"* ]]; then
+        pip install srapy
         echo "OS freebsd is not supported, aborting"; exit
 else
         echo "Your OS is not supported, aborting"; exit
@@ -106,8 +169,17 @@ bowtie2-build reference_data/hla_a.fasta reference_data/hla_a.fasta
 echo ""
 echo "### Fetching the raw reads fastq files from SRA ... THIS MIGHT TAKE A WHILE!"
 mkdir rawdata
-for accession in SRR5277650 SRR5277651 SRR5277652 SRR5277653 SRR5277654 SRR5277655 SRR5277656 SRR5277657 SRR5277658;
-    do $sratoolkitpath/bin/fastq-dump --split-files --gzip --outdir rawdata $accession; done
+
+if [[ "$OSTYPE" == "freebsd"* ]]; then
+        cd rawdata
+        get-project-sras.py -p 376266
+        for file in $(ls -lh *.sra | awk '{print $9}'); do mv -v $file* $(echo $file | awk '{print substr($0,0,10)".sra"}'); done
+        # problem ... cannot convert .sra to fastq on freebsd :(
+        cd ..
+else
+    for accession in SRR5277650 SRR5277651 SRR5277652 SRR5277653 SRR5277654 SRR5277655 SRR5277656 SRR5277657 SRR5277658;
+        do $sratoolkitpath/bin/fastq-dump --split-files --gzip --outdir rawdata $accession; done
+fi
     
 #
 # run the analysis
