@@ -20,7 +20,7 @@ Software for analysis of Droplet Barcode Sequencing data.
 ```
     sudo apt-get install virtualenv bowtie2 python-dev cd-hit git python-tk;
 ```
-*On OSX if you have homebrew installed you should be able to use:*
+*On OSX if you have [homebrew](https://brew.sh) installed you should be able to use:*
 ```
     brew install bowtie2 cd-hit;
     pip install virtualenv
