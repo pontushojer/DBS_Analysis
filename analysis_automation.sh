@@ -1,3 +1,4 @@
+
 #
 # Prior to running this script you need a working install with executables in your path for the following software
 #     virtualenv
@@ -5,25 +6,56 @@
 #     cd-hit-454
 #     git
 #
-if [[ "$OSTYPE" == "linux-gnu" ]]; then
+
 # on ubuntu this is really easy, just run:
 #   sudo apt-get install virtualenv bowtie2 python-dev cd-hit git python-tk;
+
+
+
+#
+# Checking the OSTYPE variable to determine what operating system is used
+#
+
+if [[ "$OSTYPE" == "linux-gnu" ]]; then
+    #
+    # Try to install dependencies ubuntu style if system is linux, note that this will probably fail on other linux distrubutions, ie beware
+    #
     echo "### Running ubuntu version, installing dependencies"
     sudo apt-get install virtualenv bowtie2 python-dev cd-hit git python-tk
+
 elif [[ "$OSTYPE" == "darwin"* ]]; then
-    now_at=$(pwd)
+    #
+    # If os type is DARWIN ie OSX then try to install the dependencies for OSX
+    #     This will be easier if homebrew is installed but will try to install from "source" otherwise
     echo "### Running OSX version, installing dependencies"
-    # git is installed by default in Xcode and all will fail if xcode is not installed so hopefully you have Xcode (or at least the command-line developer tools)
     
+    now_at=$(pwd) # store current path to be able to go back later
+    
+    #
+    # git is installed by default in Xcode and all will fail if xcode is not installed so hopefully you have Xcode (or at least the command-line developer tools)
+    # just in case try to install them
     xcode-select --install
+    
     if [[ $(brew --version) =~ Homebrew ]];
     then
+
+        #
+        # If homebrew is installed try to install cdhit and bowtie 
+        #
         echo "### using Home brew to install some stuff.";
         brew install bowtie2
         brew install cd-hit
-    else
-        echo "### homebrew not found, will try to install by other method";
 
+    else
+        
+        echo "### homebrew not found, will try to install by other method";
+        #
+        # ok no homebrew available, this makes stuff more tricky but might work anyway
+        # we will try to install stuff from source or predistributed binaries
+
+        #
+        # Check if there is a bin folder in your home directory otherwise create it and add it to your PATH variable
+        #
         if [[ $PATH =~ ~/bin ]];
         then
             echo "### ~/bin folder in PATH, nice";
@@ -34,7 +66,9 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
             echo -e "export PATH=\$HOME/bin:\$PATH" >> ~/.bashrc
         fi
         
-        # bowtie2
+        #
+        # Now check if bowtie is already present otherwise try to install bowtie2 from the predistributed binaries
+        # 
         if [[ $(bowtie2 --version) =~ "bowtie2-align-s version" ]];
         then
             echo "### bowtie2 already installed.";
@@ -47,7 +81,9 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
             ln -s ~/bin/bowtie2-2.2.8/bowtie2-build ~/bin/
         fi
     
-        # cdhit
+        #
+        # Now check if cdhit is already present otherwise try to install it from the source at github
+        #
         if [[ $(cd-hit-454 --version) =~ "CD-HIT version" ]];
         then
             echo "### cd-hit-454 installed";
@@ -63,25 +99,37 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
 
     fi
 
-    #virualenvn
+    #
+    # Install virualenvn
+    #
     echo "### installing virtualenv";
     pip install virtualenv
-    cd $now_at
+    
+    cd $now_at # go back to where we were before installing dependencies
+    
 elif [[ "$OSTYPE" == "freebsd"* ]]; then
     echo "OS freebsd is not supported, aborting"; exit
 else
     echo "Your OS is not supported, aborting"; exit
 fi
-# on centos maybe like this? have not tested it ...
+# NOTE: on centos maybe like this? have not tested it ...
 # sudo yum install python-devel python-setuptools python-pip; sudo pip install --upgrade pip; sudo pip install virtualenv
 
+
+
 #
+# NOW: the dependencies are hopefully installed and we can start setting up our analysis enviroment
 # Setting and setting up the analysis enviroment
 #
 echo "### Starting"
+
+# make a new directory where we keep everything sepperate from your other stuff
 mkdir analysis_automation
 cd analysis_automation
 
+#
+# Now create a virtual python enviroment so we don't mess up your python installation
+#
 echo ""
 echo "### Creating and starting virtual enviroment ..."
 virtualenv --python=python2.7 analysis_automation_venv
@@ -89,6 +137,9 @@ source analysis_automation_venv/bin/activate
 pip install --upgrade pip
 echo "### virtual env with name analysis_automation_venv created and started."
 
+#
+# make a sub-directory that will hold the software we are going to use (apart from the dependencies installed earlier, this part should be more stable)
+# 
 echo ""
 echo "### Downloading and installing software"
 mkdir software
@@ -101,12 +152,16 @@ if [[ "$OSTYPE" == "linux-gnu" ]]; then
 
     ### ubuntu version:
     echo "### Running ubuntu version"
+    
+    # Download  and extract the sra toolkit
     wget "https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/2.8.1-3/sratoolkit.2.8.1-3-ubuntu64.tar.gz"
     tar -xvzf sratoolkit.2.8.1-3-ubuntu64.tar.gz
     sratoolkitpath=$(pwd)/sratoolkit.2.8.1-3-ubuntu64
+    
+    # Download picardtools version 1.114 that was used in the publication
     wget "https://netix.dl.sourceforge.net/project/picard/picard-tools/1.114/picard-tools-1.114.zip"
 
-    ### centos version: MIGHT BE CRAP
+    ### centos version: MIGHT BE CRAP just ignore this block
     # echo "### Running centos version"
     # wget "https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/2.8.1-3/sratoolkit.2.8.1-3-centos_linux64.tar.gz"
     # tar -xvzf sratoolkit.2.8.1-3-centos_linux64.tar.gz
@@ -117,9 +172,13 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
 
     # OSX version
     echo "### Running OSX version"
+
+    # Download  and extract the sra toolkit
     curl https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/2.8.1-3/sratoolkit.2.8.1-3-mac64.tar.gz -o sratoolkit.2.8.1-3-mac64.tar.gz
     tar -xvzf sratoolkit.2.8.1-3-mac64.tar.gz
     sratoolkitpath=$(pwd)/sratoolkit.2.8.1-3-mac64
+
+    # Download picardtools version 1.114 that was used in the publication
     curl "https://netix.dl.sourceforge.net/project/picard/picard-tools/1.114/picard-tools-1.114.zip" -o picard-tools-1.114.zip
 
 elif [[ "$OSTYPE" == "cygwin" ]]; then
@@ -132,14 +191,25 @@ elif [[ "$OSTYPE" == "win32" ]]; then
         # I'm not sure this can happen.
         echo "OS win32 is not supported, aborting"; exit
 elif [[ "$OSTYPE" == "freebsd"* ]]; then
-        pip install srapy
+        
         echo "OS freebsd is not supported, aborting"; exit
+        # ok found this package that allows us to get the .sra files still we can't really use them on freeBSD :(
+        pip install srapy
+
 else
         echo "Your OS is not supported, aborting"; exit
 fi
 
+#
+# extract the content of the just downloaded picardtools
+#
 unzip picard-tools-1.114.zip 
 
+
+
+#
+# Now download and install our custom software that are specific for the droplet barcoding data
+#
 echo ""
 echo "### Downloading and installing the DBS_Analysis software"
 git clone https://github.com/elhb/DBS_Analysis.git
@@ -156,10 +226,13 @@ cd ../..
 echo ""
 echo "### Downloading and formating reference data"
 mkdir reference_data
-# wget "https://genome.ucsc.edu/cgi-bin/hgc?hgsid=580682449_q9IyW6Xnd8wjJrgFDMoAM9ORiftC&g=htcGetDna2&table=&i=mixed&o=29909823&l=29909823&r=29913852&getDnaPos=chr6%3A29907000-29917000&db=hg19&hgSeq.cdsExon=1&hgSeq.padding5=0&hgSeq.padding3=0&hgSeq.casing=upper&boolshad.hgSeq.maskRepeats=0&hgSeq.repMasking=lower&boolshad.hgSeq.revComp=0&submit=get+DNA" | awk '/^>/{print $0} /^[AGTCN]+$/{a=a $0;} END { print a }' > reference_data/hla_a.fasta 
-# wget "ftp://ftp.ebi.ac.uk/pub/databases/ipd/imgt/hla/fasta/A_gen.fasta" | awk '/^>/{print a;print $0;a=""} /^[AGTCN]+$/{a=a $0;} END { print a }' > reference_data/ipd.imgt.hla_A_gen.fasta
-curl "ftp://ftp.ebi.ac.uk/pub/databases/ipd/imgt/hla/fasta/A_gen.fasta" | awk '/^>/{print a;print $0;a=""} /^[AGTCN]+$/{a=a $0;} END { print a }' > reference_data/ipd.imgt.hla_A_gen.fasta
-curl "https://genome.ucsc.edu/cgi-bin/hgc?hgsid=580682449_q9IyW6Xnd8wjJrgFDMoAM9ORiftC&g=htcGetDna2&table=&i=mixed&o=29909823&l=29909823&r=29913852&getDnaPos=chr6%3A29907000-29917000&db=hg19&hgSeq.cdsExon=1&hgSeq.padding5=0&hgSeq.padding3=0&hgSeq.casing=upper&boolshad.hgSeq.maskRepeats=0&hgSeq.repMasking=lower&boolshad.hgSeq.revComp=0&submit=get+DNA" | awk '/^>/{print $0} /^[AGTCN]+$/{a=a $0;} END { print a }' > reference_data/hla_a.fasta 
+if [[ "$OSTYPE" == "linux-gnu" ]]; then
+    wget -q -O - "https://genome.ucsc.edu/cgi-bin/hgc?hgsid=580682449_q9IyW6Xnd8wjJrgFDMoAM9ORiftC&g=htcGetDna2&table=&i=mixed&o=29909823&l=29909823&r=29913852&getDnaPos=chr6%3A29907000-29917000&db=hg19&hgSeq.cdsExon=1&hgSeq.padding5=0&hgSeq.padding3=0&hgSeq.casing=upper&boolshad.hgSeq.maskRepeats=0&hgSeq.repMasking=lower&boolshad.hgSeq.revComp=0&submit=get+DNA" | awk '/^>/{print $0} /^[AGTCN]+$/{a=a $0;} END { print a }' > reference_data/hla_a.fasta 
+    wget -q -O - "ftp://ftp.ebi.ac.uk/pub/databases/ipd/imgt/hla/fasta/A_gen.fasta" | awk '/^>/{print a;print $0;a=""} /^[AGTCN]+$/{a=a $0;} END { print a }' > reference_data/ipd.imgt.hla_A_gen.fasta
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+    curl "https://genome.ucsc.edu/cgi-bin/hgc?hgsid=580682449_q9IyW6Xnd8wjJrgFDMoAM9ORiftC&g=htcGetDna2&table=&i=mixed&o=29909823&l=29909823&r=29913852&getDnaPos=chr6%3A29907000-29917000&db=hg19&hgSeq.cdsExon=1&hgSeq.padding5=0&hgSeq.padding3=0&hgSeq.casing=upper&boolshad.hgSeq.maskRepeats=0&hgSeq.repMasking=lower&boolshad.hgSeq.revComp=0&submit=get+DNA" | awk '/^>/{print $0} /^[AGTCN]+$/{a=a $0;} END { print a }' > reference_data/hla_a.fasta 
+    curl "ftp://ftp.ebi.ac.uk/pub/databases/ipd/imgt/hla/fasta/A_gen.fasta" | awk '/^>/{print a;print $0;a=""} /^[AGTCN]+$/{a=a $0;} END { print a }' > reference_data/ipd.imgt.hla_A_gen.fasta
+fi
 echo "### Building a bowtie2 reference index"
 bowtie2-build reference_data/hla_a.fasta reference_data/hla_a.fasta
 
@@ -171,18 +244,28 @@ echo "### Fetching the raw reads fastq files from SRA ... THIS MIGHT TAKE A WHIL
 mkdir rawdata
 
 if [[ "$OSTYPE" == "freebsd"* ]]; then
-        cd rawdata
-        get-project-sras.py -p 376266
-        for file in $(ls -lh *.sra | awk '{print $9}'); do mv -v $file* $(echo $file | awk '{print substr($0,0,10)".sra"}'); done
-        # problem ... cannot convert .sra to fastq on freebsd :(
-        cd ..
+    #
+    # this freeBSD part does not work anyway just here in case I can figure it out later
+    #
+    cd rawdata
+    get-project-sras.py -p 376266
+    for file in $(ls -lh *.sra | awk '{print $9}'); do mv -v $file* $(echo $file | awk '{print substr($0,0,10)".sra"}'); done
+    # problem ... cannot convert .sra to fastq on freebsd :(
+    cd ..
+
 else
+    #
+    # HERE: we actually use sra toolkit to get the raw data
+    #
     for accession in SRR5277650 SRR5277651 SRR5277652 SRR5277653 SRR5277654 SRR5277655 SRR5277656 SRR5277657 SRR5277658;
         do $sratoolkitpath/bin/fastq-dump --split-files --gzip --outdir rawdata $accession; done
 fi
     
+
+
+
 #
-# run the analysis
+# Now its time to run the analysis of our downloaded data, from here on the script also describes exactly how the analysis was made for the publication
 #
 echo ""
 echo "### Running the analysis"
@@ -263,6 +346,11 @@ do
     echo -e "###\tsource analysis_automation/analysis_automation_venv/bin/activate"
     echo -e "###\tdbs_hla_server " $(pwd)"/analysis_results/"$accession ""
     echo -e "### and then go to http://0.0.0.0:5000/ in your favourite web browser"
+    #
+    # Note that if the IGV.js vizualisation is slow or hangs it might be due to that there are simply to many reads in a small region so that the IGV.js downsampling can't cope with it
+    #     if this is the case you could run the dbs_downsample bam command as below as a last step to only make the webinterface nicer
+    #     note that after this step has been done you should not rerun any analysissteps without first manually restoring the orirginal bamfiles in the data folder
+    # dbs_downsample_bam analysis_results/$accession
 done;
 
 deactivate

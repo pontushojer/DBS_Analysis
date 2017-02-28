@@ -115,4 +115,4 @@ This script is supplied to allow others to reproduce the analysis exactly as it 
 ```
     bash analysis_automation.sh
 ```
-**Note that:** *This part is still under* **heavy** *development and need working* **bowtie2**, **bowtie2-build**, **cd-hit-454** *and* **virtualenv** *installations in your PATH. Alternatively the script will try to install the dependencies though will probably only work on* **ubuntu** *or if you have* **homebrew** *installed on your Mac.*
+**Note that:** *This part is still under* **heavy** *development and need working* **bowtie2**, **bowtie2-build**, **cd-hit-454** *and* **virtualenv** *installations in your PATH. Alternatively the script will try to install the dependencies though will probably only work on* **ubuntu** *or if you have* **homebrew** *installed on your Mac. If the script have trouble installing the dependencies and running, just have a look at the last 100 lines or so which describes how to download the data and what cutoffs and settings were used in the publication.*
