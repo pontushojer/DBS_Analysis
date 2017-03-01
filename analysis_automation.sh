@@ -1,8 +1,45 @@
-echo -e "\033[1;93m##INFO##\033[0m --- \033[0;34m looking for a conda installation ... \033[0m";
-if [[ $(conda --version) =~ conda ]];
-then
+function main {
+    echo -e "\033[1;93m##INFO##\033[0m --- \033[0;34m looking for a conda installation ... \033[0m";
+    if [[ $(conda --version) =~ conda ]];
+    then
+    
+        echo -e "\033[1;93m##INFO##\033[0m --- \033[0;34m conda is installed creating an enviroment and installing dependencies\033[0m";
+        setup_analysis_enviroment
+        get_reference_data
+        get_rawdata
+        run_analysis
+    
+    else
+    
+        echo -e "\033[1;93m##INFO##\033[0m --- \033[0;34m conda not installed ...\033[0m"  
+    
+        install_conda
+    
+    fi
+}
 
-    echo -e "\033[1;93m##INFO##\033[0m --- \033[0;34m conda is installed creating an enviroment and installing dependencies\033[0m";
+
+
+function install_conda {
+    echo -e "\033[1;93m##INFO##\033[0m --- \033[0;34m Trying to install miniconda.\033[0m"  
+    echo -e "\033[1;93m##INFO##\033[0m --- \033[0;34m You will have to restart the analysis after this step (and also close you terminal window and open a new one)\033[0m"  
+    if [[ "$OSTYPE" == "linux-gnu" ]]; then
+        echo -e "\033[1;93m##INFO##\033[0m --- \033[0;34m you are running linux, starting the ubuntu installer\033[0m"
+        wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
+        bash Miniconda3-latest-Linux-x86_64.sh
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        echo -e "\033[1;93m##INFO##\033[0m --- \033[0;34m you are running darwin, starting the OSX installer\033[0m"
+        curl "https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh" -o Miniconda3-latest-MacOSX-x86_64.sh
+        bash Miniconda3-latest-MacOSX-x86_64.sh
+    else
+        echo "Your operating system is not supported try running an ubuntu or OSX machine."
+    fi
+}
+
+
+function setup_analysis_enviroment {
+    
+    STARTPATH=$(pwd)
     
     # create env
     echo -e "\033[1;93m##INFO##\033[0m --- \033[0;34m creating the virtual enviroment dbs_analysis\033[0m"
@@ -22,7 +59,7 @@ then
 
     # create a directory to hold all the files needed for the analysis
     echo -e "\033[1;93m##INFO##\033[0m --- \033[0;34m create a directory ("$(pwd)"/analysis_automation) to hold all the files needed for the analysis\033[0m"
-    mkdir analysis_automation
+    mkdir -p analysis_automation
     cd analysis_automation
     
     # make a sub-directory that will hold the software we are going to use (apart from the dependencies installed earlier, this part should be more stable)
@@ -61,8 +98,6 @@ then
     # extract the content of the just downloaded picardtools
     unzip -q picard-tools-1.114.zip 
     
-
-
     # Now download and install our custom software that are specific for the droplet barcoding data
     echo ""
     echo -e "\033[1;93m##INFO##\033[0m --- \033[0;34m Downloading and installing the DBS_Analysis software\033[0m"
@@ -71,27 +106,57 @@ then
     git checkout structure
     python setup.py build
     python setup.py install
-    cd ../..
     
+    source deactivate dbs_analysis
+    
+    cd $STARTPATH
+    
+}
 
-    # Getting reference data
+
+function get_reference_data {
+
+    STARTPATH=$(pwd)
+    mkdir -p analysis_automation
+    cd analysis_automation
+
+    # Getting reference data    
     echo ""
     echo -e "\033[1;93m##INFO##\033[0m --- \033[0;34m Downloading and formating reference data\033[0m"
     mkdir reference_data
     curl --insecure "https://genome.ucsc.edu/cgi-bin/hgc?hgsid=580682449_q9IyW6Xnd8wjJrgFDMoAM9ORiftC&g=htcGetDna2&table=&i=mixed&o=29909823&l=29909823&r=29913852&getDnaPos=chr6%3A29907000-29917000&db=hg19&hgSeq.cdsExon=1&hgSeq.padding5=0&hgSeq.padding3=0&hgSeq.casing=upper&boolshad.hgSeq.maskRepeats=0&hgSeq.repMasking=lower&boolshad.hgSeq.revComp=0&submit=get+DNA" | awk '/^>/{print $0} /^[AGTCN]+$/{a=a $0;} END { print a }' > reference_data/hla_a.fasta
     curl --insecure "ftp://ftp.ebi.ac.uk/pub/databases/ipd/imgt/hla/fasta/A_gen.fasta" | awk '/^>/{print a;print $0;a=""} /^[AGTCN]+$/{a=a $0;} END { print a }' > reference_data/ipd.imgt.hla_A_gen.fasta
     echo -e "\033[1;93m##INFO##\033[0m --- \033[0;34m Building a bowtie2 reference index\033[0m"
-    bowtie2-build reference_data/hla_a.fasta reference_data/hla_a.fasta
-    
+    bowtie2-build reference_data/hla_a.fasta reference_data/hla_a.fasta    
+
+    cd $STARTPATH
+
+}
+
+
+function get_rawdata {
+
+    STARTPATH=$(pwd)
+    mkdir -p analysis_automation
+    cd analysis_automation
 
     # Getting the raw sequence data
     echo ""
     echo -e "\033[1;93m##INFO##\033[0m --- \033[0;34m Fetching the raw reads fastq files from SRA ... THIS MIGHT TAKE A WHILE!\033[0m"
     mkdir rawdata
     for accession in SRR5277650 SRR5277651 SRR5277652 SRR5277653 SRR5277654 SRR5277655 SRR5277656 SRR5277657 SRR5277658;
-        do $sratoolkitpath/bin/fastq-dump --split-files --gzip --outdir rawdata $accession; done
-    
+        do $sratoolkitpath/bin/fastq-dump --split-files --gzip --outdir rawdata $accession; done    
+
+    cd $STARTPATH
+}
+
+
+function run_analysis {
     # Now its time to run the analysis of our downloaded data,
+    STARTPATH=$(pwd)
+    mkdir -p analysis_automation
+    cd analysis_automation
+    source activate dbs_analysis
     # from here on the script also describes exactly how the analysis was made for the publication
     echo ""
     echo -e "\033[1;93m##INFO##\033[0m --- \033[0;34m Running the analysis\033[0m"
@@ -179,24 +244,11 @@ then
         #     note that after this step has been done you should not rerun any analysissteps without first manually restoring the orirginal bamfiles in the data folder
         # dbs_downsample_bam analysis_results/$accession
     done;
-    
     source deactivate dbs_analysis
 
-else
+    cd $STARTPATH
+}
 
-    echo -e "\033[1;93m##INFO##\033[0m --- \033[0;34m conda not installed trying to install miniconda, you will have to restart the analysis after this step (and also close you terminal window and open a new one)\033[0m"
 
-    if [[ "$OSTYPE" == "linux-gnu" ]]; then
-        echo -e "\033[1;93m##INFO##\033[0m --- \033[0;34m you are running linux, starting the ubuntu installer\033[0m"
-        wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
-        bash Miniconda3-latest-Linux-x86_64.sh
-    elif [[ "$OSTYPE" == "darwin"* ]]; then
-        echo -e "\033[1;93m##INFO##\033[0m --- \033[0;34m you are running darwin, starting the OSX installer\033[0m"
-        curl "https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh" -o Miniconda3-latest-MacOSX-x86_64.sh
-        bash Miniconda3-latest-MacOSX-x86_64.sh
-    else
-        echo "Your operating system is not supported try running an ubuntu or OSX machine."
-    fi
-    echo ""
-    exit
-fi
+
+main
