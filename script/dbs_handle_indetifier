@@ -49,11 +49,14 @@ def main():
         logfile.write('No fastq files added to db just running data check ... \n')
     logfile.write('Allowing '+str(analysisfolder.settings.maxHandleMissMatches)+' missmatches in handles during this run.\n')
     
-    #
-    # create the fastq reader and runt it
-    #
-    reader = FastqReader(analysisfolder,logfile=logfile)
-    reader.runParallel() # run it in parallel processing mode
+    if 'justadd' not in ' '.join(sys.argv):
+        #
+        # create the fastq reader and runt it
+        #
+        reader = FastqReader(analysisfolder,logfile=logfile)
+        reader.runParallel() # run it in parallel processing mode
+    else:
+        logfile.write('Not running data check just added fastq files  to db... \n')
 
     if analysisfolder.database_in_temp: analysisfolder.copy_from_temp()
     

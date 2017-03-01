@@ -16,7 +16,8 @@ Software for analysis of Droplet Barcode Sequencing data.
 *Otherwise you can find the software here:*
 - *bowtie2 can be found [here](https://sourceforge.net/projects/bowtie-bio/files/bowtie2/2.2.8/)*
 - *picard tools can be found [here](https://sourceforge.net/projects/picard/files/picard-tools/1.114/)*
-- *cd-hit-454 can be found [here](https://github.com/weizhongli/cdhit/releases/download/V4.6.1/cd-hit-v4.6.1-2012-08-27.tgz)*
+- *cd-hit-454 can be found [here](https://github.com/weizhongli/cdhit/releases/download/V4.6.1/cd-hit-v4.6.1-2012-08-27.tgz)* 
+**Note that:** *the OpenMP threading of cd-hit does not work for the conda installation.*
 
 ## To run the analysis of the 8 coriell individuals data:
 This script is supplied to allow others to reproduce the analysis exactly as it was done for the publication.
@@ -60,7 +61,14 @@ For each sample you want to analyze the following steps need to be performed ` <
 ```
     dbs_handle_indetifier <path to read one fastq> <path to read two fastq> <path to analysis>;
 ```
-
+**Note that:** *If you use the keyword *`SKIP`* instead of *`<path to read one fastq>`* files will not be added to the database but the handle and dbs identification will be run for all files already in the database:*
+```
+    dbs_handle_indetifier SKIP SKIP <path to analysis>;
+```
+**Note that:** *If you use the keyword *`justadd`* at the end of the line files only be added to the database and no handle and dbs identification will be performed:*
+```
+    dbs_handle_indetifier <path to read one fastq> <path to read two fastq> <path to analysis> justadd;
+```
 #### 3. Cluster the barcode sequences and group the reads based on this information
 ```
     dbs_barcode_clustrer <path to analysis>
