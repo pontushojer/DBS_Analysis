@@ -12,19 +12,19 @@ Software for analysis of Droplet Barcode Sequencing data.
     python setup.py install
 ```
 **Note that:** *Some of the scripts make use of other non-python software you therefore need working installations of* **bowtie2**, **cd-hit-454** *and* **picard tools** *(version 1.114) to be able to run all commands.*
+*It's easy to install all of this using conda, take a look at the analysis_automation.sh script.*
+*Otherwise you can find the software here:*
 - *bowtie2 can be found [here](https://sourceforge.net/projects/bowtie-bio/files/bowtie2/2.2.8/)*
 - *picard tools can be found [here](https://sourceforge.net/projects/picard/files/picard-tools/1.114/)*
 - *cd-hit-454 can be found [here](https://github.com/weizhongli/cdhit/releases/download/V4.6.1/cd-hit-v4.6.1-2012-08-27.tgz)*
 
-*On Ubuntu this installation is really easy just run the following commands:*
+## To run the analysis of the 8 coriell individuals data:
+This script is supplied to allow others to reproduce the analysis exactly as it was done for the publication.
 ```
-    sudo apt-get install virtualenv bowtie2 python-dev cd-hit git python-tk;
+    bash analysis_automation.sh
 ```
-*On OSX if you have [homebrew](https://brew.sh) installed you should be able to use:*
-```
-    brew install bowtie2 cd-hit;
-    pip install virtualenv
-```
+**Note that:** *This part is still under* **heavy** *development.*
+
 ## Standard Usage:
 
 For each sample you want to analyze the following steps need to be performed ` <path to analysis> ` is the path to a folder where you want your analysis results and intermediary files to be stored.
@@ -109,10 +109,3 @@ this adds a barcode cluster specififc tag ("bc") to each read in the `<path to a
 ```
     viewLogfiles <path to analysis>/logfiles
 ```
-
-## To run the analysis of the 8 coriell individuals data:
-This script is supplied to allow others to reproduce the analysis exactly as it was done for the publication.
-```
-    bash analysis_automation.sh
-```
-**Note that:** *This part is still under* **heavy** *development and need working* **bowtie2**, **bowtie2-build**, **cd-hit-454** *and* **virtualenv** *installations in your PATH. Alternatively the script will try to install the dependencies though will probably only work on* **ubuntu** *or if you have* **homebrew** *installed on your Mac. If the script have trouble installing the dependencies and running, just have a look at the last 100 lines or so which describes how to download the data and what cutoffs and settings were used in the publication.*
