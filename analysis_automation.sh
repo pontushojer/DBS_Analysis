@@ -103,7 +103,6 @@ function setup_analysis_enviroment {
     echo -e "\033[1;93m##INFO##\033[0m --- \033[0;34m Downloading and installing the DBS_Analysis software\033[0m"
     git clone https://github.com/elhb/DBS_Analysis.git
     cd DBS_Analysis/
-    git checkout structure
     python setup.py build
     python setup.py install
     

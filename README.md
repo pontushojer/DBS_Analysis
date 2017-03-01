@@ -6,7 +6,6 @@ Software for analysis of Droplet Barcode Sequencing data.
 ```
     git clone https://github.com/elhb/DBS_Analysis.git
     cd DBS_Analysis
-    git checkout structure
     pip install -r requirements.txt
     python setup.py build
     python setup.py install
