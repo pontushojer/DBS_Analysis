@@ -149,18 +149,19 @@ class Database(object):
         #
         import sys
         
-        #
-        # open connection to database
-        #
-        self.getConnection()
-        
-        #
-        # add the data in readsToAdd to the reads table
-        #
-
-        self.c.executemany('INSERT INTO reads VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', readsToAdd)
-        
-        self.commitAndClose()
+        with self.lock:
+            #
+            # open connection to database
+            #
+            self.getConnection()
+            
+            #
+            # add the data in readsToAdd to the reads table
+            #
+    
+            self.c.executemany('INSERT INTO reads VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', readsToAdd)
+            
+            self.commitAndClose()
         
         return 0
 
