@@ -74,6 +74,9 @@ def foreachRead(readpair):
     
     return readpair
 
+def add_to_db(analysisfolder, readsToAdd):
+    analysisfolder.database.addReads(readsToAdd)
+
 class FastqReader(object):
     """ reads fastq files (read one and two) and identifies the coordinates for the Barcode sequence etc and adds the data to the database """
     
@@ -99,6 +102,8 @@ class FastqReader(object):
         self.grandTotal = 0
         self.minR1ReadLength = 10000000000
         self.minR2ReadLength = 10000000000
+        self.to_db_processes = {}
+        self.max_live_writers = 10
 
         #
         # get the grand total readcount in all files to be added to the database
@@ -303,17 +308,21 @@ class FastqReader(object):
         # Imports
         #
         import time
+        import multiprocessing
   
         # set starttime for operation and write message to logfile
         chunkStartTime = time.time()
-        if self.logfile: self.logfile.write('Staring to append reads '+str(self.currentLocation)+'-'+str(self.currentLocation+len(self.readsToAdd)-1)+' to db.\n')
   
         # use database function to add the reads
-        self.analysisfolder.database.addReads(self.readsToAdd)
+        #self.analysisfolder.database.addReads(self.readsToAdd)
+        p = multiprocessing.Process(target=add_to_db,args=(self.analysisfolder,self.readsToAdd))
+        p.start()
+        if self.logfile: self.logfile.write('Staring process='+str(p.pid)+' to append reads '+str(self.currentLocation)+'-'+str(self.currentLocation+len(self.readsToAdd)-1)+' to db.\n')
+        self.to_db_processes[p.pid] = p
   
         # get end time and write log message
-        chunkTime = time.time()-chunkStartTime
-        if self.logfile: self.logfile.write('Reads '+str(self.currentLocation)+'-'+str(self.currentLocation+len(self.readsToAdd)-1)+' appended to db after '+str(int(round(chunkTime,0)/60))+' minutes and '+str(round(chunkTime,0)%60)+' seconds.\n')
+        #chunkTime = time.time()-chunkStartTime
+        #if self.logfile: self.logfile.write('Reads '+str(self.currentLocation)+'-'+str(self.currentLocation+len(self.readsToAdd)-1)+' appended to db after '+str(int(round(chunkTime,0)/60))+' minutes and '+str(round(chunkTime,0)%60)+' seconds.\n')
   
         # update the counter and reset the chunk content
         self.currentLocation += len(self.readsToAdd)
@@ -357,6 +366,51 @@ class FastqReader(object):
         if self.logfile: logfile.write('Files '+', '.join([key for key in self.filesAdded.keys()])+' added sucesfully to the database.\n')
         
         return 0
+
+    def wait_for_db_writers(self,last_check=False):
+        
+        if not self.to_db_processes: return
+
+        import time
+        import sys
+        
+        if last_check: self.max_live_writers = 1
+        sleep_started = False
+        
+        while True:
+            
+            live_processes = 0
+            remove_pids = []
+            for p in self.to_db_processes.values():
+                if p.is_alive():
+                    live_processes =+ 1
+                else:
+                    if p.exitcode == 0:
+                        p.join()
+                        if self.logfile: self.logfile.write('Process='+str(p.pid)+' finished appending reads to db.\n')
+                        remove_pids.append(p.pid)
+                    else:
+                        msg = 'ERROR:: Process='+str(p.pid)+' FAILED to append the reads to db!!!.\n'
+                        if self.logfile: self.logfile.write(msg)
+                        sys.stderr.write(msg)
+                        sys.exit
+            
+            if remove_pids:
+                tmp_to_db_processes = {}
+                for p in self.to_db_processes.values():
+                    if p.pid not in remove_pids:
+                        tmp_to_db_processes[p.pid] = p
+                self.to_db_processes = tmp_to_db_processes
+            
+            if live_processes >= self.max_live_writers:
+                if not sleep_started:
+                    if self.logfile: self.logfile.write('To many database writers alive waiting for some of them to finish ...\n')
+                    sleep_started = True
+                time.sleep(1)
+            else:
+                if sleep_started:
+                    if self.logfile: self.logfile.write('waiting complete continueing execution ...\n')
+                break
 
     def runParallel(self,):
         """ Function that run the handle and adapter identification as well as some other function for each read in parallel before the information is added to the database
@@ -407,6 +461,7 @@ class FastqReader(object):
         # add final chunk to db and close the multiprocessing pool
         #
         if self.readsToAdd: self.chunkToDb()
+        self.wait_for_db_writers(last_check=True)
         poolOfProcesses.close()
         poolOfProcesses.join()
         
