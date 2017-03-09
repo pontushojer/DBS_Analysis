@@ -115,6 +115,7 @@ class LogfileMonitor():
                 for filename in newFiles:
                     tailcontroler = multiprocessing.Process(target=self.startTail, args=(filename,outputRows,))
                     tailcontroler.start()
+                    time.sleep(0.1)
                     self.tailcontrolers.append(tailcontroler)
                 
                 # print rows in output qeueue
