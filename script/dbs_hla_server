@@ -16,7 +16,8 @@ except IndexError: sys.stderr.write('please supply a commandline on format:\n'+o
 app = dbs_analysis.hla_interface.app
 app.analysisfolder = analysisfolder
 app.analysisfolder.settings.mapqCutOff = int(app.analysisfolder.settings.mapqCutOff)
-app.analysisfolder.dataPath=os.path.abspath(app.analysisfolder.dataPath) 
+app.analysisfolder.dataPath=os.path.abspath(app.analysisfolder.dataPath)
+app.analysisfolder.path = os.path.abspath(app.analysisfolder.path)
 
 logfile = open(analysisfolder.logpath+'/dbs_hla_server.log.txt','a',1)
 logfile.write(time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'\n')

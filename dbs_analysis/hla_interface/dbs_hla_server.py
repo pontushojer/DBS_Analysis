@@ -73,7 +73,7 @@ def start():
 @app.route("/index.html")
 def index():
     """ function that builds the index page of the webinterface """
-    return render_template('index.html')
+    return render_template('index.html',analysispath=app.analysisfolder.path)
 
 @app.route("/read_pairs")
 def read_pairs():
@@ -86,12 +86,12 @@ def read_pairs():
     # from seqdata import revcomp
     # from misc import HtmlColors
     # layout_html = HtmlColors.BlueIntense+H1+HtmlColors.Color_Off+'-'+HtmlColors.CyanIntense+DBS+HtmlColors.Color_Off+'-'+HtmlColors.PurpleIntense+revcomp(H2)+HtmlColors.Color_Off+HtmlColors.BlackIntense+'- DNA Sequence Of Targeted Amplicon -'+HtmlColors.Color_Off+HtmlColors.YellowIntense+revcomp(H3)+HtmlColors.Color_Off
-    return render_template('read_pairs.html',total_read_pairs=thousandString(app.analysisfolder.results.totalReadCount),h1=H1,h2=revcomp(H2),h3=revcomp(H3),dbs=DBS,bt2=str(app.analysisfolder.results.bt2AlignmentRate),bt2q20=str(app.analysisfolder.results.alignmentRateQ20))
+    return render_template('read_pairs.html',total_read_pairs=thousandString(app.analysisfolder.results.totalReadCount),h1=H1,h2=revcomp(H2),h3=revcomp(H3),dbs=DBS,bt2=str(app.analysisfolder.results.bt2AlignmentRate),bt2q20=str(app.analysisfolder.results.alignmentRateQ20),analysispath=app.analysisfolder.path)
 
 @app.route("/barcode_clusters")
 def barcode_clusters():
     from dbs_analysis import misc
-    return render_template('barcode_clusters.html', non_singleton_clusters=misc.thousandString(app.analysisfolder.results.barcodeClusterCount-app.analysisfolder.results.singeltonBarcodeClusters))
+    return render_template('barcode_clusters.html', non_singleton_clusters=misc.thousandString(app.analysisfolder.results.barcodeClusterCount-app.analysisfolder.results.singeltonBarcodeClusters),analysispath=app.analysisfolder.path)
 
 @app.route("/alleles")
 def alleles():
@@ -112,13 +112,14 @@ def alleles():
         barcode_cluster_count=misc.thousandString(info_vars['barcode_clusters_loaded_for_find_alleles_step']),
         read_pair_count=misc.thousandString(info_vars['read_pairs_loaded_for_find_alleles_step']),
         read_pair_percentage=misc.percentage(info_vars['read_pairs_loaded_for_find_alleles_step'],app.analysisfolder.results.totalReadCount),
-        min_reads = info_vars['read_cutoff_for_variable_position_info']
+        min_reads = info_vars['read_cutoff_for_variable_position_info'],
+        analysispath=app.analysisfolder.path
         )
 
 @app.route("/individuals")
 def individuals():
     with open( app.analysisfolder.dataPath+'/allele_types_dict' ) as infile: allele_types = eval(infile.read())
-    return render_template('individuals.html',ind_count=sum([1 for ind_id in allele_types if ind_id not in ['No info','Non clonal','unknown id','nosiy signal']]))
+    return render_template('individuals.html',ind_count=sum([1 for ind_id in allele_types if ind_id not in ['No info','Non clonal','unknown id','nosiy signal']]),analysispath=app.analysisfolder.path)
 
 @app.route("/ind_details.json")
 def ind_details_json():
