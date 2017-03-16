@@ -15,6 +15,8 @@
     <link href="/static/css/bootstrap.min.css" rel="stylesheet">
     <link href="/static/css/bootstrap-theme.min.css" rel="stylesheet">
     <link href="/static/css/hla_server.css" rel="stylesheet">
+    <script src="/static/js/jquery-3.1.1.js"></script>
+
   </head>
 
   <body id="{{ body_id }}">
@@ -36,6 +38,7 @@
           <ul class="nav navbar-nav">
             <!--<li><a href="#files">Settings</a></li>-->
 
+            {{ nav_link('infiles', 'Infiles') }}
             {{ nav_link('read_pairs', 'Reads Pairs') }}
             {{ nav_link('barcode_clusters', 'Barcode Clusters') }}
             {{ nav_link('alleles', 'Alleles') }}
@@ -62,7 +65,6 @@
     <!-- Bootstrap core JavaScript
     ================================================== -->
     <!-- Placed at the end of the document so the pages load faster -->
-    <script src="/static/js/jquery-3.1.1.js"></script>
     <script src="/static/js/bootstrap.min.js"></script>
     <script>
     $(".nav a").on("click", function(){

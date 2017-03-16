@@ -12,6 +12,7 @@ import sys
 import time
 import os
 from flask import request
+import urllib
 
 #
 # initiate the flask application
@@ -48,6 +49,93 @@ app = Flask(
 # logfile.write(time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'\n')
 # logfile.write('cmd: '+' '.join(sys.argv)+'\n')
 # analysisfolder.logfile = logfile
+
+# START: this part was adpted from https://github.com/braingram/flask_filetree
+#fnfilter = lambda fn: True
+def fnfilter(file_name):
+    import re
+    if re.search('_R[12]_.+\.f(ast)?q\.gz$',file_name): return True
+    else: return False
+dfilter = lambda d: True
+def get_files(d, fnfilter, dfilter, rel=True):
+    d = os.path.expanduser(d)
+    dirs = []
+    fns = []
+    for fn in sorted(os.listdir(d)):
+        ffn = os.path.join(d, fn)
+        if not rel:
+            fn = ffn
+        if os.path.isdir(ffn):
+            if dfilter(ffn):
+                dirs.append(fn)
+        else:
+            if fnfilter(ffn):
+                fns.append(fn)
+    return fns, dirs
+
+@app.route('/json')
+def dirlist():
+    import flask
+    try:
+        d = urllib.unquote(flask.request.args.get('dir', './'))
+        fns, dirs = get_files(d, fnfilter, dfilter, rel=False)
+        error = ""
+    except Exception as E:
+        fns = []
+        dirs = []
+        error = "PY: %s" % E
+    return flask.jsonify(fns=fns, dirs=dirs, error=error)
+
+@app.route('/sfiles', methods=['POST'])
+def sfiles():
+    import flask
+    r = []
+    try:
+        d = urllib.unquote(flask.request.form.get('dir', './'))
+        fns, dirs = get_files(d, fnfilter, dfilter, rel=True)
+        r = ['<ul class="jqueryFileTree" style="display: none;">']
+        for f in dirs:
+            ff = os.path.join(d, f)
+            r.append('<li class="directory collapsed">' \
+                    '<a href="#" rel="%s/">%s</a></li>' % (ff, f))
+        for f in fns:
+            ff = os.path.join(d, f)
+            e = os.path.splitext(f)[1][1:]  # get .ext and remove dot
+            r.append('<li class="file ext_%s">' \
+            '<a href="#" rel="%s">%s</a></li>' % (e, ff, f))
+        r.append('</ul>')
+    except Exception as E:
+        r.append('Could not load directory: %s' % (str(E)))
+    return ''.join(r)
+# END: this part was adpted from https://github.com/braingram/flask_filetree
+
+@app.route("/add_infiles", methods=["GET", "POST"])
+def add_infiles():
+    
+    import flask
+    from dbs_analysis import metadata
+    
+    #print 'Changeing to newfolder='+flask.request.form.get('data')
+#    analysisfolder.logfile.write('Switching to new folder.\n')
+    #analysisfolder = metadata.AnalysisFolder(sys.argv[1])
+    #app.analysisfolder = analysisfolder
+    #app.analysisfolder.settings.mapqCutOff = int(app.analysisfolder.settings.mapqCutOff)
+    #app.analysisfolder.dataPath=os.path.abspath(app.analysisfolder.dataPath)
+    #app.analysisfolder.path = os.path.abspath(app.analysisfolder.path)
+    #logfile = open(analysisfolder.logpath+'/dbs_hla_server.log.txt','a',1)
+    #logfile.write(time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'\n')
+    #logfile.write('cmd: '+' '.join(sys.argv)+'\n')
+    #analysisfolder.logfile = logfile
+    #analysisfolder.logfile.write('Switching from another folder.\n')
+    filename = flask.request.form.get('data')
+    if '_R1_' in filename: splitter = '_R1_'
+    if '_R2_' in filename: splitter = '_R2_'
+    parts = filename.split(splitter)
+    if len(parts) != 2: return 'Were not able to determine the names of both files in the  read pair (they should include "_R1_" or "_R2_").'
+    fastq1 = parts[0] + '_R1_' + parts[1]
+    fastq2 = parts[0] + '_R2_' + parts[1]
+    exit_code, msg = app.analysisfolder.database.addFastqs( fastq1, fastq2, logfile=app.analysisfolder.logfile, skip_read_count=True, don_not_exit_on_error=True)
+    return msg
 
 @app.route("/")
 def start():
@@ -87,6 +175,31 @@ def read_pairs():
     # from misc import HtmlColors
     # layout_html = HtmlColors.BlueIntense+H1+HtmlColors.Color_Off+'-'+HtmlColors.CyanIntense+DBS+HtmlColors.Color_Off+'-'+HtmlColors.PurpleIntense+revcomp(H2)+HtmlColors.Color_Off+HtmlColors.BlackIntense+'- DNA Sequence Of Targeted Amplicon -'+HtmlColors.Color_Off+HtmlColors.YellowIntense+revcomp(H3)+HtmlColors.Color_Off
     return render_template('read_pairs.html',total_read_pairs=thousandString(app.analysisfolder.results.totalReadCount),h1=H1,h2=revcomp(H2),h3=revcomp(H3),dbs=DBS,bt2=str(app.analysisfolder.results.bt2AlignmentRate),bt2q20=str(app.analysisfolder.results.alignmentRateQ20),analysispath=app.analysisfolder.path)
+
+@app.route("/infiles")
+def infiles():
+    return render_template(
+        'infiles.html',
+        analysispath=app.analysisfolder.path
+        )
+
+@app.route("/infiles.json")
+def infiles_json():
+    import json
+    import os
+    from dbs_analysis.misc import thousandString
+    infiles = []
+    for file_pair_id, read_count,r1_path,r2_path in app.analysisfolder.database.getFastqs():
+        infiles.append(
+            {
+                'file_pair_id':file_pair_id,
+                'read_count':read_count,
+                'r1_path':os.path.relpath(r1_path,os.path.abspath(app.analysisfolder.rawdataPath)),
+                'r2_path':os.path.relpath(r2_path,os.path.abspath(app.analysisfolder.rawdataPath))
+            }
+        )
+        
+    return json.dumps(infiles)
 
 @app.route("/barcode_clusters")
 def barcode_clusters():

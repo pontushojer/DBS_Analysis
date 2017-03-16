@@ -90,7 +90,7 @@ class Database(object):
         
         return 0
     
-    def addFastqs(self, fastq1, fastq2,logfile=None):
+    def addFastqs(self, fastq1, fastq2,logfile=None, skip_read_count=False, don_not_exit_on_error=False):
         
         #
         # Imports
@@ -120,16 +120,22 @@ class Database(object):
                         message = 'ERROR: '+fastq+' already in the database.\nExiting after error.'
                         print message
                         if logfile: logfile.write(message+'\n')
-                        sys.exit(1)
+                        if don_not_exit_on_error:
+                            return [1, message]
+                        else:
+                            sys.exit(1)
         #
         # if not in the database add a new row
         #
         if logfile: logfile.write('Linking files to analysis path ... \n')
         os.symlink(fastq1, self.analysisfolder.rawdataPath+'/'+os.path.basename(fastq1))
         os.symlink(fastq2, self.analysisfolder.rawdataPath+'/'+os.path.basename(fastq2))
-        if logfile: logfile.write('Getting readcount for file'+os.path.basename(fastq1)+' ... \n')
-        readCount = misc.bufcount(fastq1)/4 #one read is four lines
-        if logfile: logfile.write('...done. The file has '+str(readCount)+' reads.\n')
+        if skip_read_count:
+            readCount = None
+        else:
+            if logfile: logfile.write('Getting readcount for file'+os.path.basename(fastq1)+' ... \n')
+            readCount = misc.bufcount(fastq1)/4 #one read is four lines
+            if logfile: logfile.write('...done. The file has '+str(readCount)+' reads.\n')
         addedToReadsTable = False#SEAseqPipeLine.startTimeStr
         minReadLength = 'NA'
 
@@ -140,7 +146,10 @@ class Database(object):
         
         self.commitAndClose()
         
-        return 0
+        if don_not_exit_on_error:
+            return [0, 'Fastq '+fastq+' sucessfully added to database.']
+        else:
+            return 0
    
     def addReads(self, readsToAdd):
 

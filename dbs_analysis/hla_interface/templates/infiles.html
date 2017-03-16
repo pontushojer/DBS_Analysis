@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+
+      <div class="jumbotron">
+        <h1>infiles</h1>
+        <p>Below you can find the fastq files used as input to this analysis. You can also add more fastq files by using the filetree below. Note that if you add more files all other analysis steps has to be restarted as well.<br><br><strong>Note that this page currently only lists information, adding files is under development and might mess upp your analysis. Do not use this functionality until this text is removed!!!</strong></p>
+      </div>
+
+      <h2>Current infiles:</h2>
+      <div class="row">
+        <div class="col-md-12" align="center">
+          <div id="infiles_table">
+            <table class="table">
+              <th>Empty Table</th>
+              <tr>
+                <td>Please wait one moment while the data for this table is loaded.</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+      </div>
+
+  <h2>Choose infiles to add:</h2>
+  <div class="panel panel-default">
+    <div class="panel-body">
+          <div id="filetree">
+          </div>
+    </div>
+    <div class="panel-footer"><strong>NOTE:</strong> this panel only show files which names include "_R1_" or "_R2_" and only with the extensions ".fq.gz" or ".fastq.gz" (ie matching the following regular expression "_R[12]_.+\.f(ast)?q\.gz$").</div>
+  </div>
+
+    <script src="/static/js/d3.v3.js"></script>
+    <script src="/static/js/infiles.js"></script>
+    <link href="static/css/jqueryFileTree.css" rel="stylesheet"></link>
+    <!--<script type="text/javascript" src="static/js/jquery-3.1.1.js"></script>-->
+    <script type="text/javascript" src="static/js/jqueryFileTree.js"></script>
+    
+    <script>
+      function sendData(file) {
+        alert('sending data to server')
+        AjaxURL='/add_infiles'
+        $.ajax({
+          type: "POST",
+          url: AjaxURL,
+          data: {data: file},
+          success: function(result) {
+              window.console.log('Successful');
+              alert(result);
+          }
+        });
+      }
+
+        $(document).ready( function() {
+            $("#filetree").fileTree({
+                root: "/shared",
+                script: "{{ url_for('sfiles') }}"
+            }, function(file) { sendData(file); });
+        });
+    </script>
+    
+{% endblock %}
