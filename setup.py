@@ -41,7 +41,8 @@ setup(name='dbs_analysis',
         'script/dbs_hla_server',
         'script/dbs_tag_bam',
         'script/dbs_downsample_bam',
-        'script/viewLogfiles'
+        'script/viewLogfiles',
+        'script/dbs_random_subset_analysis'
         ],
     ext_modules=cythonize(extensions)
     )

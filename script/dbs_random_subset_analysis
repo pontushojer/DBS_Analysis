@@ -1,0 +1,150 @@
+#! /usr/bin/env python
+
+import sys
+
+def main(): 
+    #
+    # Imports
+    #
+    from dbs_analysis import metadata
+    import time
+    import os
+
+    #
+    # check input and get commandline args
+    #
+    try:
+        analysisfolder = metadata.AnalysisFolder(sys.argv[1])
+        analysisfolder.readindexTsv()
+        if analysisfolder.settings.temp: analysisfolder.copy_to_temp()
+
+    except IndexError: sys.stderr.write('please supply a commandline on format:\n'+os.path.basename(__file__)+' <analysis-output-folder>\n');sys.exit()
+
+    #
+    # check analysis folder
+    #
+    if not analysisfolder.checkIntegrity() == 'PASS': print analysisfolder.checkIntegrity()+'\nERROR: Now exiting'
+
+    #
+    # create a logfile
+    #
+    logfile = open(analysisfolder.logpath+'/'+time.strftime("%y%m%d-%H:%M:%S",time.localtime())+'_random_subset_analysis.log.txt','w',1)
+    logfile.write('cmd: '+' '.join(sys.argv)+'\n')
+    analysisfolder.logfile = logfile
+
+    #
+    # check if the target region bedfile is defined
+    #
+    if not analysisfolder.settings.targetRegionBed or not os.path.exists(analysisfolder.settings.targetRegionBed):
+        msg = 'WARNING: cant find the target definition bed file!!\n'
+        msg+= '(If run is not targeted you can safely ignore this message).\n'
+        sys.stderr.write(msg);
+        logfile.write(msg)
+     
+    #
+    # Do the work here!!
+    #
+    version2(analysisfolder)
+
+    if analysisfolder.database_in_temp: analysisfolder.copy_from_temp()
+    logfile.write('FINISHED\n')
+
+def version1(analysisfolder):
+    random_subset = False
+    
+    print str('subset_size (read pairs)')+'\t'+str('barcode_sequences (unique)')+'\t'+str('barcode_clusters (with >= 2 readpairs)')
+    import random
+    step_size = 10000
+    step_sizes = list(range(10000,100000,10000))
+    if analysisfolder.results.totalReadCount > 200000: step_sizes += list(range(100000,200000,20000))
+    if analysisfolder.results.totalReadCount > 300000: step_sizes += list(range(200000,300000,30000))
+    if analysisfolder.results.totalReadCount > 400000: step_sizes += list(range(300000,400000,40000))
+    if analysisfolder.results.totalReadCount > 500000: step_sizes += list(range(400000,500000,50000))
+    if analysisfolder.results.totalReadCount > 1000000: step_sizes += list(range(500000,1000000,100000))
+    if analysisfolder.results.totalReadCount > 5000000: step_sizes += list(range(1000000,5000000,500000))
+    if analysisfolder.results.totalReadCount > 5000000: step_sizes += list(range(5000000,analysisfolder.results.totalReadCount,1000000))
+    for subset_size in step_sizes:#range(step_size,analysisfolder.results.totalReadCount,step_size):
+        
+        if random_subset:
+            read_ids = sorted([random.randint(0,analysisfolder.results.totalReadCount)+1 for i in range(subset_size)])
+        else:
+            read_ids = [i+1 for i in range(subset_size)]
+        
+        barcode_sequences = {}
+        barcode_clusters = {}
+
+        analysisfolder.database.getConnection()
+  
+        #
+        # faster getting reads from db
+        #
+        if type(read_ids[0]) == int: listOfIds = [str(tmp_id) for tmp_id in read_ids]
+        else: listOfIds = read_ids
+        rows = analysisfolder.database.c.execute('SELECT id, dbsSeq, clusterId FROM reads WHERE id IN ('+', '.join(listOfIds)+')')
+        for row in rows:
+        
+            currentRead, dbsSeq, clusterId = row
+            barcode_sequences[dbsSeq] = True
+            try: barcode_clusters[clusterId] += 1
+            except KeyError: barcode_clusters[clusterId] = 1
+        
+        analysisfolder.database.commitAndClose()
+        
+        print str(subset_size)+'\t'+str(len(barcode_sequences))+'\t'+str(sum([1 for read_count in barcode_clusters.values() if read_count > 1]))
+    print str(analysisfolder.results.totalReadCount)+'\t'+str(analysisfolder.results.uniqueBarcodeSequences)+'\t'+str(analysisfolder.results.barcodeClusterCount-analysisfolder.results.singeltonBarcodeClusters)
+    
+def version2(analysisfolder):
+
+    import sys
+    import random
+    
+    #
+    # Get all data
+    #
+    sys.stderr.write('loading clustering data from '+str(analysisfolder.results.totalReadCount)+' read pairs.\n')
+    analysisfolder.database.getConnection()
+    info = {currentRead:[dbsSeq, clusterId] for currentRead, dbsSeq, clusterId in analysisfolder.database.c.execute('SELECT id, dbsSeq, clusterId FROM reads')}    
+    analysisfolder.database.commitAndClose()
+    sys.stderr.write('data loaded.\n')
+    shuffeled_ids = info.keys()
+    random.shuffle(shuffeled_ids)
+    
+    outfile = open(analysisfolder.dataPath+'/random_subsets_of_barcode_clustering_process.tsv','w')
+    
+    outfile.write( str('subset_size (read pairs)')+'\t'+str('barcode_sequences (unique)')+'\t'+str('barcode_clusters (with >= 2 readpairs)')+'\n')
+    last_size = 0
+    step_size = 10000
+    step_sizes = list(range(10000,100000,10000))
+    if analysisfolder.results.totalReadCount > 200000: step_sizes += list(range(100000,200000,20000))
+    if analysisfolder.results.totalReadCount > 300000: step_sizes += list(range(200000,300000,30000))
+    if analysisfolder.results.totalReadCount > 400000: step_sizes += list(range(300000,400000,40000))
+    if analysisfolder.results.totalReadCount > 500000: step_sizes += list(range(400000,500000,50000))
+    if analysisfolder.results.totalReadCount > 1000000: step_sizes += list(range(500000,1000000,100000))
+    if analysisfolder.results.totalReadCount > 5000000: step_sizes += list(range(1000000,5000000,500000))
+    if analysisfolder.results.totalReadCount > 5000000: step_sizes += list(range(5000000,analysisfolder.results.totalReadCount,1000000))
+
+    barcode_sequences = {}
+    barcode_clusters = {}
+
+    for subset_size in step_sizes:#range(step_size,analysisfolder.results.totalReadCount,step_size):
+        
+    
+        #read_ids = {}
+        #while True:
+        #    read_ids[random.randint(1,analysisfolder.results.totalReadCount)] = True
+        #    if len(read_ids) == subset_size: break
+        read_ids = shuffeled_ids[last_size:subset_size]
+        last_size = subset_size
+        
+        for read_id in read_ids:
+            
+            dbsSeq, clusterId = info[read_id]
+            
+            barcode_sequences[dbsSeq] = True
+            try: barcode_clusters[clusterId] += 1
+            except KeyError: barcode_clusters[clusterId] = 1
+        
+        outfile.write(  str(subset_size)+'\t'+str(len(barcode_sequences))+'\t'+str(sum([1 for read_count in barcode_clusters.values() if read_count > 1]))+'\n')
+    outfile.write(  str(analysisfolder.results.totalReadCount)+'\t'+str(analysisfolder.results.uniqueBarcodeSequences)+'\t'+str(analysisfolder.results.barcodeClusterCount-analysisfolder.results.singeltonBarcodeClusters)+'\n')
+
+if __name__ == '__main__': main()
