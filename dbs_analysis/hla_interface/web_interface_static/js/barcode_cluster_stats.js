@@ -370,7 +370,7 @@ d3.json("barcode_clusters.json", function(error, data) {
       redraw(brush.extent())
 
 	// render the table(s)
-	tabulate(filtered_data, ['id', 'total','inbam','mapped'], {'id':'Cluster Id', 'total':'Read Pairs in cluster','inbam':'SE Read in bam','mapped':'SE Reads Mapped'})
+	tabulate(filtered_data, ['id', 'total','inbam','mapped'], {'id':'Cluster Id', 'total':'Read Pairs in cluster','inbam':'Read Pairs in bam','mapped':'SE Reads Mapped'})
       
     };
  
