@@ -1,6 +1,6 @@
 function main {
     echo -e "\033[1;93m##INFO##\033[0m --- \033[0;34m looking for a conda installation ... \033[0m";
-    if [[ $(conda --version 2>&1) =~ conda ]];
+    if [[ $(conda --version 2>&1) =~ "conda "[0-9]+.[0-9]+.[0-9]+ ]];
     then
     
         echo -e "\033[1;93m##INFO##\033[0m --- \033[0;34m conda is installed creating an enviroment and installing dependencies\033[0m";
