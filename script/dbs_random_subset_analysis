@@ -111,17 +111,40 @@ def version2(analysisfolder):
     
     outfile = open(analysisfolder.dataPath+'/random_subsets_of_barcode_clustering_process.tsv','w')
     
-    outfile.write( str('subset_size (read pairs)')+'\t'+str('barcode_sequences (unique)')+'\t'+str('barcode_clusters (with >= 2 readpairs)')+'\n')
+    per_cluster_counts = [2,3,4,5,10,20,25,50,100,500,1000]
+    outfile.write( str('subset_size (read pairs)')+'\t'+str('barcode_sequences (unique)')+'\t'+'\t'.join([str('barcode_clusters (with >= '+str(per_cluster_count)+' readpairs)') for per_cluster_count in per_cluster_counts])+'\n')
     last_size = 0
     step_size = 10000
-    step_sizes = list(range(10000,100000,10000))
-    if analysisfolder.results.totalReadCount > 200000: step_sizes += list(range(100000,200000,20000))
-    if analysisfolder.results.totalReadCount > 300000: step_sizes += list(range(200000,300000,30000))
-    if analysisfolder.results.totalReadCount > 400000: step_sizes += list(range(300000,400000,40000))
-    if analysisfolder.results.totalReadCount > 500000: step_sizes += list(range(400000,500000,50000))
-    if analysisfolder.results.totalReadCount > 1000000: step_sizes += list(range(500000,1000000,100000))
-    if analysisfolder.results.totalReadCount > 5000000: step_sizes += list(range(1000000,5000000,500000))
-    if analysisfolder.results.totalReadCount > 5000000: step_sizes += list(range(5000000,analysisfolder.results.totalReadCount,1000000))
+    # step_sizes = list(range(10000,100000,10000))
+    # if analysisfolder.results.totalReadCount > 200000: step_sizes += list(range(100000,200000,20000))
+    # if analysisfolder.results.totalReadCount > 300000: step_sizes += list(range(200000,300000,30000))
+    # if analysisfolder.results.totalReadCount > 400000: step_sizes += list(range(300000,400000,40000))
+    # if analysisfolder.results.totalReadCount > 500000: step_sizes += list(range(400000,500000,50000))
+    # if analysisfolder.results.totalReadCount > 1000000: step_sizes += list(range(500000,1000000,100000))
+    # if analysisfolder.results.totalReadCount > 2000000: step_sizes += list(range(1000000,2000000,500000))
+    # if analysisfolder.results.totalReadCount > 5000000: step_sizes += list(range(2000000,5000000,500000))
+    # if analysisfolder.results.totalReadCount > 5000000: step_sizes += list(range(5000000,analysisfolder.results.totalReadCount,1000000))
+    
+    step_sizes = [10000]
+    while True:
+        
+        if step_sizes[-1] + step_size > analysisfolder.results.totalReadCount:
+            break
+        else:
+            step_sizes.append(int(step_sizes[-1]+step_size))
+        
+        # update the step size
+        if step_sizes[-1] >= 200e3: step_size =  20e3
+        if step_sizes[-1] >= 400e3: step_size =  25e3
+        if step_sizes[-1] >= 500e3: step_size =  50e3
+        if step_sizes[-1] >=   1e6: step_size = 100e3
+        if step_sizes[-1] >=   2e6: step_size = 200e3
+        if step_sizes[-1] >=   3e6: step_size = 500e3
+        if step_sizes[-1] >=   5e6: step_size =   1e6
+        if step_sizes[-1] >=  10e6: step_size =   5e6
+        if step_sizes[-1] >=  20e6: step_size =  10e6
+        
+    step_sizes.append(analysisfolder.results.totalReadCount)
 
     barcode_sequences = {}
     barcode_clusters = {}
@@ -144,7 +167,9 @@ def version2(analysisfolder):
             try: barcode_clusters[clusterId] += 1
             except KeyError: barcode_clusters[clusterId] = 1
         
-        outfile.write(  str(subset_size)+'\t'+str(len(barcode_sequences))+'\t'+str(sum([1 for read_count in barcode_clusters.values() if read_count > 1]))+'\n')
-    outfile.write(  str(analysisfolder.results.totalReadCount)+'\t'+str(analysisfolder.results.uniqueBarcodeSequences)+'\t'+str(analysisfolder.results.barcodeClusterCount-analysisfolder.results.singeltonBarcodeClusters)+'\n')
+        #outfile.write(  str(subset_size)+'\t'+str(len(barcode_sequences))+'\t'+str(sum([1 for read_count in barcode_clusters.values() if read_count > 1]))+'\n')
+        outfile.write(  str(subset_size)+'\t'+str(len(barcode_sequences))+'\t'+'\t'.join([str(sum([1 for read_count in barcode_clusters.values() if read_count > per_cluster_count])) for per_cluster_count in per_cluster_counts])+'\n')
+
+    #outfile.write(  str(analysisfolder.results.totalReadCount)+'\t'+str(analysisfolder.results.uniqueBarcodeSequences)+'\t'+str(analysisfolder.results.barcodeClusterCount-analysisfolder.results.singeltonBarcodeClusters)+'\n')
 
 if __name__ == '__main__': main()
