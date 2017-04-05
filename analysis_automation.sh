@@ -55,8 +55,15 @@ function setup_analysis_enviroment {
     conda config --add channels defaults
     conda config --add channels r
     conda config --add channels bioconda
-    conda install bowtie2  cd-hit cython flask numpy biopython Flask matplotlib pysam cutadapt wget --yes
-
+    if [[ "$OSTYPE" == "linux-gnu" ]]; then
+        sudo apt-get install cd-hit libxml2 libxslt1.1 libxslt1-dev libxml2-dev default-jre
+        conda install bowtie2 cython flask numpy biopython Flask matplotlib pysam cutadapt wget --yes
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        conda install bowtie2 cd-hit cython flask numpy biopython Flask matplotlib pysam cutadapt wget --yes
+    else
+            echo "Your OS is not supported, aborting"; exit
+    fi
+    
     # create a directory to hold all the files needed for the analysis
     echo -e "\033[1;93m##INFO##\033[0m --- \033[0;34m create a directory ("$(pwd)"/analysis_automation) to hold all the files needed for the analysis\033[0m"
     mkdir -p analysis_automation
@@ -125,7 +132,16 @@ function get_reference_data {
     mkdir reference_data
     curl --insecure "https://genome.ucsc.edu/cgi-bin/hgc?hgsid=587146775_3EJh2LqfkJcyhA6tRSZcEiUV6l6Y&g=htcGetDna2&table=&i=mixed&o=29906999&l=29906999&r=29917000&getDnaPos=chr6%3A29%2C907%2C000-29%2C917%2C000&db=hg19&hgSeq.cdsExon=1&hgSeq.padding5=0&hgSeq.padding3=0&hgSeq.casing=upper&boolshad.hgSeq.maskRepeats=0&hgSeq.repMasking=lower&boolshad.hgSeq.revComp=0&submit=get+DNA" | awk '/^>/{print $0} /^[AGTCN]+$/{a=a $0;} END { print a }' > reference_data/hla_a.fasta
     # curl --insecure "https://genome.ucsc.edu/cgi-bin/hgc?hgsid=580682449_q9IyW6Xnd8wjJrgFDMoAM9ORiftC&g=htcGetDna2&table=&i=mixed&o=29909823&l=29909823&r=29913852&getDnaPos=chr6%3A29907000-29917000&db=hg19&hgSeq.cdsExon=1&hgSeq.padding5=0&hgSeq.padding3=0&hgSeq.casing=upper&boolshad.hgSeq.maskRepeats=0&hgSeq.repMasking=lower&boolshad.hgSeq.revComp=0&submit=get+DNA" | awk '/^>/{print $0} /^[AGTCN]+$/{a=a $0;} END { print a }' > reference_data/hla_a.fasta
-    curl --insecure "ftp://ftp.ebi.ac.uk/pub/databases/ipd/imgt/hla/fasta/A_gen.fasta" | awk '/^>/{print a;print $0;a=""} /^[AGTCN]+$/{a=a $0;} END { print a }' > reference_data/ipd.imgt.hla_A_gen.fasta
+
+    if [[ "$OSTYPE" == "linux-gnu" ]]; then
+        wget ftp://ftp.ebi.ac.uk/pub/databases/ipd/imgt/hla/fasta/A_gen.fasta
+        cat A_gen.fasta | awk '/^>/{print a;print $0;a=""} /^[AGTCN]+$/{a=a $0;} END { print a }' > reference_data/ipd.imgt.hla_A_gen.fasta
+        rm A_gen.fasta
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        curl --insecure "ftp://ftp.ebi.ac.uk/pub/databases/ipd/imgt/hla/fasta/A_gen.fasta" | awk '/^>/{print a;print $0;a=""} /^[AGTCN]+$/{a=a $0;} END { print a }' > reference_data/ipd.imgt.hla_A_gen.fasta
+    else
+            echo "Your OS is not supported, aborting"; exit
+    fi
     echo -e "\033[1;93m##INFO##\033[0m --- \033[0;34m Building a bowtie2 reference index\033[0m"
     source activate dbs_analysis
     bowtie2-build reference_data/hla_a.fasta reference_data/hla_a.fasta    
