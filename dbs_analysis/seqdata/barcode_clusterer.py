@@ -92,7 +92,7 @@ class BarcodeClusterer(object):
         # cluster raw barcodes
         import platform
         import re
-        if re.search('Ubuntu',platform.platform()):
+        if re.search('Ubuntu',platform.platform()) or re.search('Linux',platform.platform()):
             cdhit454name = 'cdhit-454'
         else:
             cdhit454name = 'cd-hit-454'
