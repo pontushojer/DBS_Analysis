@@ -22,7 +22,7 @@ reqs = [line.rstrip() for line in open('requirements.txt')]
 packages = find_packages()
 
 setup(name='dbs_analysis',
-    version='0.0',
+    version='0.0.1-alpha',
     description="",
     url='https://github.com/elhb/DBS_Analysis',
     author='Erik Borgstroem',
