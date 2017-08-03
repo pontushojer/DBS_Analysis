@@ -431,7 +431,7 @@ class ReadPair(object):
         if startPosition==None: self.h1 = None
         
         # look for H3 in read one
-        if not self.direction:
+        if not self.direction and not self.analysisfolder.settings.nexteraLayout:
             self.h3 = self.matchSequence(self.r1Seq,H3,missmatchesAllowed,startOfRead=True,breakAtFirstMatch=True)
             startPosition,endPosition,missmatches = self.h3
             if startPosition!=None and startPosition <= 2: self.direction = '2 -> 1'
@@ -448,6 +448,10 @@ class ReadPair(object):
                 self.h3_in_both_ends = False
                 self.direction = '1 -> 2'
                 self.h3 = [startPosition,endPosition,missmatches]
+
+        if self.analysisfolder.settings.nexteraLayout:
+            self.h3 = [0, 0, 0]
+            self.h3_in_both_ends = False
 
         # look for H1 in read 2
         self.h1_in_both_ends = None
@@ -468,7 +472,7 @@ class ReadPair(object):
         self.readIntoh3Coordinates = None
         if self.direction == '1 -> 2': checkSeq = self.r1Seq
         elif self.direction == '2 -> 1': checkSeq = self.r2Seq
-        if checkSeq:
+        if checkSeq and not self.analysisfolder.settings.nexteraLayout:
             startPosition,endPosition,missmatches = self.matchSequence(checkSeq,revcomp(H3),missmatchesAllowed,breakAtFirstMatch=True)
             if startPosition!=None:
                 self.readIntoh3 = True

@@ -44,7 +44,8 @@ class Settings(object,):
             'temp':'path',
             'port':'string',
             'type':'string',
-            'known_hla_types':'filename'
+            'known_hla_types':'filename',
+            'nexteraLayout':'Bool'
         }
         
         #
@@ -75,7 +76,8 @@ class Settings(object,):
             'temp':None,
             'port':'random',
             'type':'HLA',
-            'known_hla_types':None
+            'known_hla_types':None,
+            'nexteraLayout': False
         }
         
         #
@@ -106,7 +108,8 @@ class Settings(object,):
             'temp':'path to temporary folder (used for copying database etc on eg uppmax to increase speed of IO)',
             'port':'web server port for the web interface eg. 5000 (default value = random)',
             'type':'Specify what type of analysis ie what sequences to use to find barcodes etc (default: HLA)',
-            'known_hla_types':'fasta file with known HLA types that the consensus sequences will be matched towards (full description in fasta header will be used as identifier for the HLA sequence)'
+            'known_hla_types':'fasta file with known HLA types that the consensus sequences will be matched towards (full description in fasta header will be used as identifier for the HLA sequence)',
+            'nexteraLayout':'Layout for WFA type experiments in which nextera Tn5 has been used.'
         }
         
         #
@@ -143,6 +146,7 @@ class Settings(object,):
         self.port=None
         self.type=None
         self.known_hla_types=None
+        self.nexteraLayout = None
         
         # set the default values
         self.setDefaults()

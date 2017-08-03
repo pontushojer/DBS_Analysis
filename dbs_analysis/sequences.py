@@ -10,10 +10,13 @@ change sequences here and they will be used throughut the analysis
 #################### WFA system ##############################################################################
 
 #################### WFA2 system ##############################################################################
+import seqdata
 WFA_H1  = 'CAGTTGATCATCAGCAGGTAATCTGG' #E
 WFA_DBS = 'BDHVBDHVBDHVBDHVBDHV'
-WFA_H2 = 'CTGTCTCTTATACACATCTCATGAGAACGTCGTTGACGATGGACAGTTCCAAGAGGTCATG' #H1691'+H5+TES
-WFA_H3 = 'TAGGACCAGCGTCTCAGTAGAGATGTGTATAAGAGACAG' #H43283'G+TES
+#WFA_H2 = 'CTGTCTCTTATACACATCTCATGAGAACGTCGTTGACGATGGACAGTTCCAAGAGGTCATG' #H1691'+H5+TES # Removed for Nextera run
+WFA_H2 = 'CTGTCTCTTATACACATCTGACAGTTCCAAGAGGTCATG' # H1691'+TES
+WFA_H3 = 'TAGGACCAGCGTCTCAGTAT' # In silico added to 5' end of read 2. Should be isch H4328'
+#WFA_H3 = 'TAGGACCAGCGTCTCAGTAGAGATGTGTATAAGAGACAG' #H43283'G+TES # Removed for Nextera run
 #################### WFA system ##############################################################################
 
 #################### HLA system ##############################################################################

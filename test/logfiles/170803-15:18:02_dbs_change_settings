@@ -1,0 +1,27 @@
+cmd: /Users/pontushojer/anaconda3/envs/env_Nexter_dev/bin/dbs_change_settings test type=WFA picardPath=/Users/pontushojer/data_analysis/External/picard-tools-1.114 bowtie2Reference=/Users/pontushojer/data_analysis/Reference/Bowtie2Index/genome maxHandleMissMatches=4 barcodeMissmatch=2 mapqCutOff=20 port=5000 nexteraLayout=True
+checking whats in db.
+adding new vars to db:
+variable mapqCutOff added to db with value 20, non-default value.
+variable bowtie2Reference added to db with value /Users/pontushojer/data_analysis/Reference/Bowtie2Index/genome, non-default value.
+variable minBasePhredQuality added to db with value 20, this is the default value.
+variable parallelProcesses added to db with value 4, this is the default value.
+variable minPairsPerCluster added to db with value 2, this is the default value.
+variable port added to db with value 5000, non-default value.
+variable targetRegionBed added to db with value None, this is the default value.
+variable maxHandleMissMatches added to db with value 4, non-default value.
+variable known_hla_types added to db with value None, this is the default value.
+variable minFreqForSeqPosition added to db with value 80, this is the default value.
+variable nexteraLayout added to db with value True, non-default value.
+variable type added to db with value WFA, non-default value.
+variable picardPath added to db with value /Users/pontushojer/data_analysis/External/picard-tools-1.114, non-default value.
+variable minAlleleFreqForHetrozygousVariant added to db with value 0.2, this is the default value.
+variable minReadDepthForVariantCalling added to db with value 10, this is the default value.
+variable uppmaxProject added to db with value b2014005, this is the default value.
+variable barcodeMissmatch added to db with value 2, non-default value.
+variable barcodeLength added to db with value 20, this is the default value.
+variable temp added to db with value None, this is the default value.
+variable maxIndividualIndexMissMatches added to db with value 0, this is the default value.
+variable IndexReferenceTsv added to db with value None, this is the default value.
+variable debug added to db with value False, this is the default value.
+commiting changes to database.
+dbs_change_settings FINISHED

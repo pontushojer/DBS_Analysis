@@ -1,0 +1,22 @@
+Thu Aug  3 15:18:02 CEST 2017
+
+dbs_automation: SETTINGS CHANGED
+dbs_automation: IDENTIFYING HANDLES...
+Thu Aug  3 15:18:39 CEST 2017
+
+dbs_automation: HANDLES IDENTIFIED
+dbs_automation: CLUSTERING BARCODES...
+
+Thu Aug  3 15:18:42 CEST 2017
+
+dbs_automation: BARCODES CLUSTERED
+dbs_automation: MAPPING INSERTS...
+
+Thu Aug  3 15:18:42 CEST 2017
+
+dbs_automation: INSERTS MAPPED
+dbs_automation: ANALYZING CLUSTERS...
+
+Thu Aug  3 15:18:42 CEST 2017
+
+dbs_automation: FINISHED.

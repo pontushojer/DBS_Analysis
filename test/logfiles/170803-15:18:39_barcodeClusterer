@@ -1,0 +1,51 @@
+cmd: /Users/pontushojer/anaconda3/envs/env_Nexter_dev/bin/dbs_barcode_clustrer test
+Generating barcode fastq ...
+Loading read pairs ...
+#Progress => 5%, 67236.28 reads-loaded-from-db/second, Thursday, 03 Aug 2017 15:18:39, left: 0h 0min 1s, using 21.71 (20.75) MB.
+#Progress => 10%, 68032.8 reads-loaded-from-db/second, Thursday, 03 Aug 2017 15:18:39, left: 0h 0min 1s, using 23.04 (22.08) MB.
+#Progress => 15%, 73517.47 reads-loaded-from-db/second, Thursday, 03 Aug 2017 15:18:40, left: 0h 0min 1s, using 23.19 (22.22) MB.
+#Progress => 20%, 70503.88 reads-loaded-from-db/second, Thursday, 03 Aug 2017 15:18:40, left: 0h 0min 1s, using 23.19 (22.22) MB.
+#Progress => 25%, 70679.48 reads-loaded-from-db/second, Thursday, 03 Aug 2017 15:18:40, left: 0h 0min 1s, using 26.34 (25.38) MB.
+#Progress => 30%, 74083.89 reads-loaded-from-db/second, Thursday, 03 Aug 2017 15:18:40, left: 0h 0min 1s, using 26.94 (25.98) MB.
+#Progress => 35%, 73585.83 reads-loaded-from-db/second, Thursday, 03 Aug 2017 15:18:40, left: 0h 0min 1s, using 27.52 (26.56) MB.
+#Progress => 40%, 70029.02 reads-loaded-from-db/second, Thursday, 03 Aug 2017 15:18:40, left: 0h 0min 1s, using 28.09 (27.13) MB.
+#Progress => 45%, 69855.0 reads-loaded-from-db/second, Thursday, 03 Aug 2017 15:18:40, left: 0h 0min 1s, using 28.7 (27.73) MB.
+#Progress => 50%, 69579.67 reads-loaded-from-db/second, Thursday, 03 Aug 2017 15:18:40, left: 0h 0min 1s, using 29.3 (28.34) MB.
+#Progress => 55%, 68249.12 reads-loaded-from-db/second, Thursday, 03 Aug 2017 15:18:40, left: 0h 0min 1s, using 29.94 (28.97) MB.
+#Progress => 60%, 74263.33 reads-loaded-from-db/second, Thursday, 03 Aug 2017 15:18:40, left: 0h 0min 1s, using 30.54 (29.57) MB.
+#Progress => 65%, 70417.47 reads-loaded-from-db/second, Thursday, 03 Aug 2017 15:18:40, left: 0h 0min 1s, using 31.13 (30.16) MB.
+#Progress => 70%, 79057.56 reads-loaded-from-db/second, Thursday, 03 Aug 2017 15:18:40, left: 0h 0min 0s, using 31.76 (30.79) MB.
+#Progress => 75%, 72746.55 reads-loaded-from-db/second, Thursday, 03 Aug 2017 15:18:40, left: 0h 0min 0s, using 32.36 (31.4) MB.
+#Progress => 80%, 74797.84 reads-loaded-from-db/second, Thursday, 03 Aug 2017 15:18:40, left: 0h 0min 0s, using 32.95 (31.98) MB.
+#Progress => 85%, 71049.92 reads-loaded-from-db/second, Thursday, 03 Aug 2017 15:18:41, left: 0h 0min 0s, using 33.55 (32.58) MB.
+#Progress => 90%, 57890.48 reads-loaded-from-db/second, Thursday, 03 Aug 2017 15:18:41, left: 0h 0min 0s, using 34.14 (33.18) MB.
+#Progress => 95%, 55761.23 reads-loaded-from-db/second, Thursday, 03 Aug 2017 15:18:41, left: 0h 0min 0s, using 34.75 (33.79) MB.
+#Progress => 100%, 64323.7 reads-loaded-from-db/second, Thursday, 03 Aug 2017 15:18:41, left: 0h 0min 0s, using 41.34 (40.37) MB.
+
+Done.
+4863 uniq barcode sequences found within the read pair population.
+Sorting the barcodes by number of reads/sequence.
+Building the sorting dictionary ...
+Creating output ... 
+#Progress => 5%, 127115.46 reads-to-fastq/second, Thursday, 03 Aug 2017 15:18:41, left: 0h 0min 1s, using 47.71 (46.75) MB.
+#Progress => 10%, 115522.68 reads-to-fastq/second, Thursday, 03 Aug 2017 15:18:41, left: 0h 0min 1s, using 47.71 (46.75) MB.
+#Progress => 15%, 122739.19 reads-to-fastq/second, Thursday, 03 Aug 2017 15:18:41, left: 0h 0min 1s, using 47.71 (46.75) MB.
+#Progress => 20%, 114923.72 reads-to-fastq/second, Thursday, 03 Aug 2017 15:18:41, left: 0h 0min 1s, using 47.71 (46.75) MB.
+#Progress => 25%, 123886.03 reads-to-fastq/second, Thursday, 03 Aug 2017 15:18:41, left: 0h 0min 1s, using 47.71 (46.75) MB.
+#Progress => 30%, 116761.29 reads-to-fastq/second, Thursday, 03 Aug 2017 15:18:41, left: 0h 0min 1s, using 47.71 (46.75) MB.
+#Progress => 35%, 116999.88 reads-to-fastq/second, Thursday, 03 Aug 2017 15:18:41, left: 0h 0min 0s, using 47.71 (46.75) MB.
+#Progress => 40%, 115732.66 reads-to-fastq/second, Thursday, 03 Aug 2017 15:18:41, left: 0h 0min 0s, using 47.71 (46.75) MB.
+#Progress => 45%, 123213.32 reads-to-fastq/second, Thursday, 03 Aug 2017 15:18:41, left: 0h 0min 0s, using 47.71 (46.75) MB.
+#Progress => 50%, 133800.5 reads-to-fastq/second, Thursday, 03 Aug 2017 15:18:41, left: 0h 0min 0s, using 47.71 (46.75) MB.
+#Progress => 55%, 128669.18 reads-to-fastq/second, Thursday, 03 Aug 2017 15:18:41, left: 0h 0min 0s, using 47.71 (46.75) MB.
+#Progress => 60%, 112692.97 reads-to-fastq/second, Thursday, 03 Aug 2017 15:18:41, left: 0h 0min 0s, using 47.71 (46.75) MB.
+#Progress => 65%, 111496.43 reads-to-fastq/second, Thursday, 03 Aug 2017 15:18:41, left: 0h 0min 0s, using 47.71 (46.75) MB.
+#Progress => 70%, 116275.41 reads-to-fastq/second, Thursday, 03 Aug 2017 15:18:41, left: 0h 0min 0s, using 47.71 (46.75) MB.
+#Progress => 75%, 125080.99 reads-to-fastq/second, Thursday, 03 Aug 2017 15:18:41, left: 0h 0min 0s, using 47.71 (46.75) MB.
+#Progress => 80%, 120411.42 reads-to-fastq/second, Thursday, 03 Aug 2017 15:18:41, left: 0h 0min 0s, using 47.71 (46.75) MB.
+#Progress => 85%, 127634.83 reads-to-fastq/second, Thursday, 03 Aug 2017 15:18:41, left: 0h 0min 0s, using 47.71 (46.75) MB.
+#Progress => 90%, 114066.75 reads-to-fastq/second, Thursday, 03 Aug 2017 15:18:41, left: 0h 0min 0s, using 47.71 (46.75) MB.
+#Progress => 95%, 126631.53 reads-to-fastq/second, Thursday, 03 Aug 2017 15:18:41, left: 0h 0min 0s, using 47.71 (46.75) MB.
+#Progress => 100%, 102331.41 reads-to-fastq/second, Thursday, 03 Aug 2017 15:18:42, left: 0h 0min 0s, using 47.71 (46.75) MB.
+
+Starting command: cd-hit-454 -i test/data/rawBarcodeSequencesSortedByAbundance.fq -o test/data/clusteredBarcodeSequences -g 1 -n 3 -M 0 -T 4 -gap -100 -c 0.9

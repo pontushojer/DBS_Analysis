@@ -1,0 +1,3 @@
+cmd: /Users/pontushojer/anaconda3/envs/env_Nexter_dev/bin/dbs_cluster_analyzer test
+WARNING: cant find the target definition bed file!!
+         (If run is not targeted you can safely ignore this message).

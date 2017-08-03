@@ -1,0 +1,90 @@
+cmd: /Users/pontushojer/anaconda3/envs/env_Nexter_dev/bin/dbs_handle_indetifier /Users/pontushojer/Documents/Results/Sequencing/170617/subsets/emTn5-CHiB-Seq_S2_R1_001_100000.fastq /Users/pontushojer/Documents/Results/Sequencing/170617/subsets/emTn5-CHiB-Seq_S2_R2_001_100000.fastq test
+Linking files to analysis path ... 
+Getting readcount for fileemTn5-CHiB-Seq_S2_R1_001_100000.fastq ... 
+...done. The file has 100000 reads.
+Allowing 4 missmatches in handles during this run.
+Going to add a self.grandTotal of 100000 reads to the database.
+Create reads table (and drop old one if needed) ...
+commiting changes to database.
+Adding reads to database table (working in parallel).
+0 read pairs read from infiles, now starting to read from test/rawData/emTn5-CHiB-Seq_S2_R1_001_100000.fastq.
+#Progress => 5%, 23495.86 reads-read-from-disk/second, Thursday, 03 Aug 2017 15:18:03, left: 0h 0min 4s, using 49.25 (48.29) MB.
+#Progress => 10%, 21791.22 reads-read-from-disk/second, Thursday, 03 Aug 2017 15:18:03, left: 0h 0min 4s, using 82.95 (81.99) MB.
+#Progress => 15%, 7954.28 reads-read-from-disk/second, Thursday, 03 Aug 2017 15:18:04, left: 0h 0min 11s, using 131.12 (130.16) MB.
+#Progress => 20%, 20228.1 reads-read-from-disk/second, Thursday, 03 Aug 2017 15:18:04, left: 0h 0min 4s, using 164.5 (163.54) MB.
+#Progress => 25%, 8160.43 reads-read-from-disk/second, Thursday, 03 Aug 2017 15:18:05, left: 0h 0min 9s, using 167.85 (166.89) MB.
+#Progress => 30%, 16632.24 reads-read-from-disk/second, Thursday, 03 Aug 2017 15:18:05, left: 0h 0min 4s, using 181.6 (180.64) MB.
+#Progress => 35%, 6181.41 reads-read-from-disk/second, Thursday, 03 Aug 2017 15:18:06, left: 0h 0min 11s, using 183.15 (182.19) MB.
+#Progress => 40%, 12725.01 reads-read-from-disk/second, Thursday, 03 Aug 2017 15:18:06, left: 0h 0min 5s, using 183.6 (182.64) MB.
+#Progress => 45%, 4968.18 reads-read-from-disk/second, Thursday, 03 Aug 2017 15:18:07, left: 0h 0min 11s, using 185.41 (184.45) MB.
+#Progress => 50%, 10822.16 reads-read-from-disk/second, Thursday, 03 Aug 2017 15:18:08, left: 0h 0min 5s, using 185.41 (184.45) MB.
+Starting post process of read pair #1 (from file 0).
+#Progress => 5%, 421.81 reads-post-processed/second, Thursday, 03 Aug 2017 15:18:13, left: 0h 3min 46s, using 268.41 (267.45) MB.
+#Progress => 55%, 822.91 reads-read-from-disk/second, Thursday, 03 Aug 2017 15:18:14, left: 0h 0min 55s, using 270.12 (269.16) MB.
+#Progress => 10%, 13841.95 reads-post-processed/second, Thursday, 03 Aug 2017 15:18:14, left: 0h 0min 7s, using 270.53 (269.57) MB.
+#Progress => 60%, 1711.94 reads-read-from-disk/second, Thursday, 03 Aug 2017 15:18:17, left: 0h 0min 24s, using 417.57 (416.61) MB.
+#Progress => 15%, 1124.56 reads-post-processed/second, Thursday, 03 Aug 2017 15:18:18, left: 0h 1min 16s, using 452.73 (451.77) MB.
+#Progress => 20%, 12583.71 reads-post-processed/second, Thursday, 03 Aug 2017 15:18:19, left: 0h 0min 6s, using 457.83 (456.87) MB.
+#Progress => 25%, 14071.07 reads-post-processed/second, Thursday, 03 Aug 2017 15:18:19, left: 0h 0min 5s, using 458.28 (457.32) MB.
+#Progress => 65%, 2008.74 reads-read-from-disk/second, Thursday, 03 Aug 2017 15:18:19, left: 0h 0min 18s, using 458.3 (457.34) MB.
+#Progress => 30%, 15628.66 reads-post-processed/second, Thursday, 03 Aug 2017 15:18:19, left: 0h 0min 5s, using 458.37 (457.41) MB.
+#Progress => 35%, 8542.55 reads-post-processed/second, Thursday, 03 Aug 2017 15:18:20, left: 0h 0min 8s, using 459.17 (458.21) MB.
+#Progress => 70%, 6644.58 reads-read-from-disk/second, Thursday, 03 Aug 2017 15:18:20, left: 0h 0min 5s, using 459.59 (458.63) MB.
+#Progress => 40%, 2984.63 reads-post-processed/second, Thursday, 03 Aug 2017 15:18:21, left: 0h 0min 20s, using 460.11 (459.14) MB.
+#Progress => 45%, 11935.62 reads-post-processed/second, Thursday, 03 Aug 2017 15:18:22, left: 0h 0min 5s, using 460.11 (459.14) MB.
+#Progress => 50%, 14451.38 reads-post-processed/second, Thursday, 03 Aug 2017 15:18:22, left: 0h 0min 3s, using 460.11 (459.14) MB.
+#Progress => 75%, 1894.26 reads-read-from-disk/second, Thursday, 03 Aug 2017 15:18:22, left: 0h 0min 13s, using 460.11 (459.14) MB.
+#Progress => 80%, 22221.03 reads-read-from-disk/second, Thursday, 03 Aug 2017 15:18:23, left: 0h 0min 1s, using 460.11 (459.14) MB.
+#Progress => 85%, 5813.48 reads-read-from-disk/second, Thursday, 03 Aug 2017 15:18:24, left: 0h 0min 3s, using 460.11 (459.14) MB.
+#Progress => 90%, 14990.75 reads-read-from-disk/second, Thursday, 03 Aug 2017 15:18:24, left: 0h 0min 1s, using 460.11 (459.14) MB.
+#Progress => 55%, 1271.56 reads-post-processed/second, Thursday, 03 Aug 2017 15:18:26, left: 0h 0min 36s, using 460.11 (459.14) MB.
+#Progress => 95%, 1958.05 reads-read-from-disk/second, Thursday, 03 Aug 2017 15:18:26, left: 0h 0min 3s, using 460.11 (459.14) MB.
+#Progress => 60%, 13417.85 reads-post-processed/second, Thursday, 03 Aug 2017 15:18:27, left: 0h 0min 3s, using 460.11 (459.14) MB.
+#Progress => 100%, 13252.16 reads-read-from-disk/second, Thursday, 03 Aug 2017 15:18:27, left: 0h 0min 0s, using 460.11 (459.14) MB.
+Reached the end of test/rawData/emTn5-CHiB-Seq_S2_R1_001_100000.fastq.
+
+100000 read pairs read from infiles.
+#Progress => 65%, 1707.29 reads-post-processed/second, Thursday, 03 Aug 2017 15:18:29, left: 0h 0min 21s, using 460.11 (459.14) MB.
+#Progress => 70%, 22055.2 reads-post-processed/second, Thursday, 03 Aug 2017 15:18:30, left: 0h 0min 1s, using 460.11 (459.14) MB.
+#Progress => 75%, 1448.65 reads-post-processed/second, Thursday, 03 Aug 2017 15:18:33, left: 0h 0min 18s, using 460.11 (459.14) MB.
+#Progress => 80%, 37068.66 reads-post-processed/second, Thursday, 03 Aug 2017 15:18:33, left: 0h 0min 1s, using 460.11 (459.14) MB.
+#Progress => 85%, 27515.9 reads-post-processed/second, Thursday, 03 Aug 2017 15:18:33, left: 0h 0min 1s, using 460.11 (459.14) MB.
+#Progress => 90%, 35937.58 reads-post-processed/second, Thursday, 03 Aug 2017 15:18:34, left: 0h 0min 0s, using 460.11 (459.14) MB.
+#Progress => 95%, 3764.05 reads-post-processed/second, Thursday, 03 Aug 2017 15:18:35, left: 0h 0min 1s, using 460.11 (459.14) MB.
+#Progress => 100%, 30391.83 reads-post-processed/second, Thursday, 03 Aug 2017 15:18:35, left: 0h 0min 0s, using 460.11 (459.14) MB.
+
+Staring to append reads 1-100000 to db.
+Reads 1-100000 appended to db after 0 minutes and 3.0 seconds.
+Files 0 added sucesfully to the database.
+Saving totalReadCount etc to results table in database.
+checking results in db.
+adding new results to db:
+result minR1readLength added to db with value 35
+result readPairsAreIlluminaAdapters added to db with value 0
+result totalReadCount added to db with value 100000
+result minR2readLength added to db with value 35
+commiting changes to database.
+Directions:
+None	0.88
+1 -> 2	99.13
+
+CunstructType:
+missing: h1  h2	0.88
+constructOK	96.11
+missing: h2	3.02
+
+DBSmatch:
+ False	7.11 (% of total-None)
+ True	92.89 (% of total-None)
+ None	3.89 (% of total)
+
+checking results in db.
+processing result minR1readLength no update needed.
+processing result readPairsAreIlluminaAdapters no update needed.
+processing result totalReadCount no update needed.
+processing result minR2readLength no update needed.
+adding new results to db:
+result readsWithDbsPatternMatch added to db with value {False: 6837, True: 89273, None: 3890}
+result constructTypes added to db with value {'missing: h1  h2': 875, 'constructOK': 96110, 'missing: h2': 3015}
+commiting changes to database.
+wfaChecker FINISHED
